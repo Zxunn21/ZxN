@@ -87,6 +87,19 @@ speedToggle.Active = true
 speedToggle.ZIndex = 1000
 speedToggle.Parent = gui
 
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Size = UDim2.fromOffset(80, 20)
+speedLabel.Position = UDim2.new(0.8, -40, 0.75, -47)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed"
+speedLabel.TextColor3 = Color3.new(1, 1, 1)
+speedLabel.TextSize = 13
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextXAlignment = Enum.TextXAlignment.Center
+speedLabel.ZIndex = 1000
+speedLabel.Parent = gui
+
 local speedCorner = Instance.new("UICorner")
 speedCorner.CornerRadius = UDim.new(1, 0)
 speedCorner.Parent = speedToggle
@@ -120,6 +133,124 @@ local knobStroke = Instance.new("UIStroke")
 knobStroke.Thickness = 1
 knobStroke.Color = Color3.fromRGB(200, 200, 200)
 knobStroke.Parent = speedKnob
+
+
+-- Speed change bubble
+local speedBubble = Instance.new("Frame")
+speedBubble.Name = "SpeedBubble"
+speedBubble.Size = UDim2.fromOffset(155, 42)
+speedBubble.Position = UDim2.new(0.8, -117, 0.75, -112)
+speedBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+speedBubble.BorderSizePixel = 0
+speedBubble.Visible = false
+speedBubble.ZIndex = 1100
+speedBubble.Parent = gui
+
+local speedBubbleCorner = Instance.new("UICorner")
+speedBubbleCorner.CornerRadius = UDim.new(0, 10)
+speedBubbleCorner.Parent = speedBubble
+
+local speedBubbleStroke = Instance.new("UIStroke")
+speedBubbleStroke.Thickness = 1
+speedBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
+speedBubbleStroke.Parent = speedBubble
+
+local speedBubbleArrow = Instance.new("Frame")
+speedBubbleArrow.Size = UDim2.fromOffset(14, 14)
+speedBubbleArrow.Position = UDim2.new(1, -30, 1, -7)
+speedBubbleArrow.Rotation = 45
+speedBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+speedBubbleArrow.BorderSizePixel = 0
+speedBubbleArrow.ZIndex = 1099
+speedBubbleArrow.Parent = speedBubble
+
+local speedBubbleText = Instance.new("TextLabel")
+speedBubbleText.Size = UDim2.new(1, -12, 1, -8)
+speedBubbleText.Position = UDim2.fromOffset(6, 4)
+speedBubbleText.BackgroundTransparency = 1
+speedBubbleText.Text = "Hold to Change"
+speedBubbleText.TextColor3 = Color3.new(1, 1, 1)
+speedBubbleText.TextSize = 13
+speedBubbleText.Font = Enum.Font.GothamBold
+speedBubbleText.ZIndex = 1101
+speedBubbleText.Parent = speedBubble
+
+local speedInput = Instance.new("TextBox")
+speedInput.Size = UDim2.new(1, -12, 0, 34)
+speedInput.Position = UDim2.fromOffset(6, 4)
+speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedInput.TextColor3 = Color3.new(1, 1, 1)
+speedInput.PlaceholderText = "Speed"
+speedInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+speedInput.Text = tostring(speed)
+speedInput.TextSize = 15
+speedInput.Font = Enum.Font.GothamBold
+speedInput.ClearTextOnFocus = false
+speedInput.Visible = false
+speedInput.ZIndex = 1101
+speedInput.Parent = speedBubble
+
+local speedInputCorner = Instance.new("UICorner")
+speedInputCorner.CornerRadius = UDim.new(0, 7)
+speedInputCorner.Parent = speedInput
+
+local function showSpeedBubble()
+	speedInput.Text = tostring(speed)
+	speedInput.Visible = false
+	speedBubbleText.Text = "Hold to Change"
+	speedBubbleText.Size = UDim2.new(1, -12, 1, -8)
+	speedBubbleText.Position = UDim2.fromOffset(6, 4)
+	speedBubble.Visible = true
+	speedBubble.ZIndex = 1100
+end
+
+local function openSpeedInput()
+	speedBubbleText.Text = "Speed"
+	speedBubbleText.Size = UDim2.new(1, -12, 0, 22)
+	speedBubbleText.Position = UDim2.fromOffset(6, 4)
+	speedInput.Visible = true
+	speedInput:CaptureFocus()
+end
+
+local function hideSpeedBubble()
+	speedBubble.Visible = false
+	if speedInput:IsFocused() then
+		speedInput:ReleaseFocus()
+	end
+end
+
+local speedHoldTime = 1
+local speedHolding = false
+local speedHoldToken = 0
+
+local function beginSpeedHold()
+	if speedHolding then
+		return
+	end
+
+	speedHolding = true
+	showSpeedBubble()
+	speedHoldToken += 1
+	local token = speedHoldToken
+	local startTime = os.clock()
+
+	task.spawn(function()
+		while speedHolding and token == speedHoldToken do
+			if os.clock() - startTime >= speedHoldTime then
+				speedHolding = false
+				openSpeedInput()
+				return
+			end
+			task.wait(0.03)
+		end
+	end)
+end
+
+local function cancelSpeedHold()
+	speedHolding = false
+	speedHoldToken += 1
+  hideSpeedBubble()
+end
 
 -- Menu
 local menuFrame = Instance.new("Frame")
@@ -159,8 +290,8 @@ gameButtonCorner.Parent = gameButton
 -- Control frame
 local frame = Instance.new("Frame")
 frame.Name = "ControlFrame"
-frame.Size = UDim2.fromOffset(190, 267)
-frame.Position = UDim2.new(0.5, -95, 0.5, -133)
+frame.Size = UDim2.fromOffset(190, 220)
+frame.Position = UDim2.new(0.5, -95, 0.5, -110)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.BorderSizePixel = 0
 frame.Visible = false
@@ -275,25 +406,6 @@ local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 7)
 inputCorner.Parent = input
 
--- Speed input
-local speedInput = Instance.new("TextBox")
-speedInput.Size = UDim2.new(1, -20, 0, 38)
-speedInput.Position = UDim2.fromOffset(10, 179)
-speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedInput.TextColor3 = Color3.new(1, 1, 1)
-speedInput.PlaceholderText = "Speed"
-speedInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-speedInput.Text = "300"
-speedInput.TextSize = 16
-speedInput.Font = Enum.Font.GothamBold
-speedInput.ClearTextOnFocus = false
-speedInput.ZIndex = 601
-speedInput.Parent = frame
-
-local speedCorner = Instance.new("UICorner")
-speedCorner.CornerRadius = UDim.new(0, 7)
-speedCorner.Parent = speedInput
-
 local teleportFrame = Instance.new("Frame")
 teleportFrame.Name = "TeleportFrame"
 teleportFrame.Size = UDim2.fromOffset(210, 240)
@@ -322,6 +434,311 @@ teleportTitle.TextColor3 = Color3.new(1, 1, 1)
 teleportTitle.TextSize = 17
 teleportTitle.Font = Enum.Font.GothamBold
 teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
+teleportTitle.ZIndex = 701
+teleportTitle.Parent = teleportFrame
+
+local teleportBack = Instance.new("TextButton")
+teleportBack.Size = UDim2.fromOffset(30, 30)
+teleportBack.Position = UDim2.fromOffset(2, 1)
+teleportBack.BackgroundTransparency = 1
+teleportBack.Text = "‹"
+teleportBack.TextColor3 = Color3.new(1, 1, 1)
+teleportBack.TextSize = 28
+teleportBack.Font = Enum.Font.GothamBold
+teleportBack.ZIndex = 702
+teleportBack.Parent = teleportFrame
+
+local teleportClose = Instance.new("TextButton")
+teleportClose.Size = UDim2.fromOffset(30, 30)
+teleportClose.Position = UDim2.new(1, -35, 0, 1)
+teleportClose.BackgroundTransparency = 1
+teleportClose.Text = "×"
+teleportClose.TextColor3 = Color3.new(1, 1, 1)
+teleportClose.TextSize = 25
+teleportClose.Font = Enum.Font.GothamBold
+teleportClose.ZIndex = 702
+teleportClose.Parent = teleportFrame
+
+local teleportList = Instance.new("ScrollingFrame")
+teleportList.Name = "EggList"
+teleportList.Size = UDim2.new(1, -20, 1, -48)
+teleportList.Position = UDim2.fromOffset(10, 40)
+teleportList.BackgroundTransparency = 1
+teleportList.BorderSizePixel = 0
+teleportList.ScrollBarThickness = 4
+teleportList.CanvasSize = UDim2.new()
+teleportList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+teleportList.ZIndex = 701
+teleportList.Parent = teleportFrame
+
+local teleportLayout = Instance.new("UIListLayout")
+teleportLayout.Padding = UDim.new(0, 7)
+teleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
+teleportLayout.Parent = teleportList
+
+local function getSpecialEggModel(eggName)
+	findRenderedEggs()
+	if not renderedEggs or not renderedEggs.Parent then
+		return nil
+	end
+
+	for _, model in ipairs(renderedEggs:GetChildren()) do
+		if model:IsA("Model") and model.Name == eggName then
+			return model
+		end
+	end
+
+	return nil
+end
+
+local function teleportToEgg(model)
+	if not model or not model.Parent then
+		return
+	end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+
+	if not root then
+		return
+	end
+
+	local pivot = model:GetPivot()
+	root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 3, 0))
+
+	teleportFrame.Visible = false
+end
+
+local lastTeleportKey = nil
+
+local function updateTeleportList()
+	local found = {}
+	local keyParts = {}
+
+	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
+		local model = getSpecialEggModel(eggName)
+
+		if model then
+			found[eggName] = model
+			table.insert(keyParts, eggName .. ":" .. model:GetDebugId())
+		end
+	end
+
+	local key = table.concat(keyParts, "|")
+
+	teleportButton.Visible = not minimized and key ~= ""
+
+	if key == lastTeleportKey then
+		return
+	end
+
+	lastTeleportKey = key
+
+	for _, child in ipairs(teleportList:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	local order = 0
+
+	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
+		local model = found[eggName]
+
+		if model then
+			order += 1
+
+			local button = Instance.new("TextButton")
+			button.Name = eggName:gsub("%s+", "")
+			button.Size = UDim2.new(1, -4, 0, 42)
+			button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			button.BorderSizePixel = 0
+			button.Text = eggName
+			button.TextColor3 = Color3.new(1, 1, 1)
+			button.TextSize = 15
+			button.Font = Enum.Font.GothamBold
+			button.LayoutOrder = order
+			button.ZIndex = 702
+			button.Parent = teleportList
+
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 7)
+			corner.Parent = button
+
+			button.Activated:Connect(function()
+				teleportToEgg(model)
+			end)
+		end
+	end
+
+	if order == 0 then
+		teleportFrame.Visible = false
+	end
+end
+
+local function setESPVisible(state)
+	for _, data in pairs(espList) do
+		if data.Billboard then
+			data.Billboard.Enabled = state
+		end
+	end
+end
+
+local function getHumanoid()
+	local character = player.Character
+
+	if not character then
+		return nil
+	end
+
+	return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function readSpeed()
+	return speed
+end
+
+local function updateSpeedButton()
+	if speedEnabled then
+		-- ON
+		speedToggle.BackgroundColor3 = Color3.fromRGB(35, 200, 65)
+		speedToggle.Text = "ON"
+		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
+		speedToggle.TextXAlignment = Enum.TextXAlignment.Left
+
+		speedPadding.PaddingLeft = UDim.new(0, 15)
+		speedPadding.PaddingRight = UDim.new(0, 0)
+
+		speedKnob.Position = UDim2.new(
+			1, -36,
+			0.5, -16
+		)
+	else
+		-- OFF
+		speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
+		speedToggle.Text = "OFF"
+		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
+		speedToggle.TextXAlignment = Enum.TextXAlignment.Right
+
+		speedPadding.PaddingLeft = UDim.new(0, 0)
+		speedPadding.PaddingRight = UDim.new(0, 15)
+
+		speedKnob.Position = UDim2.new(
+			0, 4,
+			0.5, -16
+		)
+	end
+end
+
+local function enableSpeed()
+	local humanoid = getHumanoid()
+
+	if not humanoid then
+		return
+	end
+
+	-- Simpan speed asli tepat saat ON ditekan
+	originalSpeed = humanoid.WalkSpeed
+
+	readSpeed()
+
+	humanoid.WalkSpeed = speed
+	speedEnabled = true
+
+	updateSpeedButton()
+end
+
+local function disableSpeed()
+	local humanoid = getHumanoid()
+
+	if not humanoid then
+		return
+	end
+
+	-- Kembalikan speed asli
+	if originalSpeed ~= nil then
+		humanoid.WalkSpeed = originalSpeed
+	end
+
+	speedEnabled = false
+	originalSpeed = nil
+
+	updateSpeedButton()
+end
+
+-- Main menu
+trigger.Activated:Connect(function()
+	menuOpen = not menuOpen
+	menuFrame.Visible = menuOpen
+
+	if not menuOpen then
+		frame.Visible = false
+		teleportFrame.Visible = false
+		frameOpen = false
+	end
+end)
+
+gameButton.Activated:Connect(function()
+	frameOpen = true
+	frame.Visible = true
+	teleportFrame.Visible = false
+	updateTeleportList()
+	menuFrame.Visible = false
+	menuOpen = false
+end)
+
+teleportButton.Activated:Connect(function()
+	updateTeleportList()
+	teleportFrame.Visible = true
+	frame.Visible = false
+end)
+
+teleportBack.Activated:Connect(function()
+	teleportFrame.Visible = false
+	frame.Visible = true
+	updateTeleportList()
+end)
+
+teleportClose.Activated:Connect(function()
+	teleportFrame.Visible = false
+end)
+
+backButton.Activated:Connect(function()
+	frame.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+
+	menuFrame.Visible = true
+	menuOpen = true
+end)
+
+closeButton.Activated:Connect(function()
+	frame.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+	menuFrame.Visible = false
+	menuOpen = false
+end)
+
+-- Minimize
+minimize.Activated:Connect(function()
+	minimized = not minimized
+
+	if minimized then
+		frame.Size = UDim2.fromOffset(190, 35)
+		frame.Position = UDim2.new(0.5, -95, 0.5, -17)
+
+		teleportButton.Visible = false
+		espButton.Visible = false
+		input.Visible = false
+
+		minimize.Text = "+"
+	else
+		frame.Size = UDim2.fromOffset(190, 220)
+		frame.Position = UDim2.new(0.5, -95, 0.5, -110)
+
+		updateTeleportList()
+		espButton.VistXAlignment = Enum.TextXAlignment.Left
 teleportTitle.ZIndex = 701
 teleportTitle.Parent = teleportFrame
 
