@@ -874,4 +874,4 @@ end)
 
 updateSpeedButton()
 updateTeleportList()
-updateESP()w
+updateESP()
