@@ -68,8 +68,9 @@ triggerStroke.Parent = trigger
 
 local speedToggle = Instance.new("TextButton")
 speedToggle.Name = "SpeedToggle"
+speedToggle.AnchorPoint = Vector2.new (0.5, 1)
 speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(0.8, -40, 0.75, -20)
+speedToggle.Position = UDim2.new(0.8, 0, 0.95, 0)
 speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 speedToggle.BorderSizePixel = 0
 speedToggle.Text = "OFF"
@@ -265,7 +266,7 @@ end
 -- Menu
 local menuFrame = Instance.new("Frame")
 menuFrame.Name = "GameMenu"
-menuFrame.Size = UDim2.fromScale(0.5, 0.4)
+menuFrame.Size = UDim2.fromScale(0.5, 0.8)
 menuFrame.AnchorPoint = Vector2.new (0.5,0.5)
 menuFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 menuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
