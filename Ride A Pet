@@ -260,7 +260,7 @@ end
 
 local function cancelSpeedHold()
 	speedHolding = false
-	speedHoldToken += 0.5
+	speedHoldToken += 0.3
 	hideSpeedBubble()
 end
 
@@ -928,7 +928,7 @@ end
 
 local function cancelServerHold()
 	holdingServer = false
-	holdToken += 1
+	holdToken += 0.5
 	serverButton.Text = "Server"
 	serverButton.AutoButtonColor = true
 	hideServerBubble()
