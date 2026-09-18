@@ -1,0 +1,877 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local renderedEggs = workspace:WaitForChild("RenderedEggs")
+
+local enabled = true
+local minSize = 3
+local speed = 300
+
+local speedEnabled = false
+local originalSpeed = nil
+
+local espList = {}
+
+local specialEggs = {
+	["Blackhole Egg"] = true,
+	["Galaxy Egg"] = true,
+	["Cherub Egg"] = true
+}
+
+local frameOpen = false
+local menuOpen = false
+local minimized = false
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "EggESP"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.DisplayOrder = 999
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+gui.Parent = playerGui
+
+-- Main button
+local trigger = Instance.new("TextButton")
+trigger.Name = "ESPTrigger"
+trigger.Size = UDim2.fromOffset(40, 40)
+trigger.Position = UDim2.new(0.5, 40, 0, 10)
+trigger.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+trigger.BorderSizePixel = 0
+trigger.Text = "≡"
+trigger.TextColor3 = Color3.new(1, 1, 1)
+trigger.TextSize = 24
+trigger.Font = Enum.Font.GothamBold
+trigger.AutoButtonColor = true
+trigger.Active = true
+trigger.ZIndex = 1000
+trigger.Parent = gui
+
+local triggerCorner = Instance.new("UICorner")
+triggerCorner.CornerRadius = UDim.new(1, 0)
+triggerCorner.Parent = trigger
+
+local triggerStroke = Instance.new("UIStroke")
+triggerStroke.Thickness = 2
+triggerStroke.Color = Color3.fromRGB(255, 255, 255)
+triggerStroke.Parent = trigger
+
+-- Speed toggle
+local speedToggle = Instance.new("TextButton")
+speedToggle.Name = "SpeedToggle"
+speedToggle.Size = UDim2.fromOffset(80, 40)
+
+-- 8% horizontal, 75% vertical
+speedToggle.Position = UDim2.new(0.8, -40, 0.75, -20)
+
+speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
+speedToggle.BorderSizePixel = 0
+speedToggle.Text = "OFF"
+speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
+speedToggle.TextSize = 12
+speedToggle.Font = Enum.Font.GothamBold
+speedToggle.TextXAlignment = Enum.TextXAlignment.Right
+speedToggle.TextYAlignment = Enum.TextYAlignment.Center
+speedToggle.AutoButtonColor = false
+speedToggle.Active = true
+speedToggle.ZIndex = 1000
+speedToggle.Parent = gui
+
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(1, 0)
+speedCorner.Parent = speedToggle
+
+local speedStroke = Instance.new("UIStroke")
+speedStroke.Thickness = 2
+speedStroke.Color = Color3.fromRGB(210, 210, 210)
+speedStroke.Parent = speedToggle
+
+-- Padding untuk teks ON/OFF
+local speedPadding = Instance.new("UIPadding")
+speedPadding.Parent = speedToggle
+
+-- Knob putih
+local speedKnob = Instance.new("Frame")
+speedKnob.Name = "Knob"
+speedKnob.Size = UDim2.fromOffset(32, 32)
+speedKnob.Position = UDim2.new(0, 4, 0.5, -16)
+speedKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+speedKnob.BorderSizePixel = 0
+speedKnob.Active = false
+speedKnob.Selectable = false
+speedKnob.ZIndex = 1001
+speedKnob.Parent = speedToggle
+
+local knobCorner = Instance.new("UICorner")
+knobCorner.CornerRadius = UDim.new(1, 0)
+knobCorner.Parent = speedKnob
+
+local knobStroke = Instance.new("UIStroke")
+knobStroke.Thickness = 1
+knobStroke.Color = Color3.fromRGB(200, 200, 200)
+knobStroke.Parent = speedKnob
+
+-- Menu
+local menuFrame = Instance.new("Frame")
+menuFrame.Name = "GameMenu"
+menuFrame.Size = UDim2.fromOffset(220, 100)
+menuFrame.Position = UDim2.new(0.5, -110, 0.5, -50)
+menuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+menuFrame.BorderSizePixel = 0
+menuFrame.Visible = false
+menuFrame.ZIndex = 500
+menuFrame.Parent = gui
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.CornerRadius = UDim.new(0, 10)
+menuCorner.Parent = menuFrame
+
+local menuStroke = Instance.new("UIStroke")
+menuStroke.Thickness = 1
+menuStroke.Color = Color3.fromRGB(100, 100, 100)
+menuStroke.Parent = menuFrame
+
+local gameButton = Instance.new("TextButton")
+gameButton.Size = UDim2.new(1, -20, 0, 50)
+gameButton.Position = UDim2.fromOffset(10, 25)
+gameButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+gameButton.TextColor3 = Color3.new(1, 1, 1)
+gameButton.Text = "Ride A Pet"
+gameButton.TextSize = 18
+gameButton.Font = Enum.Font.GothamBold
+gameButton.ZIndex = 501
+gameButton.Parent = menuFrame
+
+local gameButtonCorner = Instance.new("UICorner")
+gameButtonCorner.CornerRadius = UDim.new(0, 7)
+gameButtonCorner.Parent = gameButton
+
+-- Control frame
+local frame = Instance.new("Frame")
+frame.Name = "ControlFrame"
+frame.Size = UDim2.fromOffset(190, 267)
+frame.Position = UDim2.new(0.5, -95, 0.5, -133)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BorderSizePixel = 0
+frame.Visible = false
+frame.ZIndex = 600
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 10)
+frameCorner.Parent = frame
+
+local frameStroke = Instance.new("UIStroke")
+frameStroke.Thickness = 1
+frameStroke.Color = Color3.fromRGB(100, 100, 100)
+frameStroke.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -105, 0, 32)
+title.Position = UDim2.fromOffset(38, 0)
+title.BackgroundTransparency = 1
+title.Text = "Ride A Pet"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 17
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Active = true
+title.ZIndex = 601
+title.Parent = frame
+
+local minimize = Instance.new("TextButton")
+minimize.Size = UDim2.fromOffset(30, 30)
+minimize.Position = UDim2.new(1, -35, 0, 1)
+minimize.BackgroundTransparency = 1
+minimize.Text = "-"
+minimize.TextColor3 = Color3.new(1, 1, 1)
+minimize.TextSize = 22
+minimize.Font = Enum.Font.GothamBold
+minimize.ZIndex = 602
+minimize.Parent = frame
+
+local backButton = Instance.new("TextButton")
+backButton.Size = UDim2.fromOffset(30, 30)
+backButton.Position = UDim2.fromOffset(2, 1)
+backButton.BackgroundTransparency = 1
+backButton.Text = "‹"
+backButton.TextColor3 = Color3.new(1, 1, 1)
+backButton.TextSize = 28
+backButton.Font = Enum.Font.GothamBold
+backButton.ZIndex = 602
+backButton.Parent = frame
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.fromOffset(30, 30)
+closeButton.Position = UDim2.new(1, -65, 0, 1)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "×"
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.TextSize = 25
+closeButton.Font = Enum.Font.GothamBold
+closeButton.ZIndex = 602
+closeButton.Parent = frame
+
+-- Teleport
+local teleportButton = Instance.new("TextButton")
+teleportButton.Name = "TeleportButton"
+teleportButton.Size = UDim2.new(1, -20, 0, 38)
+teleportButton.Position = UDim2.fromOffset(10, 38)
+teleportButton.BackgroundColor3 = Color3.fromRGB(60, 100, 180)
+teleportButton.TextColor3 = Color3.new(1, 1, 1)
+teleportButton.Text = "Teleport"
+teleportButton.TextSize = 16
+teleportButton.Font = Enum.Font.GothamBold
+teleportButton.ZIndex = 601
+teleportButton.Visible = false
+teleportButton.Parent = frame
+
+local teleportCorner = Instance.new("UICorner")
+teleportCorner.CornerRadius = UDim.new(0, 7)
+teleportCorner.Parent = teleportButton
+
+-- ESP toggle
+local espButton = Instance.new("TextButton")
+espButton.Size = UDim2.new(1, -20, 0, 38)
+espButton.Position = UDim2.fromOffset(10, 85)
+espButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+espButton.TextColor3 = Color3.new(1, 1, 1)
+espButton.Text = "ESP: ON"
+espButton.TextSize = 16
+espButton.Font = Enum.Font.GothamBold
+espButton.ZIndex = 601
+espButton.Parent = frame
+
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 7)
+espCorner.Parent = espButton
+
+-- Minimum size
+local input = Instance.new("TextBox")
+input.Size = UDim2.new(1, -20, 0, 38)
+input.Position = UDim2.fromOffset(10, 132)
+input.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+input.TextColor3 = Color3.new(1, 1, 1)
+input.PlaceholderText = "Minimum Size"
+input.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+input.Text = "3"
+input.TextSize = 16
+input.Font = Enum.Font.GothamBold
+input.ClearTextOnFocus = false
+input.ZIndex = 601
+input.Parent = frame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 7)
+inputCorner.Parent = input
+
+-- Speed input
+local speedInput = Instance.new("TextBox")
+speedInput.Size = UDim2.new(1, -20, 0, 38)
+speedInput.Position = UDim2.fromOffset(10, 179)
+speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedInput.TextColor3 = Color3.new(1, 1, 1)
+speedInput.PlaceholderText = "Speed"
+speedInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+speedInput.Text = "300"
+speedInput.TextSize = 16
+speedInput.Font = Enum.Font.GothamBold
+speedInput.ClearTextOnFocus = false
+speedInput.ZIndex = 601
+speedInput.Parent = frame
+
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 7)
+speedCorner.Parent = speedInput
+
+local teleportFrame = Instance.new("Frame")
+teleportFrame.Name = "TeleportFrame"
+teleportFrame.Size = UDim2.fromOffset(210, 240)
+teleportFrame.Position = UDim2.new(0.5, -105, 0.5, -120)
+teleportFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+teleportFrame.BorderSizePixel = 0
+teleportFrame.Visible = false
+teleportFrame.ZIndex = 700
+teleportFrame.Parent = gui
+
+local teleportFrameCorner = Instance.new("UICorner")
+teleportFrameCorner.CornerRadius = UDim.new(0, 10)
+teleportFrameCorner.Parent = teleportFrame
+
+local teleportFrameStroke = Instance.new("UIStroke")
+teleportFrameStroke.Thickness = 1
+teleportFrameStroke.Color = Color3.fromRGB(100, 100, 100)
+teleportFrameStroke.Parent = teleportFrame
+
+local teleportTitle = Instance.new("TextLabel")
+teleportTitle.Size = UDim2.new(1, -70, 0, 34)
+teleportTitle.Position = UDim2.fromOffset(38, 0)
+teleportTitle.BackgroundTransparency = 1
+teleportTitle.Text = "Teleport Egg"
+teleportTitle.TextColor3 = Color3.new(1, 1, 1)
+teleportTitle.TextSize = 17
+teleportTitle.Font = Enum.Font.GothamBold
+teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
+teleportTitle.ZIndex = 701
+teleportTitle.Parent = teleportFrame
+
+local teleportBack = Instance.new("TextButton")
+teleportBack.Size = UDim2.fromOffset(30, 30)
+teleportBack.Position = UDim2.fromOffset(2, 1)
+teleportBack.BackgroundTransparency = 1
+teleportBack.Text = "‹"
+teleportBack.TextColor3 = Color3.new(1, 1, 1)
+teleportBack.TextSize = 28
+teleportBack.Font = Enum.Font.GothamBold
+teleportBack.ZIndex = 702
+teleportBack.Parent = teleportFrame
+
+local teleportClose = Instance.new("TextButton")
+teleportClose.Size = UDim2.fromOffset(30, 30)
+teleportClose.Position = UDim2.new(1, -35, 0, 1)
+teleportClose.BackgroundTransparency = 1
+teleportClose.Text = "×"
+teleportClose.TextColor3 = Color3.new(1, 1, 1)
+teleportClose.TextSize = 25
+teleportClose.Font = Enum.Font.GothamBold
+teleportClose.ZIndex = 702
+teleportClose.Parent = teleportFrame
+
+local teleportList = Instance.new("ScrollingFrame")
+teleportList.Name = "EggList"
+teleportList.Size = UDim2.new(1, -20, 1, -48)
+teleportList.Position = UDim2.fromOffset(10, 40)
+teleportList.BackgroundTransparency = 1
+teleportList.BorderSizePixel = 0
+teleportList.ScrollBarThickness = 4
+teleportList.CanvasSize = UDim2.new()
+teleportList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+teleportList.ZIndex = 701
+teleportList.Parent = teleportFrame
+
+local teleportLayout = Instance.new("UIListLayout")
+teleportLayout.Padding = UDim.new(0, 7)
+teleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
+teleportLayout.Parent = teleportList
+
+local function getSpecialEggModel(eggName)
+	for _, model in ipairs(renderedEggs:GetChildren()) do
+		if model:IsA("Model") and model.Name == eggName then
+			return model
+		end
+	end
+
+	return nil
+end
+
+local function teleportToEgg(model)
+	if not model or not model.Parent then
+		return
+	end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+
+	if not root then
+		return
+	end
+
+	local pivot = model:GetPivot()
+	root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 3, 0))
+
+	teleportFrame.Visible = false
+end
+
+local lastTeleportKey = nil
+
+local function updateTeleportList()
+	local found = {}
+	local keyParts = {}
+
+	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
+		local model = getSpecialEggModel(eggName)
+
+		if model then
+			found[eggName] = model
+			table.insert(keyParts, eggName .. ":" .. model:GetDebugId())
+		end
+	end
+
+	local key = table.concat(keyParts, "|")
+
+	teleportButton.Visible = not minimized and key ~= ""
+
+	if key == lastTeleportKey then
+		return
+	end
+
+	lastTeleportKey = key
+
+	for _, child in ipairs(teleportList:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	local order = 0
+
+	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
+		local model = found[eggName]
+
+		if model then
+			order += 1
+
+			local button = Instance.new("TextButton")
+			button.Name = eggName:gsub("%s+", "")
+			button.Size = UDim2.new(1, -4, 0, 42)
+			button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			button.BorderSizePixel = 0
+			button.Text = eggName
+			button.TextColor3 = Color3.new(1, 1, 1)
+			button.TextSize = 15
+			button.Font = Enum.Font.GothamBold
+			button.LayoutOrder = order
+			button.ZIndex = 702
+			button.Parent = teleportList
+
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 7)
+			corner.Parent = button
+
+			button.Activated:Connect(function()
+				teleportToEgg(model)
+			end)
+		end
+	end
+
+	if order == 0 then
+		teleportFrame.Visible = false
+	end
+end
+
+local function setESPVisible(state)
+	for _, data in pairs(espList) do
+		if data.Billboard then
+			data.Billboard.Enabled = state
+		end
+	end
+end
+
+local function getHumanoid()
+	local character = player.Character
+
+	if not character then
+		return nil
+	end
+
+	return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function readSpeed()
+	local number = tonumber(speedInput.Text)
+
+	if number and number >= 0 then
+		speed = number
+	else
+		speed = 300
+		speedInput.Text = "300"
+	end
+
+	return speed
+end
+
+local function updateSpeedButton()
+	if speedEnabled then
+		-- ON
+		speedToggle.BackgroundColor3 = Color3.fromRGB(35, 200, 65)
+		speedToggle.Text = "ON"
+		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
+		speedToggle.TextXAlignment = Enum.TextXAlignment.Left
+
+		speedPadding.PaddingLeft = UDim.new(0, 15)
+		speedPadding.PaddingRight = UDim.new(0, 0)
+
+		speedKnob.Position = UDim2.new(
+			1, -36,
+			0.5, -16
+		)
+	else
+		-- OFF
+		speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
+		speedToggle.Text = "OFF"
+		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
+		speedToggle.TextXAlignment = Enum.TextXAlignment.Right
+
+		speedPadding.PaddingLeft = UDim.new(0, 0)
+		speedPadding.PaddingRight = UDim.new(0, 15)
+
+		speedKnob.Position = UDim2.new(
+			0, 4,
+			0.5, -16
+		)
+	end
+end
+
+local function enableSpeed()
+	local humanoid = getHumanoid()
+
+	if not humanoid then
+		return
+	end
+
+	-- Simpan speed asli tepat saat ON ditekan
+	originalSpeed = humanoid.WalkSpeed
+
+	readSpeed()
+
+	humanoid.WalkSpeed = speed
+	speedEnabled = true
+
+	updateSpeedButton()
+end
+
+local function disableSpeed()
+	local humanoid = getHumanoid()
+
+	if not humanoid then
+		return
+	end
+
+	-- Kembalikan speed asli
+	if originalSpeed ~= nil then
+		humanoid.WalkSpeed = originalSpeed
+	end
+
+	speedEnabled = false
+	originalSpeed = nil
+
+	updateSpeedButton()
+end
+
+-- Main menu
+trigger.Activated:Connect(function()
+	menuOpen = not menuOpen
+	menuFrame.Visible = menuOpen
+
+	if not menuOpen then
+		frame.Visible = false
+		teleportFrame.Visible = false
+		frameOpen = false
+	end
+end)
+
+gameButton.Activated:Connect(function()
+	frameOpen = true
+	frame.Visible = true
+	teleportFrame.Visible = false
+	updateTeleportList()
+	menuFrame.Visible = false
+	menuOpen = false
+end)
+
+teleportButton.Activated:Connect(function()
+	updateTeleportList()
+	teleportFrame.Visible = true
+	frame.Visible = false
+end)
+
+teleportBack.Activated:Connect(function()
+	teleportFrame.Visible = false
+	frame.Visible = true
+	updateTeleportList()
+end)
+
+teleportClose.Activated:Connect(function()
+	teleportFrame.Visible = false
+end)
+
+backButton.Activated:Connect(function()
+	frame.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+
+	menuFrame.Visible = true
+	menuOpen = true
+end)
+
+closeButton.Activated:Connect(function()
+	frame.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+	menuFrame.Visible = false
+	menuOpen = false
+end)
+
+-- Minimize
+minimize.Activated:Connect(function()
+	minimized = not minimized
+
+	if minimized then
+		frame.Size = UDim2.fromOffset(190, 35)
+		frame.Position = UDim2.new(0.5, -95, 0.5, -17)
+
+		teleportButton.Visible = false
+		espButton.Visible = false
+		input.Visible = false
+		speedInput.Visible = false
+
+		minimize.Text = "+"
+	else
+		frame.Size = UDim2.fromOffset(190, 267)
+		frame.Position = UDim2.new(0.5, -95, 0.5, -133)
+
+		updateTeleportList()
+		espButton.Visible = true
+		input.Visible = true
+		speedInput.Visible = true
+
+		minimize.Text = "-"
+	end
+end)
+
+-- ESP toggle
+espButton.Activated:Connect(function()
+	enabled = not enabled
+
+	if enabled then
+		espButton.Text = "ESP: ON"
+		espButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		updateESP()
+	else
+		espButton.Text = "ESP: OFF"
+		espButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		setESPVisible(false)
+	end
+end)
+
+-- Minimum size
+input.FocusLost:Connect(function()
+	local number = tonumber(input.Text)
+
+	if number and number >= 0 then
+		minSize = number
+	else
+		minSize = 3
+		input.Text = "3"
+	end
+
+	if enabled then
+		updateESP()
+	end
+end)
+
+-- Speed input
+speedInput.FocusLost:Connect(function()
+	readSpeed()
+
+	if speedEnabled then
+		local humanoid = getHumanoid()
+
+		if humanoid then
+			humanoid.WalkSpeed = speed
+		end
+	end
+end)
+
+-- Speed toggle
+speedToggle.Activated:Connect(function()
+	if speedEnabled then
+		disableSpeed()
+	else
+		enableSpeed()
+	end
+end)
+
+-- Drag helper
+local function makeDraggable(object)
+	local dragging = false
+	local dragStart
+	local startPosition
+
+	object.InputBegan:Connect(function(inputObject)
+		if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+			or inputObject.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = true
+			dragStart = inputObject.Position
+			startPosition = object.Position
+		end
+	end)
+
+	object.InputChanged:Connect(function(inputObject)
+		if inputObject.UserInputType == Enum.UserInputType.MouseMovement
+			or inputObject.UserInputType == Enum.UserInputType.Touch then
+
+			if dragging then
+				local delta = inputObject.Position - dragStart
+
+				object.Position = UDim2.new(
+					startPosition.X.Scale,
+					startPosition.X.Offset + delta.X,
+					startPosition.Y.Scale,
+					startPosition.Y.Offset + delta.Y
+				)
+			end
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(inputObject)
+		if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+			or inputObject.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = false
+		end
+	end)
+end
+
+makeDraggable(title)
+makeDraggable(speedToggle)
+makeDraggable(trigger)
+
+-- Billboard
+local function createBillboard()
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "EggESP"
+	billboard.Size = UDim2.fromOffset(220, 45)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = math.huge
+	billboard.Enabled = false
+	billboard.Parent = gui
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0
+	label.TextStrokeColor3 = Color3.new(0, 0, 0)
+	label.TextSize = 18
+	label.Font = Enum.Font.GothamBold
+	label.Parent = billboard
+
+	return billboard, label
+end
+
+local function makeESP(eggBase)
+	if espList[eggBase] then
+		return
+	end
+
+	local billboard, label = createBillboard()
+
+	espList[eggBase] = {
+		Billboard = billboard,
+		Label = label
+	}
+end
+
+local function makeModelESP(model)
+	if espList[model] then
+		return
+	end
+
+	local billboard, label = createBillboard()
+
+	espList[model] = {
+		Billboard = billboard,
+		Label = label
+	}
+end
+
+function updateESP()
+	for _, model in ipairs(renderedEggs:GetChildren()) do
+		if not model:IsA("Model") then
+			continue
+		end
+
+		if model.Name == "Cherub Egg" then
+			makeModelESP(model)
+
+			local data = espList[model]
+
+			local part = model.PrimaryPart
+				or model:FindFirstChildWhichIsA("BasePart", true)
+
+			if part then
+				data.Billboard.Adornee = part
+				data.Billboard.StudsOffset = Vector3.new(
+					0,
+					part.Size.Y / 2 + 2,
+					0
+				)
+
+				data.Label.Text = "Cherub Egg"
+				data.Billboard.Enabled = enabled
+			end
+		else
+			local eggBase = model:FindFirstChild("EggBase", true)
+
+			if eggBase and eggBase:IsA("BasePart") then
+				makeESP(eggBase)
+
+				local data = espList[eggBase]
+				local size = eggBase.Size
+				local eggName = model.Name
+				local specialEgg = specialEggs[eggName] == true
+
+				data.Billboard.Adornee = eggBase
+				data.Billboard.StudsOffset = Vector3.new(
+					0,
+					size.Y / 2 + 2,
+					0
+				)
+
+				data.Label.Text = string.format(
+					"%.2f (%s)",
+					size.X,
+					eggName
+				)
+
+				data.Billboard.Enabled =
+					enabled and (specialEgg or size.X >= minSize)
+			end
+		end
+	end
+end
+
+-- Instant ProximityPrompt
+local function makePromptInstant(prompt)
+	if prompt:IsA("ProximityPrompt") then
+		prompt.HoldDuration = 0
+	end
+end
+
+for _, obj in ipairs(workspace:GetDescendants()) do
+	makePromptInstant(obj)
+end
+
+workspace.DescendantAdded:Connect(function(obj)
+	makePromptInstant(obj)
+end)
+
+-- Character respawn
+player.CharacterAdded:Connect(function(character)
+	local humanoid = character:WaitForChild("Humanoid")
+
+	originalSpeed = humanoid.WalkSpeed
+	speedEnabled = false
+
+	updateSpeedButton()
+end)
+
+-- ESP update loop
+task.spawn(function()
+	while true do
+		task.wait(0.05)
+
+		if enabled then
+			updateESP()
+		end
+
+		updateTeleportList()
+	end
+end)
+
+updateSpeedButton()
+updateTeleportList()
+updateESP()w
