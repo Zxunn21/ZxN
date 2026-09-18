@@ -738,324 +738,8 @@ minimize.Activated:Connect(function()
 		frame.Position = UDim2.new(0.5, -95, 0.5, -110)
 
 		updateTeleportList()
-		espButton.VistXAlignment = Enum.TextXAlignment.Left
-teleportTitle.ZIndex = 701
-teleportTitle.Parent = teleportFrame
-
-local teleportBack = Instance.new("TextButton")
-teleportBack.Size = UDim2.fromOffset(30, 30)
-teleportBack.Position = UDim2.fromOffset(2, 1)
-teleportBack.BackgroundTransparency = 1
-teleportBack.Text = "‹"
-teleportBack.TextColor3 = Color3.new(1, 1, 1)
-teleportBack.TextSize = 28
-teleportBack.Font = Enum.Font.GothamBold
-teleportBack.ZIndex = 702
-teleportBack.Parent = teleportFrame
-
-local teleportClose = Instance.new("TextButton")
-teleportClose.Size = UDim2.fromOffset(30, 30)
-teleportClose.Position = UDim2.new(1, -35, 0, 1)
-teleportClose.BackgroundTransparency = 1
-teleportClose.Text = "×"
-teleportClose.TextColor3 = Color3.new(1, 1, 1)
-teleportClose.TextSize = 25
-teleportClose.Font = Enum.Font.GothamBold
-teleportClose.ZIndex = 702
-teleportClose.Parent = teleportFrame
-
-local teleportList = Instance.new("ScrollingFrame")
-teleportList.Name = "EggList"
-teleportList.Size = UDim2.new(1, -20, 1, -48)
-teleportList.Position = UDim2.fromOffset(10, 40)
-teleportList.BackgroundTransparency = 1
-teleportList.BorderSizePixel = 0
-teleportList.ScrollBarThickness = 4
-teleportList.CanvasSize = UDim2.new()
-teleportList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-teleportList.ZIndex = 701
-teleportList.Parent = teleportFrame
-
-local teleportLayout = Instance.new("UIListLayout")
-teleportLayout.Padding = UDim.new(0, 7)
-teleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
-teleportLayout.Parent = teleportList
-
-local function getSpecialEggModel(eggName)
-	findRenderedEggs()
-	if not renderedEggs or not renderedEggs.Parent then
-		return nil
-	end
-
-	for _, model in ipairs(renderedEggs:GetChildren()) do
-		if model:IsA("Model") and model.Name == eggName then
-			return model
-		end
-	end
-
-	return nil
-end
-
-local function teleportToEgg(model)
-	if not model or not model.Parent then
-		return
-	end
-
-	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-
-	if not root then
-		return
-	end
-
-	local pivot = model:GetPivot()
-	root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 3, 0))
-
-	teleportFrame.Visible = false
-end
-
-local lastTeleportKey = nil
-
-local function updateTeleportList()
-	local found = {}
-	local keyParts = {}
-
-	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
-		local model = getSpecialEggModel(eggName)
-
-		if model then
-			found[eggName] = model
-			table.insert(keyParts, eggName .. ":" .. model:GetDebugId())
-		end
-	end
-
-	local key = table.concat(keyParts, "|")
-
-	teleportButton.Visible = not minimized and key ~= ""
-
-	if key == lastTeleportKey then
-		return
-	end
-
-	lastTeleportKey = key
-
-	for _, child in ipairs(teleportList:GetChildren()) do
-		if child:IsA("TextButton") then
-			child:Destroy()
-		end
-	end
-
-	local order = 0
-
-	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
-		local model = found[eggName]
-
-		if model then
-			order += 1
-
-			local button = Instance.new("TextButton")
-			button.Name = eggName:gsub("%s+", "")
-			button.Size = UDim2.new(1, -4, 0, 42)
-			button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-			button.BorderSizePixel = 0
-			button.Text = eggName
-			button.TextColor3 = Color3.new(1, 1, 1)
-			button.TextSize = 15
-			button.Font = Enum.Font.GothamBold
-			button.LayoutOrder = order
-			button.ZIndex = 702
-			button.Parent = teleportList
-
-			local corner = Instance.new("UICorner")
-			corner.CornerRadius = UDim.new(0, 7)
-			corner.Parent = button
-
-			button.Activated:Connect(function()
-				teleportToEgg(model)
-			end)
-		end
-	end
-
-	if order == 0 then
-		teleportFrame.Visible = false
-	end
-end
-
-local function setESPVisible(state)
-	for _, data in pairs(espList) do
-		if data.Billboard then
-			data.Billboard.Enabled = state
-		end
-	end
-end
-
-local function getHumanoid()
-	local character = player.Character
-
-	if not character then
-		return nil
-	end
-
-	return character:FindFirstChildOfClass("Humanoid")
-end
-
-local function readSpeed()
-	local number = tonumber(speedInput.Text)
-
-	if number and number >= 0 then
-		speed = number
-	else
-		speed = 300
-		speedInput.Text = "300"
-	end
-
-	return speed
-end
-
-local function updateSpeedButton()
-	if speedEnabled then
-		-- ON
-		speedToggle.BackgroundColor3 = Color3.fromRGB(35, 200, 65)
-		speedToggle.Text = "ON"
-		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-		speedToggle.TextXAlignment = Enum.TextXAlignment.Left
-
-		speedPadding.PaddingLeft = UDim.new(0, 15)
-		speedPadding.PaddingRight = UDim.new(0, 0)
-
-		speedKnob.Position = UDim2.new(
-			1, -36,
-			0.5, -16
-		)
-	else
-		-- OFF
-		speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
-		speedToggle.Text = "OFF"
-		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-		speedToggle.TextXAlignment = Enum.TextXAlignment.Right
-
-		speedPadding.PaddingLeft = UDim.new(0, 0)
-		speedPadding.PaddingRight = UDim.new(0, 15)
-
-		speedKnob.Position = UDim2.new(
-			0, 4,
-			0.5, -16
-		)
-	end
-end
-
-local function enableSpeed()
-	local humanoid = getHumanoid()
-
-	if not humanoid then
-		return
-	end
-
-	-- Simpan speed asli tepat saat ON ditekan
-	originalSpeed = humanoid.WalkSpeed
-
-	readSpeed()
-
-	humanoid.WalkSpeed = speed
-	speedEnabled = true
-
-	updateSpeedButton()
-end
-
-local function disableSpeed()
-	local humanoid = getHumanoid()
-
-	if not humanoid then
-		return
-	end
-
-	-- Kembalikan speed asli
-	if originalSpeed ~= nil then
-		humanoid.WalkSpeed = originalSpeed
-	end
-
-	speedEnabled = false
-	originalSpeed = nil
-
-	updateSpeedButton()
-end
-
--- Main menu
-trigger.Activated:Connect(function()
-	menuOpen = not menuOpen
-	menuFrame.Visible = menuOpen
-
-	if not menuOpen then
-		frame.Visible = false
-		teleportFrame.Visible = false
-		frameOpen = false
-	end
-end)
-
-gameButton.Activated:Connect(function()
-	frameOpen = true
-	frame.Visible = true
-	teleportFrame.Visible = false
-	updateTeleportList()
-	menuFrame.Visible = false
-	menuOpen = false
-end)
-
-teleportButton.Activated:Connect(function()
-	updateTeleportList()
-	teleportFrame.Visible = true
-	frame.Visible = false
-end)
-
-teleportBack.Activated:Connect(function()
-	teleportFrame.Visible = false
-	frame.Visible = true
-	updateTeleportList()
-end)
-
-teleportClose.Activated:Connect(function()
-	teleportFrame.Visible = false
-end)
-
-backButton.Activated:Connect(function()
-	frame.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
-
-	menuFrame.Visible = true
-	menuOpen = true
-end)
-
-closeButton.Activated:Connect(function()
-	frame.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
-	menuFrame.Visible = false
-	menuOpen = false
-end)
-
--- Minimize
-minimize.Activated:Connect(function()
-	minimized = not minimized
-
-	if minimized then
-		frame.Size = UDim2.fromOffset(190, 35)
-		frame.Position = UDim2.new(0.5, -95, 0.5, -17)
-
-		teleportButton.Visible = false
-		espButton.Visible = false
-		input.Visible = false
-		speedInput.Visible = false
-
-		minimize.Text = "+"
-	else
-		frame.Size = UDim2.fromOffset(190, 267)
-		frame.Position = UDim2.new(0.5, -95, 0.5, -133)
-
-		updateTeleportList()
 		espButton.Visible = true
 		input.Visible = true
-		speedInput.Visible = true
 
 		minimize.Text = "-"
 	end
@@ -1092,18 +776,7 @@ input.FocusLost:Connect(function()
 	end
 end)
 
--- Speed input
-speedInput.FocusLost:Connect(function()
-	readSpeed()
 
-	if speedEnabled then
-		local humanoid = getHumanoid()
-
-		if humanoid then
-			humanoid.WalkSpeed = speed
-		end
-	end
-end)
 
 -- Server hop button
 local serverButton = Instance.new("TextButton")
@@ -1130,9 +803,58 @@ serverStroke.Thickness = 2
 serverStroke.Color = Color3.fromRGB(210, 210, 210)
 serverStroke.Parent = serverButton
 
+
+-- Server hop bubble
+local serverBubble = Instance.new("Frame")
+serverBubble.Name = "ServerBubble"
+serverBubble.Size = UDim2.fromOffset(155, 42)
+serverBubble.Position = UDim2.new(0.9, -117, -0.05, 28)
+serverBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+serverBubble.BorderSizePixel = 0
+serverBubble.Visible = false
+serverBubble.ZIndex = 1100
+serverBubble.Parent = gui
+
+local serverBubbleCorner = Instance.new("UICorner")
+serverBubbleCorner.CornerRadius = UDim.new(0, 10)
+serverBubbleCorner.Parent = serverBubble
+
+local serverBubbleStroke = Instance.new("UIStroke")
+serverBubbleStroke.Thickness = 1
+serverBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
+serverBubbleStroke.Parent = serverBubble
+
+local serverBubbleArrow = Instance.new("Frame")
+serverBubbleArrow.Size = UDim2.fromOffset(14, 14)
+serverBubbleArrow.Position = UDim2.new(1, -30, 0, -7)
+serverBubbleArrow.Rotation = 45
+serverBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+serverBubbleArrow.BorderSizePixel = 0
+serverBubbleArrow.ZIndex = 1099
+serverBubbleArrow.Parent = serverBubble
+
+local serverBubbleText = Instance.new("TextLabel")
+serverBubbleText.Size = UDim2.new(1, -12, 1, -8)
+serverBubbleText.Position = UDim2.fromOffset(6, 4)
+serverBubbleText.BackgroundTransparency = 1
+serverBubbleText.Text = "Hold to Server Hop"
+serverBubbleText.TextColor3 = Color3.new(1, 1, 1)
+serverBubbleText.TextSize = 13
+serverBubbleText.Font = Enum.Font.GothamBold
+serverBubbleText.ZIndex = 1101
+serverBubbleText.Parent = serverBubble
+
+local function showServerBubble()
+	serverBubble.Visible = true
+end
+
+local function hideServerBubble()
+	serverBubble.Visible = false
+end
+
 -- URL script untuk dijalankan lagi setelah teleport jika executor mendukung queue-on-teleport
 local AUTO_EXEC_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Ride%20A%20Pet"
-local HOLD_TIME = 0.5
+local HOLD_TIME = 1
 local hopping = false
 local holdingServer = false
 local holdToken = 0
@@ -1176,6 +898,7 @@ local function cancelServerHold()
 	holdToken += 1
 	serverButton.Text = "Server"
 	serverButton.AutoButtonColor = true
+	hideServerBubble()
 end
 
 local function performServerHop()
@@ -1184,6 +907,7 @@ local function performServerHop()
 	end
 
 	hopping = true
+	hideServerBubble()
 	serverButton.Text = "Hop..."
 	serverButton.AutoButtonColor = false
 
@@ -1239,6 +963,7 @@ local function beginServerHold()
 	end
 
 	holdingServer = true
+	showServerBubble()
 	holdToken += 1
 	local token = holdToken
 	local startTime = os.clock()
@@ -1276,13 +1001,47 @@ serverButton.InputEnded:Connect(function(inputObject)
 	end
 end)
 
--- Speed toggle
-speedToggle.Activated:Connect(function()
-	if speedEnabled then
-		disableSpeed()
-	else
-		enableSpeed()
+-- Speed toggle: tap = ON/OFF, hold 1 second = change speed
+speedToggle.InputBegan:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		beginSpeedHold()
 	end
+end)
+
+speedToggle.InputEnded:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		if speedHolding then
+			cancelSpeedHold()
+
+			if speedEnabled then
+				disableSpeed()
+			else
+				enableSpeed()
+			end
+		end
+	end
+end)
+
+speedInput.FocusLost:Connect(function()
+	local number = tonumber(speedInput.Text)
+
+	if number and number >= 0 then
+		speed = number
+		speedInput.Text = tostring(speed)
+
+		if speedEnabled then
+			local humanoid = getHumanoid()
+			if humanoid then
+				humanoid.WalkSpeed = speed
+			end
+		end
+	else
+		speedInput.Text = tostring(speed)
+	end
+
+	hideSpeedBubble()
 end)
 
 -- Drag helper
@@ -1481,4 +1240,4 @@ end)
 
 updateSpeedButton()
 updateTeleportList()
-updateESP()
+updateESP()a
