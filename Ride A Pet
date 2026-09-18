@@ -1,9 +1,10 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local renderedEggs = workspace:WaitForChild("RenderedEggs")
+local renderedEggs = workspace:FindFirstChild("RenderedEggs")
 
 local enabled = true
 local minSize = 3
@@ -23,6 +24,14 @@ local specialEggs = {
 local frameOpen = false
 local menuOpen = false
 local minimized = false
+
+local function findRenderedEggs()
+	if renderedEggs and renderedEggs.Parent then
+		return renderedEggs
+	end
+	renderedEggs = workspace:FindFirstChild("RenderedEggs")
+	return renderedEggs
+end
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "EggESP"
@@ -356,6 +365,11 @@ teleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
 teleportLayout.Parent = teleportList
 
 local function getSpecialEggModel(eggName)
+	findRenderedEggs()
+	if not renderedEggs or not renderedEggs.Parent then
+		return nil
+	end
+
 	for _, model in ipairs(renderedEggs:GetChildren()) do
 		if model:IsA("Model") and model.Name == eggName then
 			return model
@@ -674,6 +688,177 @@ speedInput.FocusLost:Connect(function()
 	end
 end)
 
+-- Server hop button
+local serverButton = Instance.new("TextButton")
+serverButton.Name = "ServerButton"
+serverButton.Size = UDim2.fromOffset(80, 40)
+serverButton.Position = UDim2.new(0.9, -40, -0.05, -20)
+serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+serverButton.BorderSizePixel = 0
+serverButton.Text = "Server"
+serverButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+serverButton.TextSize = 14
+serverButton.Font = Enum.Font.GothamBold
+serverButton.AutoButtonColor = true
+serverButton.Active = true
+serverButton.ZIndex = 1000
+serverButton.Parent = gui
+
+local serverCorner = Instance.new("UICorner")
+serverCorner.CornerRadius = UDim.new(1, 0)
+serverCorner.Parent = serverButton
+
+local serverStroke = Instance.new("UIStroke")
+serverStroke.Thickness = 2
+serverStroke.Color = Color3.fromRGB(210, 210, 210)
+serverStroke.Parent = serverButton
+
+-- URL script untuk dijalankan lagi setelah teleport jika executor mendukung queue-on-teleport
+local AUTO_EXEC_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Ride%20A%20Pet"
+local HOLD_TIME = 0.5
+local hopping = false
+local holdingServer = false
+local holdToken = 0
+
+local function queueScriptAfterTeleport()
+	local code = 'loadstring(game:HttpGet("' .. AUTO_EXEC_URL .. '", true))()'
+
+	local queueFunctions = {
+		function()
+			if typeof(queue_on_teleport) == "function" then
+				queue_on_teleport(code)
+				return true
+			end
+		end,
+		function()
+			if typeof(queueonteleport) == "function" then
+				queueonteleport(code)
+				return true
+			end
+		end,
+		function()
+			if typeof(syn) == "table" and typeof(syn.queue_on_teleport) == "function" then
+				syn.queue_on_teleport(code)
+				return true
+			end
+		end,
+	}
+
+	for _, tryQueue in ipairs(queueFunctions) do
+		local ok, queued = pcall(tryQueue)
+		if ok and queued then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function cancelServerHold()
+	holdingServer = false
+	holdToken += 1
+	serverButton.Text = "Server"
+	serverButton.AutoButtonColor = true
+end
+
+local function performServerHop()
+	if hopping then
+		return
+	end
+
+	hopping = true
+	serverButton.Text = "Hop..."
+	serverButton.AutoButtonColor = false
+
+	local queued = queueScriptAfterTeleport()
+
+	local success, result = pcall(function()
+		local HttpService = game:GetService("HttpService")
+		local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+		local response
+
+		if typeof(request) == "function" then
+			local req = request({Url = url, Method = "GET"})
+			response = req.Body
+		elseif typeof(http_request) == "function" then
+			local req = http_request({Url = url, Method = "GET"})
+			response = req.Body
+		elseif typeof(syn) == "table" and typeof(syn.request) == "function" then
+			local req = syn.request({Url = url, Method = "GET"})
+			response = req.Body
+		else
+			response = game:HttpGet(url)
+		end
+
+		return HttpService:JSONDecode(response)
+	end)
+
+	if success and result and result.data then
+		local candidates = {}
+
+		for _, server in ipairs(result.data) do
+			if server.id ~= game.JobId and server.playing < server.maxPlayers then
+				table.insert(candidates, server.id)
+			end
+		end
+
+		if #candidates > 0 then
+			local target = candidates[math.random(1, #candidates)]
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, target, player)
+			return
+		end
+	end
+
+	serverButton.Text = queued and "No Server" or "No Queue"
+	task.wait(1)
+	serverButton.Text = "Server"
+	serverButton.AutoButtonColor = true
+	hopping = false
+end
+
+local function beginServerHold()
+	if hopping or holdingServer then
+		return
+	end
+
+	holdingServer = true
+	holdToken += 1
+	local token = holdToken
+	local startTime = os.clock()
+
+	task.spawn(function()
+		while holdingServer and token == holdToken do
+			local elapsed = os.clock() - startTime
+			local remaining = HOLD_TIME - elapsed
+
+			if remaining <= 0 then
+				holdingServer = false
+				performServerHop()
+				return
+			end
+
+			serverButton.Text = string.format("%.1f", remaining)
+			task.wait(0.03)
+		end
+	end)
+end
+
+serverButton.InputBegan:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		beginServerHold()
+	end
+end)
+
+serverButton.InputEnded:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		if holdingServer then
+			cancelServerHold()
+		end
+	end
+end)
+
 -- Speed toggle
 speedToggle.Activated:Connect(function()
 	if speedEnabled then
@@ -726,7 +911,7 @@ local function makeDraggable(object)
 end
 
 makeDraggable(title)
-makeDraggable(speedToggle)
+makeDraggable(serverButton)
 makeDraggable(trigger)
 
 -- Billboard
@@ -779,6 +964,11 @@ local function makeModelESP(model)
 end
 
 function updateESP()
+	findRenderedEggs()
+	if not renderedEggs or not renderedEggs.Parent then
+		return
+	end
+
 	for _, model in ipairs(renderedEggs:GetChildren()) do
 		if not model:IsA("Model") then
 			continue
