@@ -66,14 +66,10 @@ triggerStroke.Thickness = 2
 triggerStroke.Color = Color3.fromRGB(255, 255, 255)
 triggerStroke.Parent = trigger
 
--- Speed toggle
 local speedToggle = Instance.new("TextButton")
 speedToggle.Name = "SpeedToggle"
 speedToggle.Size = UDim2.fromOffset(80, 40)
-
--- 8% horizontal, 75% vertical
 speedToggle.Position = UDim2.new(0.8, -40, 0.75, -20)
-
 speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 speedToggle.BorderSizePixel = 0
 speedToggle.Text = "OFF"
@@ -87,19 +83,6 @@ speedToggle.Active = true
 speedToggle.ZIndex = 1000
 speedToggle.Parent = gui
 
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Name = "SpeedLabel"
-speedLabel.Size = UDim2.fromOffset(80, 20)
-speedLabel.Position = UDim2.new(0.8, -40, 0.75, -47)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed"
-speedLabel.TextColor3 = Color3.new(1, 1, 1)
-speedLabel.TextSize = 13
-speedLabel.Font = Enum.Font.GothamBold
-speedLabel.TextXAlignment = Enum.TextXAlignment.Center
-speedLabel.ZIndex = 1000
-speedLabel.Parent = gui
-
 local speedCorner = Instance.new("UICorner")
 speedCorner.CornerRadius = UDim.new(1, 0)
 speedCorner.Parent = speedToggle
@@ -112,6 +95,19 @@ speedStroke.Parent = speedToggle
 -- Padding untuk teks ON/OFF
 local speedPadding = Instance.new("UIPadding")
 speedPadding.Parent = speedToggle
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Size = UDim2.fromOffset(80, 20)
+speedLabel.Position = UDim2.new(0.8, -40, 0.75, -47)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed"
+speedLabel.TextColor3 = Color3.new(1, 1, 1)
+speedLabel.TextSize = 13
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextXAlignment = Enum.TextXAlignment.Center
+speedLabel.ZIndex = 1000
+speedLabel.Parent = gui
 
 -- Knob putih
 local speedKnob = Instance.new("Frame")
@@ -174,6 +170,20 @@ speedBubbleText.TextSize = 13
 speedBubbleText.Font = Enum.Font.GothamBold
 speedBubbleText.ZIndex = 1101
 speedBubbleText.Parent = speedBubble
+
+local speedLoadingBar = Instance.new("Frame")
+speedLoadingBar.Name = "LoadingBar"
+speedLoadingBar.Size = UDim2.new(0, 0, 1, 0)
+speedLoadingBar.Position = UDim2.new(0, 0, 0, 0)
+speedLoadingBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+speedLoadingBar.BackgroundTransparency = 0.65
+speedLoadingBar.BorderSizePixel = 0
+speedLoadingBar.ZIndex = speedBubble.ZIndex
+speedLoadingBar.Parent = speedBubble
+
+local loadingCorner = Instance.new("UICorner")
+loadingCorner.CornerRadius = UDim.new(0, 10)
+loadingCorner.Parent = speedLoadingBar
 
 local speedInput = Instance.new("TextBox")
 speedInput.Size = UDim2.new(1, -12, 0, 34)
@@ -248,15 +258,16 @@ end
 
 local function cancelSpeedHold()
 	speedHolding = false
-	speedHoldToken += 1
+	speedHoldToken += 0.5
   hideSpeedBubble()
 end
 
 -- Menu
 local menuFrame = Instance.new("Frame")
 menuFrame.Name = "GameMenu"
-menuFrame.Size = UDim2.fromOffset(220, 100)
-menuFrame.Position = UDim2.new(0.5, -110, 0.5, -50)
+menuFrame.Size = UDim2.fromScale(0.5, 0.4)
+menuFrame.AnchorPoint = Vector2.new (0.5,0.5)
+menuFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 menuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 menuFrame.BorderSizePixel = 0
 menuFrame.Visible = false
@@ -655,7 +666,6 @@ local function disableSpeed()
 		return
 	end
 
-	-- Kembalikan speed asli
 	if originalSpeed ~= nil then
 		humanoid.WalkSpeed = originalSpeed
 	end
@@ -775,8 +785,6 @@ input.FocusLost:Connect(function()
 		updateESP()
 	end
 end)
-
-
 
 -- Server hop button
 local serverButton = Instance.new("TextButton")
@@ -1086,9 +1094,8 @@ local function makeDraggable(object)
 	end)
 end
 
-makeDraggable(title)
-makeDraggable(serverButton)
 makeDraggable(trigger)
+makeDraggable(menuFrame)
 
 -- Billboard
 local function createBillboard()
