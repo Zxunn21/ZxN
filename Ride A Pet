@@ -24,6 +24,7 @@ local specialEggs = {
 local frameOpen = false
 local menuOpen = false
 local minimized = false
+local gameOpen = false
 
 local function findRenderedEggs()
 	if renderedEggs and renderedEggs.Parent then
@@ -45,7 +46,7 @@ gui.Parent = playerGui
 local trigger = Instance.new("TextButton")
 trigger.Name = "ESPTrigger"
 trigger.Size = UDim2.fromOffset(40, 40)
-trigger.Position = UDim2.new(0.5, 40, 0, 10)
+trigger.Position = UDim2.new(0.8, 40, 0, 10)
 trigger.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 trigger.BorderSizePixel = 0
 trigger.Text = "≡"
@@ -70,7 +71,7 @@ local speedToggle = Instance.new("TextButton")
 speedToggle.Name = "SpeedToggle"
 speedToggle.AnchorPoint = Vector2.new (0.5, 1)
 speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(0.8, 0, 0.95, 0)
+speedToggle.Position = UDim2.new(0.8, 0, 0.97, 0)
 speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 speedToggle.BorderSizePixel = 0
 speedToggle.Text = "OFF"
@@ -100,7 +101,8 @@ speedPadding.Parent = speedToggle
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Name = "SpeedLabel"
 speedLabel.Size = UDim2.fromOffset(80, 20)
-speedLabel.Position = UDim2.new(0.8, -40, 0.75, -47)
+speedLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+speedLabel.Position = UDim2.new(0.5, 0, 0, -10)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "Speed"
 speedLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -108,7 +110,7 @@ speedLabel.TextSize = 13
 speedLabel.Font = Enum.Font.GothamBold
 speedLabel.TextXAlignment = Enum.TextXAlignment.Center
 speedLabel.ZIndex = 1000
-speedLabel.Parent = gui
+speedLabel.Parent = speedToggle
 
 -- Knob putih
 local speedKnob = Instance.new("Frame")
@@ -131,17 +133,16 @@ knobStroke.Thickness = 1
 knobStroke.Color = Color3.fromRGB(200, 200, 200)
 knobStroke.Parent = speedKnob
 
-
--- Speed change bubble
 local speedBubble = Instance.new("Frame")
 speedBubble.Name = "SpeedBubble"
 speedBubble.Size = UDim2.fromOffset(155, 42)
-speedBubble.Position = UDim2.new(0.8, -117, 0.75, -112)
+speedBubble.AnchorPoint = Vector2.new(1, 1)
+speedBubble.Position = UDim2.new(0.5, 0, 0, -10)
 speedBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 speedBubble.BorderSizePixel = 0
 speedBubble.Visible = false
 speedBubble.ZIndex = 1100
-speedBubble.Parent = gui
+speedBubble.Parent = speedToggle
 
 local speedBubbleCorner = Instance.new("UICorner")
 speedBubbleCorner.CornerRadius = UDim.new(0, 10)
@@ -260,16 +261,17 @@ end
 local function cancelSpeedHold()
 	speedHolding = false
 	speedHoldToken += 0.5
-  hideSpeedBubble()
+	hideSpeedBubble()
 end
 
 -- Menu
 local menuFrame = Instance.new("Frame")
 menuFrame.Name = "GameMenu"
-menuFrame.Size = UDim2.fromScale(0.5, 0.8)
+menuFrame.Size = UDim2.fromScale(0.6, 0.8)
 menuFrame.AnchorPoint = Vector2.new (0.5,0.5)
 menuFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 menuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+menuFrame.BackgroundTransparency = 0.3
 menuFrame.BorderSizePixel = 0
 menuFrame.Visible = false
 menuFrame.ZIndex = 500
@@ -284,40 +286,95 @@ menuStroke.Thickness = 1
 menuStroke.Color = Color3.fromRGB(100, 100, 100)
 menuStroke.Parent = menuFrame
 
+local menuUIPadding = Instance.new("UIPadding")
+menuUIPadding.PaddingLeft = UDim.new(0, 10)
+menuUIPadding.PaddingRight = UDim.new(0, 10)
+menuUIPadding.PaddingTop = UDim.new(0, 10)
+menuUIPadding.PaddingBottom = UDim.new(0, 10)
+menuUIPadding.Parent = menuFrame
+
+local menuGrid = Instance.new("UIGridLayout")
+menuGrid.CellSize = UDim2.new(0, 150, 0, 50)
+menuGrid.CellPadding = UDim2.new(0, 10, 0, 10)
+menuGrid.FillDirection = Enum.FillDirection.Horizontal
+menuGrid.HorizontalAlignment = Enum.HorizontalAlignment.Left
+menuGrid.VerticalAlignment = Enum.VerticalAlignment.Top
+menuGrid.SortOrder = Enum.SortOrder.LayoutOrder
+menuGrid.Parent = menuFrame
+
+local mainMenu = Instance.new("Frame")
+mainMenu.Name = "MainMenu"
+mainMenu.Size = UDim2.fromScale(0.25, 1)
+mainMenu.BackgroundTransparency = 1
+mainMenu.Parent = menuFrame
+
+local subMenu = Instance.new("Frame")
+subMenu.Name = "SubMenu"
+subMenu.Size = UDim2.fromScale(0.7, 1)
+subMenu.BackgroundTransparency = 1
+subMenu.Visible = false
+subMenu.Parent = menuFrame
+
 local gameButton = Instance.new("TextButton")
-gameButton.Size = UDim2.new(1, -20, 0, 50)
+gameButton.Size = UDim2.new(1, 0, 0, 24)
 gameButton.Position = UDim2.fromOffset(10, 25)
 gameButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 gameButton.TextColor3 = Color3.new(1, 1, 1)
-gameButton.Text = "Ride A Pet"
+gameButton.Text = "Game"
 gameButton.TextSize = 18
+gameButton.TextXAlignment = Enum.TextXAlignment.Left
+gameButton.TextYAlignment = Enum.TextYAlignment.Center
 gameButton.Font = Enum.Font.GothamBold
 gameButton.ZIndex = 501
-gameButton.Parent = menuFrame
+gameButton.Parent = mainMenu
+
+local gameButtonUIPadding = Instance.new("UIPadding")
+gameButtonUIPadding.PaddingLeft = UDim.new(0, 10)
+gameButtonUIPadding.Parent = gameButton
 
 local gameButtonCorner = Instance.new("UICorner")
 gameButtonCorner.CornerRadius = UDim.new(0, 7)
 gameButtonCorner.Parent = gameButton
 
+gameButton.Activated:Connect(function()
+	gameOpen = true
+	subMenu.Visible = true
+end)
+
+local RideAPetButton_ = Instance.new("TextButton")
+RideAPetButton_.Size = UDim2.new(1, 0, 0, 24)
+RideAPetButton_.Position = UDim2.fromOffset(10, 25)
+RideAPetButton_.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+RideAPetButton_.TextColor3 = Color3.new(1, 1, 1)
+RideAPetButton_.Text = "Ride A Pet"
+RideAPetButton_.TextSize = 18
+RideAPetButton_.Font = Enum.Font.GothamBold
+RideAPetButton_.ZIndex = 501
+RideAPetButton_.Parent = subMenu
+
+local gameButtonCorner = Instance.new("UICorner")
+gameButtonCorner.CornerRadius = UDim.new(0, 7)
+gameButtonCorner.Parent = RideAPetButton_
+
 -- Control frame
-local frame = Instance.new("Frame")
-frame.Name = "ControlFrame"
-frame.Size = UDim2.fromOffset(190, 220)
-frame.Position = UDim2.new(0.5, -95, 0.5, -110)
-frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-frame.BorderSizePixel = 0
-frame.Visible = false
-frame.ZIndex = 600
-frame.Parent = gui
+local frameRideAPet = Instance.new("Frame")
+frameRideAPet.Name = "ControlFrame"
+frameRideAPet.Size = UDim2.fromOffset(190, 220)
+frameRideAPet.Position = UDim2.new(0.5, -95, 0.5, -110)
+frameRideAPet.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frameRideAPet.BorderSizePixel = 0
+frameRideAPet.Visible = false
+frameRideAPet.ZIndex = 600
+frameRideAPet.Parent = gui
 
 local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0, 10)
-frameCorner.Parent = frame
+frameCorner.Parent = frameRideAPet
 
 local frameStroke = Instance.new("UIStroke")
 frameStroke.Thickness = 1
 frameStroke.Color = Color3.fromRGB(100, 100, 100)
-frameStroke.Parent = frame
+frameStroke.Parent = frameRideAPet
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -105, 0, 32)
@@ -330,18 +387,8 @@ title.Font = Enum.Font.GothamBold
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Active = true
 title.ZIndex = 601
-title.Parent = frame
+title.Parent = frameRideAPet
 
-local minimize = Instance.new("TextButton")
-minimize.Size = UDim2.fromOffset(30, 30)
-minimize.Position = UDim2.new(1, -35, 0, 1)
-minimize.BackgroundTransparency = 1
-minimize.Text = "-"
-minimize.TextColor3 = Color3.new(1, 1, 1)
-minimize.TextSize = 22
-minimize.Font = Enum.Font.GothamBold
-minimize.ZIndex = 602
-minimize.Parent = frame
 
 local backButton = Instance.new("TextButton")
 backButton.Size = UDim2.fromOffset(30, 30)
@@ -352,7 +399,7 @@ backButton.TextColor3 = Color3.new(1, 1, 1)
 backButton.TextSize = 28
 backButton.Font = Enum.Font.GothamBold
 backButton.ZIndex = 602
-backButton.Parent = frame
+backButton.Parent = frameRideAPet
 
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.fromOffset(30, 30)
@@ -363,7 +410,7 @@ closeButton.TextColor3 = Color3.new(1, 1, 1)
 closeButton.TextSize = 25
 closeButton.Font = Enum.Font.GothamBold
 closeButton.ZIndex = 602
-closeButton.Parent = frame
+closeButton.Parent = frameRideAPet
 
 -- Teleport
 local teleportButton = Instance.new("TextButton")
@@ -377,7 +424,7 @@ teleportButton.TextSize = 16
 teleportButton.Font = Enum.Font.GothamBold
 teleportButton.ZIndex = 601
 teleportButton.Visible = false
-teleportButton.Parent = frame
+teleportButton.Parent = frameRideAPet
 
 local teleportCorner = Instance.new("UICorner")
 teleportCorner.CornerRadius = UDim.new(0, 7)
@@ -393,7 +440,7 @@ espButton.Text = "ESP: ON"
 espButton.TextSize = 16
 espButton.Font = Enum.Font.GothamBold
 espButton.ZIndex = 601
-espButton.Parent = frame
+espButton.Parent = frameRideAPet
 
 local espCorner = Instance.new("UICorner")
 espCorner.CornerRadius = UDim.new(0, 7)
@@ -412,7 +459,7 @@ input.TextSize = 16
 input.Font = Enum.Font.GothamBold
 input.ClearTextOnFocus = false
 input.ZIndex = 601
-input.Parent = frame
+input.Parent = frameRideAPet
 
 local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 7)
@@ -487,6 +534,71 @@ local teleportLayout = Instance.new("UIListLayout")
 teleportLayout.Padding = UDim.new(0, 7)
 teleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
 teleportLayout.Parent = teleportList
+
+-- Server hop button
+local serverButton = Instance.new("TextButton")
+serverButton.Name = "ServerButton"
+serverButton.Size = UDim2.fromOffset(80, 40)
+serverButton.Position = UDim2.new(0.9, -20, -0.05, -20)
+serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+serverButton.BorderSizePixel = 0
+serverButton.Text = "Server"
+serverButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+serverButton.TextSize = 14
+serverButton.Font = Enum.Font.GothamBold
+serverButton.AutoButtonColor = true
+serverButton.Active = true
+serverButton.ZIndex = 1000
+serverButton.Parent = gui
+
+local serverCorner = Instance.new("UICorner")
+serverCorner.CornerRadius = UDim.new(1, 0)
+serverCorner.Parent = serverButton
+
+local serverStroke = Instance.new("UIStroke")
+serverStroke.Thickness = 2
+serverStroke.Color = Color3.fromRGB(210, 210, 210)
+serverStroke.Parent = serverButton
+
+-- Server hop bubble
+local serverBubble = Instance.new("Frame")
+serverBubble.Name = "ServerBubble"
+serverBubble.Size = UDim2.fromOffset(155, 42)
+serverBubble.Position = UDim2.new(0.9, -117, -0.05, 28)
+serverBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+serverBubble.BorderSizePixel = 0
+serverBubble.Visible = false
+serverBubble.ZIndex = 1100
+serverBubble.Parent = gui
+
+local serverBubbleCorner = Instance.new("UICorner")
+serverBubbleCorner.CornerRadius = UDim.new(0, 10)
+serverBubbleCorner.Parent = serverBubble
+
+local serverBubbleStroke = Instance.new("UIStroke")
+serverBubbleStroke.Thickness = 1
+serverBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
+serverBubbleStroke.Parent = serverBubble
+
+local serverBubbleArrow = Instance.new("Frame")
+serverBubbleArrow.Size = UDim2.fromOffset(14, 14)
+serverBubbleArrow.Position = UDim2.new(1, -30, 0, -7)
+serverBubbleArrow.Rotation = 45
+serverBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+serverBubbleArrow.BorderSizePixel = 0
+serverBubbleArrow.ZIndex = 1099
+serverBubbleArrow.Parent = serverBubble
+
+local serverBubbleText = Instance.new("TextLabel")
+serverBubbleText.Size = UDim2.new(1, -12, 1, -8)
+serverBubbleText.Position = UDim2.fromOffset(6, 4)
+serverBubbleText.BackgroundTransparency = 1
+serverBubbleText.Text = "Hold to Server Hop"
+serverBubbleText.TextColor3 = Color3.new(1, 1, 1)
+serverBubbleText.TextSize = 13
+serverBubbleText.Font = Enum.Font.GothamBold
+serverBubbleText.ZIndex = 1101
+serverBubbleText.Parent = serverBubble
 
 local function getSpecialEggModel(eggName)
 	findRenderedEggs()
@@ -681,17 +793,18 @@ end
 trigger.Activated:Connect(function()
 	menuOpen = not menuOpen
 	menuFrame.Visible = menuOpen
+	frameRideAPet.Visible = false
 
 	if not menuOpen then
-		frame.Visible = false
+		frameRideAPet.Visible = false
 		teleportFrame.Visible = false
 		frameOpen = false
 	end
 end)
 
-gameButton.Activated:Connect(function()
+RideAPetButton_.Activated:Connect(function()
 	frameOpen = true
-	frame.Visible = true
+	frameRideAPet.Visible = true
 	teleportFrame.Visible = false
 	updateTeleportList()
 	menuFrame.Visible = false
@@ -701,12 +814,12 @@ end)
 teleportButton.Activated:Connect(function()
 	updateTeleportList()
 	teleportFrame.Visible = true
-	frame.Visible = false
+	frameRideAPet.Visible = false
 end)
 
 teleportBack.Activated:Connect(function()
 	teleportFrame.Visible = false
-	frame.Visible = true
+	frameRideAPet.Visible = true
 	updateTeleportList()
 end)
 
@@ -715,7 +828,7 @@ teleportClose.Activated:Connect(function()
 end)
 
 backButton.Activated:Connect(function()
-	frame.Visible = false
+	frameRideAPet.Visible = false
 	teleportFrame.Visible = false
 	frameOpen = false
 
@@ -724,36 +837,11 @@ backButton.Activated:Connect(function()
 end)
 
 closeButton.Activated:Connect(function()
-	frame.Visible = false
+	frameRideAPet.Visible = false
 	teleportFrame.Visible = false
 	frameOpen = false
 	menuFrame.Visible = false
 	menuOpen = false
-end)
-
--- Minimize
-minimize.Activated:Connect(function()
-	minimized = not minimized
-
-	if minimized then
-		frame.Size = UDim2.fromOffset(190, 35)
-		frame.Position = UDim2.new(0.5, -95, 0.5, -17)
-
-		teleportButton.Visible = false
-		espButton.Visible = false
-		input.Visible = false
-
-		minimize.Text = "+"
-	else
-		frame.Size = UDim2.fromOffset(190, 220)
-		frame.Position = UDim2.new(0.5, -95, 0.5, -110)
-
-		updateTeleportList()
-		espButton.Visible = true
-		input.Visible = true
-
-		minimize.Text = "-"
-	end
 end)
 
 -- ESP toggle
@@ -787,71 +875,7 @@ input.FocusLost:Connect(function()
 	end
 end)
 
--- Server hop button
-local serverButton = Instance.new("TextButton")
-serverButton.Name = "ServerButton"
-serverButton.Size = UDim2.fromOffset(80, 40)
-serverButton.Position = UDim2.new(0.9, -40, -0.05, -20)
-serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-serverButton.BorderSizePixel = 0
-serverButton.Text = "Server"
-serverButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-serverButton.TextSize = 14
-serverButton.Font = Enum.Font.GothamBold
-serverButton.AutoButtonColor = true
-serverButton.Active = true
-serverButton.ZIndex = 1000
-serverButton.Parent = gui
 
-local serverCorner = Instance.new("UICorner")
-serverCorner.CornerRadius = UDim.new(1, 0)
-serverCorner.Parent = serverButton
-
-local serverStroke = Instance.new("UIStroke")
-serverStroke.Thickness = 2
-serverStroke.Color = Color3.fromRGB(210, 210, 210)
-serverStroke.Parent = serverButton
-
-
--- Server hop bubble
-local serverBubble = Instance.new("Frame")
-serverBubble.Name = "ServerBubble"
-serverBubble.Size = UDim2.fromOffset(155, 42)
-serverBubble.Position = UDim2.new(0.9, -117, -0.05, 28)
-serverBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-serverBubble.BorderSizePixel = 0
-serverBubble.Visible = false
-serverBubble.ZIndex = 1100
-serverBubble.Parent = gui
-
-local serverBubbleCorner = Instance.new("UICorner")
-serverBubbleCorner.CornerRadius = UDim.new(0, 10)
-serverBubbleCorner.Parent = serverBubble
-
-local serverBubbleStroke = Instance.new("UIStroke")
-serverBubbleStroke.Thickness = 1
-serverBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
-serverBubbleStroke.Parent = serverBubble
-
-local serverBubbleArrow = Instance.new("Frame")
-serverBubbleArrow.Size = UDim2.fromOffset(14, 14)
-serverBubbleArrow.Position = UDim2.new(1, -30, 0, -7)
-serverBubbleArrow.Rotation = 45
-serverBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-serverBubbleArrow.BorderSizePixel = 0
-serverBubbleArrow.ZIndex = 1099
-serverBubbleArrow.Parent = serverBubble
-
-local serverBubbleText = Instance.new("TextLabel")
-serverBubbleText.Size = UDim2.new(1, -12, 1, -8)
-serverBubbleText.Position = UDim2.fromOffset(6, 4)
-serverBubbleText.BackgroundTransparency = 1
-serverBubbleText.Text = "Hold to Server Hop"
-serverBubbleText.TextColor3 = Color3.new(1, 1, 1)
-serverBubbleText.TextSize = 13
-serverBubbleText.Font = Enum.Font.GothamBold
-serverBubbleText.ZIndex = 1101
-serverBubbleText.Parent = serverBubble
 
 local function showServerBubble()
 	serverBubble.Visible = true
