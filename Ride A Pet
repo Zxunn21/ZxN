@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -35,95 +34,44 @@ local function findRenderedEggs()
 	return renderedEggs
 end
 
--- Executor-safe GUI parent
-local guiParent = playerGui
-
-pcall(function()
-	if typeof(gethui) == "function" then
-		local hui = gethui()
-		if hui then
-			guiParent = hui
-		end
-	end
-end)
-
-local oldGui = guiParent:FindFirstChild("EggESP")
-if oldGui then
-	pcall(function()
-		oldGui:Destroy()
-	end)
-end
-
 local gui = Instance.new("ScreenGui")
 gui.Name = "EggESP"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
-gui.DisplayOrder = 999999
+gui.DisplayOrder = 999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-gui.Parent = guiParent
+gui.Parent = playerGui
 
--- Execution marker
-pcall(function()
-	local marker = Instance.new("TextLabel")
-	marker.Name = "Loaded"
-	marker.Size = UDim2.fromOffset(1, 1)
-	marker.Position = UDim2.fromOffset(0, 0)
-	marker.BackgroundTransparency = 1
-	marker.Text = ""
-	marker.Parent = gui
-end)
+-- Main button
+local trigger = Instance.new("TextButton")
+trigger.Name = "ESPTrigger"
+trigger.Size = UDim2.fromOffset(40, 40)
+trigger.Position = UDim2.new(0.8, 40, 0, 10)
+trigger.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+trigger.BorderSizePixel = 0
+trigger.Text = "≡"
+trigger.TextColor3 = Color3.new(1, 1, 1)
+trigger.TextSize = 24
+trigger.Font = Enum.Font.GothamBold
+trigger.AutoButtonColor = true
+trigger.Active = true
+trigger.ZIndex = 1000
+trigger.Parent = gui
 
--- Topbar trigger / Delta-safe fallback
-local trigger
-local topbarAvailable = false
+local triggerCorner = Instance.new("UICorner")
+triggerCorner.CornerRadius = UDim.new(1, 0)
+triggerCorner.Parent = trigger
 
-do
-	local iconModule = ReplicatedStorage:FindFirstChild("Icon")
-
-	if iconModule and iconModule:IsA("ModuleScript") then
-		local ok, Icon = pcall(require, iconModule)
-
-		if ok and Icon and typeof(Icon.new) == "function" then
-			local okIcon, iconObject = pcall(function()
-				return Icon.new()
-					:setLabel("ZxN")
-					:setOrder(1)
-					:setCaption("ZxN")
-			end)
-
-			if okIcon and iconObject then
-				trigger = iconObject
-				topbarAvailable = true
-			end
-		end
-	end
-end
-
--- Jika TopbarPlus tidak tersedia, gunakan tombol GUI agar script tetap berjalan.
-if not topbarAvailable then
-	trigger = Instance.new("TextButton")
-	trigger.Name = "ZxN"
-	trigger.Size = UDim2.fromOffset(60, 36)
-	trigger.Position = UDim2.new(0, 10, 0, 45)
-	trigger.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	trigger.BorderSizePixel = 0
-	trigger.Text = "ZxN"
-	trigger.TextColor3 = Color3.new(1, 1, 1)
-	trigger.TextSize = 14
-	trigger.Font = Enum.Font.GothamBold
-	trigger.ZIndex = 10000
-	trigger.Parent = gui
-
-	local triggerCorner = Instance.new("UICorner")
-	triggerCorner.CornerRadius = UDim.new(0, 8)
-	triggerCorner.Parent = trigger
-end
+local triggerStroke = Instance.new("UIStroke")
+triggerStroke.Thickness = 2
+triggerStroke.Color = Color3.fromRGB(255, 255, 255)
+triggerStroke.Parent = trigger
 
 local speedToggle = Instance.new("TextButton")
 speedToggle.Name = "SpeedToggle"
 speedToggle.AnchorPoint = Vector2.new (0.5, 0.5)
 speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(1, -180, 0, 55)
+speedToggle.Position = UDim2.new(0.83, -20, -0.05, -10)
 speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 speedToggle.BorderSizePixel = 0
 speedToggle.Text = "OFF"
@@ -223,6 +171,10 @@ speedBubbleText.TextSize = 13
 speedBubbleText.Font = Enum.Font.GothamBold
 speedBubbleText.ZIndex = 1101
 speedBubbleText.Parent = speedBubble
+
+local loadingCorner = Instance.new("UICorner")
+loadingCorner.CornerRadius = UDim.new(0, 10)
+loadingCorner.Parent = speedLoadingBar
 
 local speedInput = Instance.new("TextBox")
 speedInput.Size = UDim2.new(1, -12, 0, 34)
@@ -577,7 +529,7 @@ local serverButton = Instance.new("TextButton")
 serverButton.Name = "ServerButton"
 serverButton.AnchorPoint = Vector2.new(0.5, 0.5)
 serverButton.Size = UDim2.fromOffset(80, 40)
-serverButton.Position = UDim2.new(1, -90, 0, 55)
+serverButton.Position = UDim2.new(0.95, -20, -0.05, -10)
 serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 serverButton.BorderSizePixel = 0
 serverButton.Text = "Server"
@@ -827,33 +779,18 @@ local function disableSpeed()
 	updateSpeedButton()
 end
 
--- Main menu via ZxN
-if topbarAvailable then
-	trigger:bindEvent("selected", function()
-		menuOpen = true
-		menuFrame.Visible = true
-		frameRideAPet.Visible = false
-	end)
+-- Main menu
+trigger.Activated:Connect(function()
+	menuOpen = not menuOpen
+	menuFrame.Visible = menuOpen
+	frameRideAPet.Visible = false
 
-	trigger:bindEvent("deselected", function()
-		menuOpen = false
-		menuFrame.Visible = false
+	if not menuOpen then
 		frameRideAPet.Visible = false
 		teleportFrame.Visible = false
 		frameOpen = false
-	end)
-else
-	trigger.Activated:Connect(function()
-		menuOpen = not menuOpen
-		menuFrame.Visible = menuOpen
-		frameRideAPet.Visible = false
-
-		if not menuOpen then
-			teleportFrame.Visible = false
-			frameOpen = false
-		end
-	end)
-end
+	end
+end)
 
 RideAPetButton_.Activated:Connect(function()
 	frameOpen = true
@@ -1172,11 +1109,8 @@ local function makeDraggable(object)
 	end)
 end
 
+makeDraggable(trigger)
 makeDraggable(menuFrame)
-
-if not topbarAvailable then
-	makeDraggable(trigger)
-end
 
 -- Billboard
 local function createBillboard()
