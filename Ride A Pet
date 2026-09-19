@@ -1263,3 +1263,56 @@ end)
 updateSpeedButton()
 updateTeleportList()
 updateESP()
+
+-- Player Position ESP
+local positionBillboard = Instance.new("BillboardGui")
+positionBillboard.Name = "PlayerPositionESP"
+positionBillboard.Size = UDim2.fromOffset(180, 35)
+positionBillboard.StudsOffset = Vector3.new(0, 3.5, 0)
+positionBillboard.AlwaysOnTop = true
+positionBillboard.MaxDistance = math.huge
+positionBillboard.Parent = gui
+
+local positionLabel = Instance.new("TextLabel")
+positionLabel.Size = UDim2.fromScale(1, 1)
+positionLabel.BackgroundTransparency = 1
+positionLabel.TextColor3 = Color3.new(1, 1, 1)
+positionLabel.TextStrokeTransparency = 0
+positionLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+positionLabel.TextSize = 16
+positionLabel.Font = Enum.Font.GothamBold
+positionLabel.Text = "X: 0  Y: 0  Z: 0"
+positionLabel.Parent = positionBillboard
+
+local function updatePlayerPositionESP()
+	local character = player.Character
+	if not character then
+		positionBillboard.Enabled = false
+		return
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		positionBillboard.Enabled = false
+		return
+	end
+
+	positionBillboard.Adornee = root
+	positionBillboard.Enabled = true
+
+	local pos = root.Position
+
+	positionLabel.Text = string.format(
+		"X: %.1f  Y: %.1f  Z: %.1f",
+		pos.X,
+		pos.Y,
+		pos.Z
+	)
+end
+
+task.spawn(function()
+	while true do
+		updatePlayerPositionESP()
+		task.wait(0.5)
+	end
+end)
