@@ -1,3 +1,404 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local Icon = require(ReplicatedStorage:WaitForChild("Icon"))
+
+local MainMenu2 = Icon.new()
+	:setLabel("MENU")
+	:setImage(279461710)
+	:setOrder(2)
+	:setCaption("MENU")
+	:setMenu({
+		Alignment = "Right"
+	})
+
+local function getAttr(name, default)
+	if player:GetAttribute(name) == nil then
+		player:SetAttribute(name, default)
+	end
+	return player:GetAttribute(name)
+end
+local function setAttr(name, value)
+	player:SetAttribute(name, value)
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TouchGuiSettings2"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = playerGui
+
+local JUMP_BASE_SIZE = 120
+local JUMP_BASE_OFFSET = Vector2.new(-150, -150)
+local SHIFT_BASE_SIZE = 70
+
+local shiftButton = Instance.new("ImageButton")
+shiftButton.Name = "ShiftLockButton2"
+shiftButton.Size = UDim2.new(0, SHIFT_BASE_SIZE, 0, SHIFT_BASE_SIZE)
+shiftButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+shiftButton.Position = UDim2.new(0.9, 0, 0.5, 0)
+shiftButton.BackgroundTransparency = 1
+shiftButton.Image = "rbxassetid://7986256039"
+shiftButton.ImageColor3 = Color3.new(1, 1, 1)
+shiftButton.ZIndex = 10
+shiftButton.Parent = ScreenGui
+Instance.new("UICorner", shiftButton).CornerRadius = UDim.new(1, 0)
+
+local function makeEditSet()
+	local minus = Instance.new("TextButton")
+	minus.Size = UDim2.new(0, 40, 0, 40)
+	minus.Text = "-"
+	minus.Font = Enum.Font.GothamBold
+	minus.TextSize = 24
+	minus.TextColor3 = Color3.new(1, 1, 1)
+	minus.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	minus.BackgroundTransparency = 0.1
+	minus.ZIndex = 12
+	minus.Visible = false
+	minus.Parent = ScreenGui
+	Instance.new("UICorner", minus).CornerRadius = UDim.new(1, 0)
+
+	local plus = Instance.new("TextButton")
+	plus.Size = UDim2.new(0, 40, 0, 40)
+	plus.Text = "+"
+	plus.Font = Enum.Font.GothamBold
+	plus.TextSize = 24
+	plus.TextColor3 = Color3.new(1, 1, 1)
+	plus.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	plus.BackgroundTransparency = 0.1
+	plus.ZIndex = 12
+	plus.Visible = false
+	plus.Parent = ScreenGui
+	Instance.new("UICorner", plus).CornerRadius = UDim.new(1, 0)
+
+	local save = Instance.new("TextButton")
+	save.Size = UDim2.new(0, 50, 0, 26)
+	save.Text = "Save"
+	save.Font = Enum.Font.GothamBold
+	save.TextSize = 12
+	save.TextColor3 = Color3.new(1, 1, 1)
+	save.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+	save.ZIndex = 12
+	save.Visible = false
+	save.Parent = ScreenGui
+	Instance.new("UICorner", save).CornerRadius = UDim.new(0, 8)
+
+	return minus, plus, save
+end
+
+local jumpMinus, jumpPlus, jumpSave = makeEditSet()
+local shiftMinus, shiftPlus, shiftSave = makeEditSet()
+
+local editMode = false
+local jumpEditVisible = false
+local shiftEditVisible = false
+local jumpButton = nil
+
+local function updateEditVisibility()
+	local jv = editMode and jumpEditVisible
+	local sv = editMode and shiftEditVisible
+	jumpMinus.Visible = jv
+	jumpPlus.Visible = jv
+	jumpSave.Visible = jv
+	shiftMinus.Visible = sv
+	shiftPlus.Visible = sv
+	shiftSave.Visible = sv
+end
+
+local function getViewport()
+	local cam = workspace.CurrentCamera
+	if cam then
+		return cam.ViewportSize.X, cam.ViewportSize.Y
+	end
+	return 0, 0
+end
+
+local function findJumpButton()
+	local touchGui = playerGui:FindFirstChild("TouchGui")
+	if not touchGui then return nil end
+	local control = touchGui:FindFirstChild("TouchControlFrame")
+	if not control then return nil end
+	return control:FindFirstChild("JumpButton", true)
+end
+
+local function applyJumpSettings()
+	local btn = jumpButton or findJumpButton()
+	if btn then
+		jumpButton = btn
+	else
+		return
+	end
+	local scale = getAttr("JumpSize", 100) / 100
+	local s = math.floor(JUMP_BASE_SIZE * scale)
+	btn.Size = UDim2.new(0, s, 0, s)
+	btn.Position = UDim2.new(1, JUMP_BASE_OFFSET.X + getAttr("JumpPosX", 0), 1, JUMP_BASE_OFFSET.Y + getAttr("JumpPosY", 0))
+end
+
+local function applyShiftSize()
+	local scale = getAttr("ShiftSize", 100) / 100
+	local s = math.floor(SHIFT_BASE_SIZE * scale)
+	shiftButton.Size = UDim2.new(0, s, 0, s)
+end
+
+local function applyShiftSettings()
+	applyShiftSize()
+	local savedX = player:GetAttribute("ShiftX")
+	local savedY = player:GetAttribute("ShiftY")
+	if savedX == nil or savedY == nil then
+		shiftButton.Position = UDim2.new(0.9, 0, 0.5, 0)
+		return
+	end
+	local vw, vh = getViewport()
+	if vw <= 0 or vh <= 0 then
+		return
+	end
+	local s = shiftButton.AbsoluteSize.X
+	local x = math.clamp(savedX, 4, math.max(4, vw - s - 4))
+	local y = math.clamp(savedY, 60, math.max(60, vh - s - 4))
+	shiftButton.Position = UDim2.new(0, x, 0, y)
+end
+
+player:SetAttribute("ShiftPosX", nil)
+player:SetAttribute("ShiftPosY", nil)
+
+task.spawn(function()
+	for _ = 1, 30 do
+		local vw, vh = getViewport()
+		if vw > 0 and vh > 0 then
+			break
+		end
+		task.wait(0.1)
+	end
+	applyShiftSettings()
+end)
+
+local function makeDraggable(resolve, canDrag, onTap)
+	local dragging = false
+	local moved = false
+	local dragStart = nil
+	local startPos = nil
+	local connectedBtn = nil
+
+	local function onInputBegan(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			moved = false
+			dragStart = input.Position
+			local btn = resolve()
+			startPos = btn and btn.AbsolutePosition or nil
+		end
+	end
+	local function onInputEnded(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if dragging and not moved and onTap then
+				onTap()
+			end
+			dragging = false
+		end
+	end
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and canDrag() and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local btn = resolve()
+			if not btn or not startPos then return end
+			local dx = input.Position.X - dragStart.X
+			local dy = input.Position.Y - dragStart.Y
+			if math.abs(dx) > 8 or math.abs(dy) > 8 then
+				moved = true
+			end
+			if moved then
+				local vw, vh = getViewport()
+				local w = btn.AbsoluteSize.X
+				local h = btn.AbsoluteSize.Y
+				local x = math.clamp(startPos.X + dx, 4, vw - w - 4)
+				local y = math.clamp(startPos.Y + dy, 60, vh - h - 4)
+				btn.Position = UDim2.new(0, x, 0, y)
+			end
+		end
+	end)
+	return function()
+		local btn = resolve()
+		if btn and btn ~= connectedBtn then
+			connectedBtn = btn
+			btn.InputBegan:Connect(onInputBegan)
+			btn.InputEnded:Connect(onInputEnded)
+		end
+		return dragging, moved
+	end
+end
+
+local getJumpDragState = makeDraggable(
+	function() return jumpButton end,
+	function() return editMode end,
+	nil
+)
+
+local shiftLockOn = false
+
+local function setShiftLock(on)
+	shiftLockOn = on
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.AutoRotate = not on
+	end
+	if on then
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		UserInputService.MouseIconEnabled = false
+		shiftButton.ImageColor3 = Color3.fromRGB(0, 255, 120)
+	else
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		UserInputService.MouseIconEnabled = true
+		shiftButton.ImageColor3 = Color3.new(1, 1, 1)
+	end
+end
+
+local getShiftDragState = makeDraggable(
+	function() return shiftButton end,
+	function() return editMode end,
+	function()
+		if not editMode then
+			setShiftLock(not shiftLockOn)
+		end
+	end
+)
+
+local function changeJumpSize(delta)
+	local v = math.clamp(getAttr("JumpSize", 100) + delta, 40, 500)
+	setAttr("JumpSize", v)
+	applyJumpSettings()
+end
+
+local function changeShiftSize(delta)
+	local v = math.clamp(getAttr("ShiftSize", 100) + delta, 40, 300)
+	setAttr("ShiftSize", v)
+	applyShiftSize()
+end
+
+jumpMinus.MouseButton1Click:Connect(function()
+	changeJumpSize(-10)
+end)
+jumpPlus.MouseButton1Click:Connect(function()
+	changeJumpSize(10)
+end)
+shiftMinus.MouseButton1Click:Connect(function()
+	changeShiftSize(-10)
+end)
+shiftPlus.MouseButton1Click:Connect(function()
+	changeShiftSize(10)
+end)
+
+jumpSave.MouseButton1Click:Connect(function()
+	local btn = jumpButton
+	if btn then
+		local vw, vh = getViewport()
+		setAttr("JumpPosX", math.floor(btn.AbsolutePosition.X - (vw + JUMP_BASE_OFFSET.X)))
+		setAttr("JumpPosY", math.floor(btn.AbsolutePosition.Y - (vh + JUMP_BASE_OFFSET.Y)))
+	end
+	jumpEditVisible = false
+	updateEditVisibility()
+end)
+
+shiftSave.MouseButton1Click:Connect(function()
+	setAttr("ShiftX", math.floor(shiftButton.AbsolutePosition.X))
+	setAttr("ShiftY", math.floor(shiftButton.AbsolutePosition.Y))
+	shiftEditVisible = false
+	updateEditVisibility()
+end)
+
+RunService.RenderStepped:Connect(function()
+	local jd = getJumpDragState()
+	getShiftDragState()
+	if editMode and jd then
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.Jump = false
+		end
+	end
+
+	if shiftLockOn then
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local cam = workspace.CurrentCamera
+		if hrp and cam then
+			local look = cam.CFrame.LookVector
+			local yaw = math.atan2(-look.X, -look.Z)
+			hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, yaw, 0)
+		end
+	end
+
+	if jumpButton then
+		local jPos = jumpButton.AbsolutePosition
+		local jSize = jumpButton.AbsoluteSize
+		jumpMinus.Position = UDim2.new(0, jPos.X - 48, 0, jPos.Y + (jSize.Y - 40) / 2)
+		jumpPlus.Position = UDim2.new(0, jPos.X + jSize.X + 8, 0, jPos.Y + (jSize.Y - 40) / 2)
+		jumpSave.Position = UDim2.new(0, jPos.X + (jSize.X - 50) / 2, 0, jPos.Y + jSize.Y + 6)
+	end
+
+	local sPos = shiftButton.AbsolutePosition
+	local sSize = shiftButton.AbsoluteSize
+	shiftMinus.Position = UDim2.new(0, sPos.X - 48, 0, sPos.Y + (sSize.Y - 40) / 2)
+	shiftPlus.Position = UDim2.new(0, sPos.X + sSize.X + 8, 0, sPos.Y + (sSize.Y - 40) / 2)
+	shiftSave.Position = UDim2.new(0, sPos.X + (sSize.X - 50) / 2, 0, sPos.Y + sSize.Y + 6)
+end)
+
+playerGui.DescendantAdded:Connect(function(d)
+	if d.Name == "JumpButton" then
+		task.delay(0.2, function()
+			applyJumpSettings()
+		end)
+	end
+end)
+
+player.CharacterAdded:Connect(function(char)
+	task.spawn(function()
+		local hum = char:WaitForChild("Humanoid", 5)
+		if hum and shiftLockOn then
+			hum.AutoRotate = false
+		end
+	end)
+end)
+
+task.spawn(function()
+	for _ = 1, 20 do
+		applyJumpSettings()
+		if jumpButton then break end
+		task.wait(0.5)
+	end
+end)
+
+applyShiftSettings()
+
+local jumpIcon = Icon.new()
+	:setName("JumpSettings2")
+	:setImage(137997222936677)
+	:setLabel("", "Deselected")
+	:setLabel("Close", "Selected")
+	:align("Right")
+	:joinMenu(MainMenu2)
+
+jumpIcon:bindEvent("selected", function()
+	editMode = true
+	if shiftLockOn then
+		setShiftLock(false)
+	end
+	jumpEditVisible = true
+	shiftEditVisible = true
+	applyJumpSettings()
+	updateEditVisibility()
+end)
+jumpIcon:bindEvent("deselected", function()
+	editMode = false
+	updateEditVisibility()
+end)
+
+-- UNIVERSAL SCRIPT
+do
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
@@ -46,7 +447,7 @@ gui.Parent = playerGui
 local trigger = Instance.new("TextButton")
 trigger.Name = "ESPTrigger"
 trigger.Size = UDim2.fromOffset(40, 40)
-trigger.Position = UDim2.new(0.8, 40, 0, 10)
+trigger.Position = UDim2.new(0, -1000, 0, -1000)
 trigger.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 trigger.BorderSizePixel = 0
 trigger.Text = "≡"
@@ -54,7 +455,7 @@ trigger.TextColor3 = Color3.new(1, 1, 1)
 trigger.TextSize = 24
 trigger.Font = Enum.Font.GothamBold
 trigger.AutoButtonColor = true
-trigger.Active = true
+trigger.Active = false
 trigger.ZIndex = 1000
 trigger.Parent = gui
 
@@ -71,7 +472,7 @@ local speedToggle = Instance.new("TextButton")
 speedToggle.Name = "SpeedToggle"
 speedToggle.AnchorPoint = Vector2.new (0.5, 0.5)
 speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(0.83, -20, -0.05, -10)
+speedToggle.Position = UDim2.new(1, -190, 0, 70)
 speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 speedToggle.BorderSizePixel = 0
 speedToggle.Text = "OFF"
@@ -84,6 +485,7 @@ speedToggle.AutoButtonColor = false
 speedToggle.Active = true
 speedToggle.ZIndex = 1000
 speedToggle.Parent = gui
+speedToggle.Visible = false
 
 local speedCorner = Instance.new("UICorner")
 speedCorner.CornerRadius = UDim.new(1, 0)
@@ -529,7 +931,7 @@ local serverButton = Instance.new("TextButton")
 serverButton.Name = "ServerButton"
 serverButton.AnchorPoint = Vector2.new(0.5, 0.5)
 serverButton.Size = UDim2.fromOffset(80, 40)
-serverButton.Position = UDim2.new(0.95, -20, -0.05, -10)
+serverButton.Position = UDim2.new(1, -95, 0, 70)
 serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 serverButton.BorderSizePixel = 0
 serverButton.Text = "Server"
@@ -540,6 +942,7 @@ serverButton.AutoButtonColor = true
 serverButton.Active = true
 serverButton.ZIndex = 1000
 serverButton.Parent = gui
+serverButton.Visible = false
 
 local serverCorner = Instance.new("UICorner")
 serverCorner.CornerRadius = UDim.new(1, 0)
@@ -554,7 +957,7 @@ serverStroke.Parent = serverButton
 local serverBubble = Instance.new("Frame")
 serverBubble.Name = "ServerBubble"
 serverBubble.Size = UDim2.fromOffset(155, 42)
-serverBubble.Position = UDim2.new(0.9, -117, -0.05, 28)
+serverBubble.Position = UDim2.new(1, -250, 0, 115)
 serverBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 serverBubble.BorderSizePixel = 0
 serverBubble.Visible = false
@@ -712,6 +1115,9 @@ local function readSpeed()
 	return speed
 end
 
+local speedIcon
+local serverIcon
+
 local function updateSpeedButton()
 	if speedEnabled then
 		-- ON
@@ -741,6 +1147,11 @@ local function updateSpeedButton()
 			0, 4,
 			0.5, -16
 		)
+	end
+
+	if speedIcon then
+		speedIcon:setLabel(speedEnabled and "Speed ON" or "Speed OFF")
+		speedIcon:setCaption(speedEnabled and "Speed: ON" or "Speed: OFF")
 	end
 end
 
@@ -1263,3 +1674,60 @@ end)
 updateSpeedButton()
 updateTeleportList()
 updateESP()
+
+-- Topbar controls: right-aligned, with Server at the far right and Speed immediately to its left
+speedIcon = Icon.new()
+	:setName("SpeedToggleTopbar")
+	:setLabel("Speed OFF")
+	:setCaption("Speed: OFF")
+	:setOrder(2)
+	:align("Right")
+
+serverIcon = Icon.new()
+	:setName("ServerHopTopbar")
+	:setLabel("Server")
+	:setCaption("Server Hop")
+	:setOrder(3)
+	:align("Right")
+
+serverIcon:bindEvent("selected", function()
+	serverIcon:deselect()
+	performServerHop()
+end)
+
+speedIcon:bindEvent("selected", function()
+	enableSpeed()
+end)
+
+speedIcon:bindEvent("deselected", function()
+	disableSpeed()
+end)
+
+updateSpeedButton()
+
+-- Topbar trigger for the Universal main frame
+local universalIcon = Icon.new()
+	:setName("UniversalTrigger")
+	:setLabel("Universal")
+	:setCaption("Universal")
+	:setOrder(1)
+	:joinMenu(MainMenu2)
+
+universalIcon:bindEvent("selected", function()
+	frameOpen = true
+	menuOpen = true
+	menuFrame.Visible = true
+	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+	updateTeleportList()
+end)
+
+universalIcon:bindEvent("deselected", function()
+	frameOpen = false
+	menuOpen = false
+	menuFrame.Visible = false
+	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+end)
+
+end
