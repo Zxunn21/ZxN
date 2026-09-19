@@ -35,13 +35,43 @@ local function findRenderedEggs()
 	return renderedEggs
 end
 
+-- Executor-safe GUI parent
+local guiParent = playerGui
+
+pcall(function()
+	if typeof(gethui) == "function" then
+		local hui = gethui()
+		if hui then
+			guiParent = hui
+		end
+	end
+end)
+
+local oldGui = guiParent:FindFirstChild("EggESP")
+if oldGui then
+	pcall(function()
+		oldGui:Destroy()
+	end)
+end
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "EggESP"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
-gui.DisplayOrder = 999
+gui.DisplayOrder = 999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-gui.Parent = playerGui
+gui.Parent = guiParent
+
+-- Execution marker
+pcall(function()
+	local marker = Instance.new("TextLabel")
+	marker.Name = "Loaded"
+	marker.Size = UDim2.fromOffset(1, 1)
+	marker.Position = UDim2.fromOffset(0, 0)
+	marker.BackgroundTransparency = 1
+	marker.Text = ""
+	marker.Parent = gui
+end)
 
 -- Topbar trigger / Delta-safe fallback
 local trigger
@@ -74,7 +104,7 @@ if not topbarAvailable then
 	trigger = Instance.new("TextButton")
 	trigger.Name = "ZxN"
 	trigger.Size = UDim2.fromOffset(60, 36)
-	trigger.Position = UDim2.new(0, 10, 0, 8)
+	trigger.Position = UDim2.new(0, 10, 0, 45)
 	trigger.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 	trigger.BorderSizePixel = 0
 	trigger.Text = "ZxN"
@@ -93,7 +123,7 @@ local speedToggle = Instance.new("TextButton")
 speedToggle.Name = "SpeedToggle"
 speedToggle.AnchorPoint = Vector2.new (0.5, 0.5)
 speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(0.83, -20, -0.05, -10)
+speedToggle.Position = UDim2.new(1, -180, 0, 55)
 speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 speedToggle.BorderSizePixel = 0
 speedToggle.Text = "OFF"
@@ -547,7 +577,7 @@ local serverButton = Instance.new("TextButton")
 serverButton.Name = "ServerButton"
 serverButton.AnchorPoint = Vector2.new(0.5, 0.5)
 serverButton.Size = UDim2.fromOffset(80, 40)
-serverButton.Position = UDim2.new(0.95, -20, -0.05, -10)
+serverButton.Position = UDim2.new(1, -90, 0, 55)
 serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 serverButton.BorderSizePixel = 0
 serverButton.Text = "Server"
