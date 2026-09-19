@@ -69,9 +69,9 @@ triggerStroke.Parent = trigger
 
 local speedToggle = Instance.new("TextButton")
 speedToggle.Name = "SpeedToggle"
-speedToggle.AnchorPoint = Vector2.new (0.5, 1)
+speedToggle.AnchorPoint = Vector2.new (0.5, 0.5)
 speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(0.8, 0, 0.97, 0)
+speedToggle.Position = UDim2.new(0.83, -20, -0.05, -10)
 speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 speedToggle.BorderSizePixel = 0
 speedToggle.Text = "OFF"
@@ -94,7 +94,6 @@ speedStroke.Thickness = 2
 speedStroke.Color = Color3.fromRGB(210, 210, 210)
 speedStroke.Parent = speedToggle
 
--- Padding untuk teks ON/OFF
 local speedPadding = Instance.new("UIPadding")
 speedPadding.Parent = speedToggle
 
@@ -136,8 +135,8 @@ knobStroke.Parent = speedKnob
 local speedBubble = Instance.new("Frame")
 speedBubble.Name = "SpeedBubble"
 speedBubble.Size = UDim2.fromOffset(155, 42)
-speedBubble.AnchorPoint = Vector2.new(1, 1)
-speedBubble.Position = UDim2.new(0.5, 0, 0, -10)
+speedBubble.AnchorPoint = Vector2.new(0.5, 0)
+speedBubble.Position = UDim2.new(0.5, 0, 1, 10)
 speedBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 speedBubble.BorderSizePixel = 0
 speedBubble.Visible = false
@@ -155,8 +154,8 @@ speedBubbleStroke.Parent = speedBubble
 
 local speedBubbleArrow = Instance.new("Frame")
 speedBubbleArrow.Size = UDim2.fromOffset(14, 14)
-speedBubbleArrow.Position = UDim2.new(1, -30, 1, -7)
-speedBubbleArrow.Rotation = 45
+speedBubbleArrow.Position = UDim2.new(0.5, -30, 0, -7)
+speedBubbleArrow.Rotation = 135
 speedBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 speedBubbleArrow.BorderSizePixel = 0
 speedBubbleArrow.ZIndex = 1099
@@ -172,16 +171,6 @@ speedBubbleText.TextSize = 13
 speedBubbleText.Font = Enum.Font.GothamBold
 speedBubbleText.ZIndex = 1101
 speedBubbleText.Parent = speedBubble
-
-local speedLoadingBar = Instance.new("Frame")
-speedLoadingBar.Name = "LoadingBar"
-speedLoadingBar.Size = UDim2.new(0, 0, 1, 0)
-speedLoadingBar.Position = UDim2.new(0, 0, 0, 0)
-speedLoadingBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-speedLoadingBar.BackgroundTransparency = 0.65
-speedLoadingBar.BorderSizePixel = 0
-speedLoadingBar.ZIndex = speedBubble.ZIndex
-speedLoadingBar.Parent = speedBubble
 
 local loadingCorner = Instance.new("UICorner")
 loadingCorner.CornerRadius = UDim.new(0, 10)
@@ -538,8 +527,9 @@ teleportLayout.Parent = teleportList
 -- Server hop button
 local serverButton = Instance.new("TextButton")
 serverButton.Name = "ServerButton"
+serverButton.AnchorPoint = Vector2.new(0.5, 0.5)
 serverButton.Size = UDim2.fromOffset(80, 40)
-serverButton.Position = UDim2.new(0.9, -20, -0.05, -20)
+serverButton.Position = UDim2.new(0.95, -20, -0.05, -10)
 serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 serverButton.BorderSizePixel = 0
 serverButton.Text = "Server"
