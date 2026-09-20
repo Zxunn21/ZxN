@@ -1,0 +1,100 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SpeedGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(220, 120)
+frame.Position = UDim2.new(0.5, -110, 0.5, -60)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local input = Instance.new("TextBox")
+input.Size = UDim2.fromOffset(190, 35)
+input.Position = UDim2.fromOffset(15, 10)
+input.PlaceholderText = "Speed"
+input.Text = "16"
+input.TextSize = 18
+input.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+input.TextColor3 = Color3.new(1, 1, 1)
+input.Parent = frame
+
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.fromOffset(190, 40)
+toggle.Position = UDim2.fromOffset(15, 60)
+toggle.Text = "OFF"
+toggle.TextSize = 18
+toggle.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+toggle.TextColor3 = Color3.new(1, 1, 1)
+toggle.Parent = frame
+
+local enabled = false
+local connection
+
+local function getSpeed()
+    local value = tonumber(input.Text)
+    if not value then
+        return 16
+    end
+    return math.clamp(value, 0, 500)
+end
+
+local function applySpeed()
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    if humanoid then
+        humanoid.WalkSpeed = getSpeed()
+    end
+end
+
+toggle.MouseButton1Click:Connect(function()
+    enabled = not enabled
+
+    if enabled then
+        toggle.Text = "ON"
+        toggle.BackgroundColor3 = Color3.fromRGB(50, 120, 60)
+
+        if connection then
+            connection:Disconnect()
+        end
+
+        connection = game:GetService("RunService").Heartbeat:Connect(function()
+            applySpeed()
+        end)
+
+        applySpeed()
+    else
+        toggle.Text = "OFF"
+        toggle.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            humanoid.WalkSpeed = 16
+        end
+    end
+end)
+
+input.FocusLost:Connect(function()
+    if enabled then
+        applySpeed()
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    if enabled then
+        task.wait(0.5)
+        applySpeed()
+    end
+end)
