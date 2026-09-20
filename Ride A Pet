@@ -1950,4 +1950,5 @@ task.spawn(function()
 	clearObjectLines()
 end)
 
-updateObjectLineButton()2
+updateObjectLineButton()
+w
