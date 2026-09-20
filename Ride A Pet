@@ -1951,4 +1951,3 @@ task.spawn(function()
 end)
 
 updateObjectLineButton()
-w
