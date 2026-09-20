@@ -297,6 +297,18 @@ mainMenu.Size = UDim2.fromScale(0.25, 1)
 mainMenu.BackgroundTransparency = 1
 mainMenu.Parent = menuFrame
 
+local mainCloseButton = Instance.new("TextButton")
+mainCloseButton.Name = "MainCloseButton"
+mainCloseButton.Size = UDim2.fromOffset(30, 30)
+mainCloseButton.Position = UDim2.new(2, 10, 0, -5)
+mainCloseButton.BackgroundTransparency = 1
+mainCloseButton.Text = "×"
+mainCloseButton.TextColor3 = Color3.new(1, 1, 1)
+mainCloseButton.TextSize = 35
+mainCloseButton.Font = Enum.Font.GothamBold
+mainCloseButton.ZIndex = 550
+mainCloseButton.Parent = mainMenu
+
 local subMenu = Instance.new("Frame")
 subMenu.Name = "SubMenu"
 subMenu.Size = UDim2.fromScale(0.7, 1)
@@ -325,12 +337,62 @@ local gameButtonCorner = Instance.new("UICorner")
 gameButtonCorner.CornerRadius = UDim.new(0, 7)
 gameButtonCorner.Parent = gameButton
 
+local featureButton = Instance.new("TextButton")
+featureButton.Name = "FeatureButton"
+featureButton.Size = UDim2.new(1, 0, 0, 24)
+featureButton.Position = UDim2.fromOffset(10, 59)
+featureButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+featureButton.TextColor3 = Color3.new(1, 1, 1)
+featureButton.Text = "Fitur"
+featureButton.TextSize = 18
+featureButton.TextXAlignment = Enum.TextXAlignment.Left
+featureButton.TextYAlignment = Enum.TextYAlignment.Center
+featureButton.Font = Enum.Font.GothamBold
+featureButton.ZIndex = 501
+featureButton.Parent = mainMenu
+
+local featureButtonPadding = Instance.new("UIPadding")
+featureButtonPadding.PaddingLeft = UDim.new(0, 10)
+featureButtonPadding.Parent = featureButton
+
+local featureButtonCorner = Instance.new("UICorner")
+featureButtonCorner.CornerRadius = UDim.new(0, 7)
+featureButtonCorner.Parent = featureButton
+
+local RideAPetButton_
+local featurePanel
+local objectLineToggle
+local playerLineToggle
+local featureObjectInput
+local featurePlayerInput
+
 gameButton.Activated:Connect(function()
 	gameOpen = true
 	subMenu.Visible = true
+	RideAPetButton_.Visible = true
+	featurePanel.Visible = false
 end)
 
-local RideAPetButton_ = Instance.new("TextButton")
+featureButton.Activated:Connect(function()
+	gameOpen = false
+	subMenu.Visible = true
+
+	-- Reset isi panel kanan lalu tampilkan kontrol Fitur.
+	RideAPetButton_.Visible = false
+	featurePanel.Visible = true
+
+	-- Matikan kedua fitur line saat panel dibuka ulang.
+	if objectLineToggle then
+		objectLineToggle.Text = "OFF"
+		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+	if playerLineToggle then
+		playerLineToggle.Text = "OFF"
+		playerLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end)
+
+RideAPetButton_ = Instance.new("TextButton")
 RideAPetButton_.Size = UDim2.new(1, 0, 0, 24)
 RideAPetButton_.Position = UDim2.fromOffset(10, 25)
 RideAPetButton_.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -344,6 +406,141 @@ RideAPetButton_.Parent = subMenu
 local gameButtonCorner = Instance.new("UICorner")
 gameButtonCorner.CornerRadius = UDim.new(0, 7)
 gameButtonCorner.Parent = RideAPetButton_
+
+featurePanel = Instance.new("Frame")
+featurePanel.Name = "FeaturePanel"
+featurePanel.Size = UDim2.new(1, 0, 1, 0)
+featurePanel.BackgroundTransparency = 1
+featurePanel.Visible = false
+featurePanel.ZIndex = 510
+featurePanel.Parent = subMenu
+
+local featureTitle = Instance.new("TextLabel")
+featureTitle.Size = UDim2.new(1, -10, 0, 30)
+featureTitle.Position = UDim2.fromOffset(10, 5)
+featureTitle.BackgroundTransparency = 1
+featureTitle.Text = "Fitur"
+featureTitle.TextColor3 = Color3.new(1, 1, 1)
+featureTitle.TextSize = 18
+featureTitle.Font = Enum.Font.GothamBold
+featureTitle.TextXAlignment = Enum.TextXAlignment.Left
+featureTitle.ZIndex = 511
+featureTitle.Parent = featurePanel
+
+-- Control input dan tombol Line dibuat di panel Fitur.
+featureObjectInput = Instance.new("TextBox")
+featureObjectInput.Name = "ObjectCoordinateInput"
+featureObjectInput.Size = UDim2.new(0, 110, 0, 40)
+featureObjectInput.Position = UDim2.fromOffset(95, 45)
+featureObjectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+featureObjectInput.BorderSizePixel = 0
+featureObjectInput.Text = ""
+featureObjectInput.PlaceholderText = "P part / M model"
+featureObjectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+featureObjectInput.TextColor3 = Color3.new(1, 1, 1)
+featureObjectInput.TextSize = 13
+featureObjectInput.Font = Enum.Font.GothamBold
+featureObjectInput.ClearTextOnFocus = false
+featureObjectInput.TextXAlignment = Enum.TextXAlignment.Center
+featureObjectInput.ZIndex = 512
+featureObjectInput.Parent = featurePanel
+
+local featureObjectInputCorner = Instance.new("UICorner")
+featureObjectInputCorner.CornerRadius = UDim.new(0, 8)
+featureObjectInputCorner.Parent = featureObjectInput
+
+local featureObjectInputStroke = Instance.new("UIStroke")
+featureObjectInputStroke.Thickness = 2
+featureObjectInputStroke.Color = Color3.fromRGB(210, 210, 210)
+featureObjectInputStroke.Parent = featureObjectInput
+
+objectLineToggle = Instance.new("TextButton")
+objectLineToggle.Name = "ObjectLineToggle"
+objectLineToggle.Size = UDim2.new(0, 60, 0, 40)
+objectLineToggle.Position = UDim2.fromOffset(210, 45)
+objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+objectLineToggle.BorderSizePixel = 0
+objectLineToggle.Text = "OFF"
+objectLineToggle.TextColor3 = Color3.new(1, 1, 1)
+objectLineToggle.TextSize = 13
+objectLineToggle.Font = Enum.Font.GothamBold
+objectLineToggle.ZIndex = 512
+objectLineToggle.Parent = featurePanel
+
+local objectLineToggleCorner = Instance.new("UICorner")
+objectLineToggleCorner.CornerRadius = UDim.new(0, 8)
+objectLineToggleCorner.Parent = objectLineToggle
+
+local objectLineLabel = Instance.new("TextLabel")
+objectLineLabel.Name = "ObjectLineLabel"
+objectLineLabel.Size = UDim2.new(0, 80, 0, 40)
+objectLineLabel.Position = UDim2.fromOffset(10, 45)
+objectLineLabel.BackgroundTransparency = 1
+objectLineLabel.Text = "Line to Object"
+objectLineLabel.TextColor3 = Color3.new(1, 1, 1)
+objectLineLabel.TextSize = 12
+objectLineLabel.Font = Enum.Font.GothamBold
+objectLineLabel.TextXAlignment = Enum.TextXAlignment.Left
+objectLineLabel.TextYAlignment = Enum.TextYAlignment.Center
+objectLineLabel.ZIndex = 512
+objectLineLabel.Parent = featurePanel
+
+local featurePlayerLabel = Instance.new("TextLabel")
+featurePlayerLabel.Name = "PlayerLineLabel"
+featurePlayerLabel.Size = UDim2.new(0, 80, 0, 40)
+featurePlayerLabel.Position = UDim2.fromOffset(10, 95)
+featurePlayerLabel.BackgroundTransparency = 1
+featurePlayerLabel.Text = "Line to Player"
+featurePlayerLabel.TextColor3 = Color3.new(1, 1, 1)
+featurePlayerLabel.TextSize = 12
+featurePlayerLabel.Font = Enum.Font.GothamBold
+featurePlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
+featurePlayerLabel.TextYAlignment = Enum.TextYAlignment.Center
+featurePlayerLabel.ZIndex = 512
+featurePlayerLabel.Parent = featurePanel
+
+featurePlayerInput = Instance.new("TextBox")
+featurePlayerInput.Name = "PlayerNameInput"
+featurePlayerInput.Size = UDim2.new(0, 110, 0, 40)
+featurePlayerInput.Position = UDim2.fromOffset(95, 95)
+featurePlayerInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+featurePlayerInput.BorderSizePixel = 0
+featurePlayerInput.Text = ""
+featurePlayerInput.PlaceholderText = "Player name"
+featurePlayerInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+featurePlayerInput.TextColor3 = Color3.new(1, 1, 1)
+featurePlayerInput.TextSize = 13
+featurePlayerInput.Font = Enum.Font.GothamBold
+featurePlayerInput.ClearTextOnFocus = false
+featurePlayerInput.TextXAlignment = Enum.TextXAlignment.Center
+featurePlayerInput.ZIndex = 512
+featurePlayerInput.Parent = featurePanel
+
+local playerInputCorner = Instance.new("UICorner")
+playerInputCorner.CornerRadius = UDim.new(0, 8)
+playerInputCorner.Parent = featurePlayerInput
+
+local playerInputStroke = Instance.new("UIStroke")
+playerInputStroke.Thickness = 2
+playerInputStroke.Color = Color3.fromRGB(210, 210, 210)
+playerInputStroke.Parent = featurePlayerInput
+
+playerLineToggle = Instance.new("TextButton")
+playerLineToggle.Name = "PlayerLineToggle"
+playerLineToggle.Size = UDim2.new(0, 60, 0, 40)
+playerLineToggle.Position = UDim2.fromOffset(210, 95)
+playerLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+playerLineToggle.BorderSizePixel = 0
+playerLineToggle.Text = "OFF"
+playerLineToggle.TextColor3 = Color3.new(1, 1, 1)
+playerLineToggle.TextSize = 13
+playerLineToggle.Font = Enum.Font.GothamBold
+playerLineToggle.ZIndex = 512
+playerLineToggle.Parent = featurePanel
+
+local playerToggleCorner = Instance.new("UICorner")
+playerToggleCorner.CornerRadius = UDim.new(0, 8)
+playerToggleCorner.Parent = playerLineToggle
 
 -- Control frame
 local frameRideAPet = Instance.new("Frame")
@@ -792,7 +989,16 @@ trigger.Activated:Connect(function()
 	end
 end)
 
+mainCloseButton.Activated:Connect(function()
+	menuFrame.Visible = false
+	menuOpen = false
+	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+end)
+
 RideAPetButton_.Activated:Connect(function()
+	featurePanel.Visible = false
 	frameOpen = true
 	frameRideAPet.Visible = true
 	teleportFrame.Visible = false
@@ -1264,34 +1470,9 @@ updateSpeedButton()
 updateTeleportList()
 updateESP()
 
--- OBJECT LINE
-local objectInput = Instance.new("TextBox")
-objectInput.Name = "ObjectCoordinateInput"
-objectInput.AnchorPoint = Vector2.new(0.5, 0.5)
-objectInput.Size = UDim2.fromOffset(160, 40)
-objectInput.Position = UDim2.new(1, -285, 0, -20)
-objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-objectInput.BorderSizePixel = 0
-objectInput.Text = ""
-objectInput.PlaceholderText = "P part / M model"
-objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-objectInput.TextColor3 = Color3.new(1, 1, 1)
-objectInput.TextSize = 13
-objectInput.Font = Enum.Font.GothamBold
-objectInput.ClearTextOnFocus = false
-objectInput.TextXAlignment = Enum.TextXAlignment.Center
-objectInput.ZIndex = 1000
-objectInput.Parent = gui
-objectInput.Visible = true
-
-local objectInputCorner = Instance.new("UICorner")
-objectInputCorner.CornerRadius = UDim.new(1, 0)
-objectInputCorner.Parent = objectInput
-
-local objectInputStroke = Instance.new("UIStroke")
-objectInputStroke.Thickness = 2
-objectInputStroke.Color = Color3.fromRGB(210, 210, 210)
-objectInputStroke.Parent = objectInput
+-- OBJECT LINE / FITUR LINE
+local objectInput = featureObjectInput
+local objectLineEnabled = false
 
 local objectBeams = {}
 local objectTargetParts = {}
@@ -1338,20 +1519,31 @@ local function clearObjectLines()
 	table.clear(objectStartAttachments)
 end
 
+-- P = BasePart, M = Model.
+-- Pencarian case-insensitive dan partial/contains:
+-- "m cherub" -> "Cherub Egg"
+-- "p part"  -> semua BasePart yang namanya mengandung "part"
 local function findObjects(targetType, targetName)
 	local results = {}
 
-	if not targetType or not targetName or targetName == "" then
+	if not targetType or not targetName then
 		return results
 	end
 
+	targetName = targetName:match("^%s*(.-)%s*$")
+	if targetName == "" then
+		return results
+	end
+
+	local wanted = string.lower(targetName)
+
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj.Name == targetName then
-			if targetType == "P" and obj:IsA("BasePart") then
-				table.insert(results, obj)
-			elseif targetType == "M" and obj:IsA("Model") then
-				table.insert(results, obj)
-			end
+		local typeMatches =
+			(targetType == "P" and obj:IsA("BasePart"))
+			or (targetType == "M" and obj:IsA("Model"))
+
+		if typeMatches and string.find(string.lower(obj.Name), wanted, 1, true) then
+			table.insert(results, obj)
 		end
 	end
 
@@ -1369,6 +1561,10 @@ end
 
 local function createObjectLines(targetType, targetName)
 	clearObjectLines()
+
+	if not objectLineEnabled then
+		return
+	end
 
 	local rootPart = getRootPart()
 	if not rootPart then
@@ -1430,52 +1626,210 @@ local function createObjectLines(targetType, targetName)
 	currentTargetName = targetName
 end
 
-local function updateObjectLine()
+local function parseObjectInput()
 	local input = objectInput.Text:match("^%s*(.-)%s*$")
 
 	if input == "" then
-		currentTargetType = nil
-		currentTargetName = nil
-		clearObjectLines()
-		return
+		return nil, nil
 	end
 
 	local targetType, targetName = input:match("^([PpMm])%s+(.+)$")
-
 	if not targetType or not targetName then
-		return
+		return nil, nil
 	end
 
-	targetType = string.upper(targetType)
 	targetName = targetName:match("^%s*(.-)%s*$")
-
 	if targetName == "" then
-		return
+		return nil, nil
 	end
 
-	createObjectLines(targetType, targetName)
+	return string.upper(targetType), targetName
 end
 
-objectInput.FocusLost:Connect(function()
-	updateObjectLine()
-end)
+local function updateObjectLine()
+	local targetType, targetName = parseObjectInput()
 
-objectInput:GetPropertyChangedSignal("Text"):Connect(function()
-	local input = objectInput.Text:match("^%s*(.-)%s*$")
-
-	if input == "" then
-		clearObjectLines()
+	if not targetType or not targetName then
 		currentTargetType = nil
 		currentTargetName = nil
+		clearObjectLines()
 		return
 	end
 
-	local targetType, targetName = input:match("^([PpMm])%s+(.+)$")
-	if targetType and targetName then
-		targetName = targetName:match("^%s*(.-)%s*$")
-		if targetName ~= "" then
-			createObjectLines(string.upper(targetType), targetName)
+	currentTargetType = targetType
+	currentTargetName = targetName
+
+	if objectLineEnabled then
+		createObjectLines(targetType, targetName)
+	else
+		clearObjectLines()
+	end
+end
+
+-- PLAYER LINE
+local playerLineEnabled = false
+local playerBeams = {}
+local playerTargetParts = {}
+local currentPlayerName = nil
+
+local function clearPlayerLines()
+	for _, beam in ipairs(playerBeams) do
+		if beam and beam.Parent then
+			beam:Destroy()
 		end
+	end
+	table.clear(playerBeams)
+
+	for _, data in ipairs(playerTargetParts) do
+		if data.part and data.part.Parent then
+			data.part:Destroy()
+		end
+	end
+	table.clear(playerTargetParts)
+end
+
+local function findPlayers(targetName)
+	local results = {}
+	if not targetName then return results end
+
+	targetName = targetName:match("^%s*(.-)%s*$")
+	if targetName == "" then return results end
+
+	local wanted = string.lower(targetName)
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player and string.find(string.lower(other.Name), wanted, 1, true) then
+			table.insert(results, other)
+		end
+	end
+
+	return results
+end
+
+local function getPlayerRoot(other)
+	local character = other and other.Character
+	if not character then return nil end
+	return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function createPlayerLines(targetName)
+	clearPlayerLines()
+
+	if not playerLineEnabled then return end
+
+	local rootPart = getRootPart()
+	if not rootPart then return end
+
+	local targets = findPlayers(targetName)
+
+	for _, other in ipairs(targets) do
+		local targetRoot = getPlayerRoot(other)
+
+		if targetRoot then
+			local targetPart = Instance.new("Part")
+			targetPart.Name = "PlayerLineTarget"
+			targetPart.Anchored = true
+			targetPart.CanCollide = false
+			targetPart.CanTouch = false
+			targetPart.CanQuery = false
+			targetPart.CastShadow = false
+			targetPart.Transparency = 1
+			targetPart.Size = Vector3.new(0.1, 0.1, 0.1)
+			targetPart.Position = targetRoot.Position
+			targetPart.Parent = workspace
+
+			local startAttachment = Instance.new("Attachment")
+			startAttachment.Name = "PlayerLineStart"
+			startAttachment.Parent = rootPart
+
+			local endAttachment = Instance.new("Attachment")
+			endAttachment.Name = "PlayerLineEnd"
+			endAttachment.Parent = targetPart
+
+			local beam = Instance.new("Beam")
+			beam.Name = "PlayerLineBeam"
+			beam.Attachment0 = startAttachment
+			beam.Attachment1 = endAttachment
+			beam.Width0 = 0.35
+			beam.Width1 = 0.35
+			beam.Color = ColorSequence.new(Color3.new(1, 1, 1))
+			beam.Transparency = NumberSequence.new(0)
+			beam.FaceCamera = true
+			beam.LightEmission = 1
+			beam.Segments = 1
+			beam.Parent = targetPart
+
+			table.insert(playerBeams, beam)
+			table.insert(playerTargetParts, {
+				part = targetPart,
+				player = other
+			})
+		end
+	end
+
+	currentPlayerName = targetName
+end
+
+local function updatePlayerLine()
+	local name = featurePlayerInput.Text:match("^%s*(.-)%s*$")
+
+	if name == "" then
+		currentPlayerName = nil
+		clearPlayerLines()
+		return
+	end
+
+	currentPlayerName = name
+
+	if playerLineEnabled then
+		createPlayerLines(name)
+	else
+		clearPlayerLines()
+	end
+end
+
+local function updatePlayerLineButton()
+	if playerLineEnabled then
+		playerLineToggle.Text = "ON"
+		playerLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		playerLineToggle.Text = "OFF"
+		playerLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end
+
+playerLineToggle.Activated:Connect(function()
+	playerLineEnabled = not playerLineEnabled
+	updatePlayerLineButton()
+
+	if playerLineEnabled then
+		updatePlayerLine()
+	else
+		clearPlayerLines()
+	end
+end)
+
+featurePlayerInput.FocusLost:Connect(function()
+	updatePlayerLine()
+end)
+
+featurePlayerInput:GetPropertyChangedSignal("Text"):Connect(function()
+	if playerLineEnabled then
+		updatePlayerLine()
+	else
+		clearPlayerLines()
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(other)
+	if playerLineEnabled and currentPlayerName then
+		createPlayerLines(currentPlayerName)
+	end
+end)
+
+Players.PlayerAdded:Connect(function()
+	if playerLineEnabled and currentPlayerName then
+		task.defer(createPlayerLines, currentPlayerName)
 	end
 end)
 
@@ -1483,7 +1837,82 @@ player.CharacterAdded:Connect(function(character)
 	character:WaitForChild("HumanoidRootPart", 5)
 	task.wait(0.2)
 
-	if currentTargetType and currentTargetName then
+	if playerLineEnabled and currentPlayerName then
+		createPlayerLines(currentPlayerName)
+	end
+end)
+
+task.spawn(function()
+	while featurePlayerInput and featurePlayerInput.Parent do
+		task.wait(0.1)
+
+		if playerLineEnabled and currentPlayerName then
+			local needsRefresh = false
+
+			for _, data in ipairs(playerTargetParts) do
+				local other = data.player
+				local targetRoot = getPlayerRoot(other)
+
+				if not targetRoot or not data.part or not data.part.Parent then
+					needsRefresh = true
+					break
+				end
+
+				data.part.Position = targetRoot.Position
+			end
+
+			if needsRefresh then
+				createPlayerLines(currentPlayerName)
+			elseif #playerTargetParts == 0 then
+				createPlayerLines(currentPlayerName)
+			end
+		end
+	end
+
+	clearPlayerLines()
+end)
+
+updatePlayerLineButton()
+
+local function updateObjectLineButton()
+	if objectLineEnabled then
+		objectLineToggle.Text = "ON"
+		objectLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		objectLineToggle.Text = "OFF"
+		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end
+
+objectLineToggle.Activated:Connect(function()
+	objectLineEnabled = not objectLineEnabled
+	updateObjectLineButton()
+
+	if objectLineEnabled then
+		updateObjectLine()
+	else
+		clearObjectLines()
+	end
+end)
+
+objectInput.FocusLost:Connect(function()
+	updateObjectLine()
+end)
+
+objectInput:GetPropertyChangedSignal("Text"):Connect(function()
+	if objectLineEnabled then
+		updateObjectLine()
+	else
+		-- Saat OFF, jangan membuat line baru.
+		clearObjectLines()
+	end
+end)
+
+player.CharacterAdded:Connect(function(character)
+	character:WaitForChild("HumanoidRootPart", 5)
+	task.wait(0.2)
+
+	if objectLineEnabled and currentTargetType and currentTargetName then
 		createObjectLines(currentTargetType, currentTargetName)
 	end
 end)
@@ -1492,29 +1921,34 @@ task.spawn(function()
 	while objectInput and objectInput.Parent do
 		task.wait(0.1)
 
-		local needsRefresh = false
+		if objectLineEnabled then
+			local needsRefresh = false
 
-		for _, data in ipairs(objectTargetParts) do
-			local target = data.target
-			local targetPart = data.part
+			for _, data in ipairs(objectTargetParts) do
+				local target = data.target
+				local targetPart = data.part
 
-			if not target or not target.Parent or not targetPart or not targetPart.Parent then
-				needsRefresh = true
-				break
+				if not target or not target.Parent or not targetPart or not targetPart.Parent then
+					needsRefresh = true
+					break
+				end
+
+				local position = getObjectPosition(target)
+				if position then
+					targetPart.Position = position
+				end
 			end
 
-			local position = getObjectPosition(target)
-			if position then
-				targetPart.Position = position
+			if needsRefresh and currentTargetType and currentTargetName then
+				createObjectLines(currentTargetType, currentTargetName)
+			elseif currentTargetType and currentTargetName and #objectTargetParts == 0 then
+				createObjectLines(currentTargetType, currentTargetName)
 			end
-		end
-
-		if needsRefresh and currentTargetType and currentTargetName then
-			createObjectLines(currentTargetType, currentTargetName)
-		elseif currentTargetType and currentTargetName and #objectTargetParts == 0 then
-			createObjectLines(currentTargetType, currentTargetName)
 		end
 	end
 
 	clearObjectLines()
 end)
+
+updateObjectLineButton()
+w
