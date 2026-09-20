@@ -1,4 +1,4 @@
-local Players = game:GetService("Players")
+2local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 
@@ -1950,5 +1950,4 @@ task.spawn(function()
 	clearObjectLines()
 end)
 
-updateObjectLineButton()
-w
+updateObjectLineButton()2
