@@ -802,6 +802,20 @@ local function clearProximityESP(prompt)
 	proximityESPData[prompt] = nil
 end
 
+local function getPromptTextInfo(prompt)
+	local objectText = tostring(prompt.ObjectText or "")
+	local actionText = tostring(prompt.ActionText or "")
+	local promptName = tostring(prompt.Name or "")
+
+	-- ObjectText = properti teks objek utama; fallback ke Name jika kosong
+	local mainText = objectText ~= "" and objectText or promptName
+	if mainText == "" then
+		mainText = "ProximityPrompt"
+	end
+
+	return mainText, actionText, promptName, objectText
+end
+
 local function createProximityESP(prompt)
 	if not proximityESPEnabled or not prompt or not prompt:IsA("ProximityPrompt") then
 		return
@@ -818,13 +832,17 @@ local function createProximityESP(prompt)
 		return
 	end
 
+	local mainText, actionText, promptName, objectText = getPromptTextInfo(prompt)
+
 	local data = proximityESPData[prompt]
 	if data and data.Billboard and data.Billboard.Parent and data.Highlight and data.Highlight.Parent then
 		data.Billboard.Adornee = adornee
 		data.Highlight.Adornee = adornee
 		data.Billboard.Enabled = true
 		data.Highlight.Enabled = true
-		data.NameLabel.Text = prompt.Name
+		data.ObjectTextLabel.Text = mainText
+		data.ActionTextLabel.Text = actionText ~= "" and ("[" .. actionText .. "]") or ""
+		data.NameLabel.Text = (objectText ~= "" and promptName ~= "") and ("@" .. promptName) or ""
 		return
 	end
 
@@ -832,23 +850,55 @@ local function createProximityESP(prompt)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ZxN_ProximityESP"
-	billboard.Size = UDim2.fromOffset(220, 34)
-	billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+	billboard.Size = UDim2.fromOffset(260, 62)
+	billboard.StudsOffset = Vector3.new(0, 3.2, 0)
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = math.huge
 	billboard.Adornee = adornee
 	billboard.Enabled = true
 	billboard.Parent = playerGui
 
+	-- Baris 1: ObjectText (properti teks objek dari ProximityPrompt)
+	local objectTextLabel = Instance.new("TextLabel")
+	objectTextLabel.Name = "ObjectText"
+	objectTextLabel.Size = UDim2.new(1, 0, 0, 22)
+	objectTextLabel.Position = UDim2.fromOffset(0, 0)
+	objectTextLabel.BackgroundTransparency = 1
+	objectTextLabel.Text = mainText
+	objectTextLabel.TextColor3 = Color3.new(1, 1, 1)
+	objectTextLabel.TextStrokeTransparency = 0
+	objectTextLabel.TextSize = 16
+	objectTextLabel.Font = Enum.Font.GothamBold
+	objectTextLabel.TextXAlignment = Enum.TextXAlignment.Center
+	objectTextLabel.TextYAlignment = Enum.TextYAlignment.Center
+	objectTextLabel.Parent = billboard
+
+	-- Baris 2: ActionText (properti ActionText dari ProximityPrompt)
+	local actionTextLabel = Instance.new("TextLabel")
+	actionTextLabel.Name = "ActionText"
+	actionTextLabel.Size = UDim2.new(1, 0, 0, 18)
+	actionTextLabel.Position = UDim2.fromOffset(0, 20)
+	actionTextLabel.BackgroundTransparency = 1
+	actionTextLabel.Text = actionText ~= "" and ("[" .. actionText .. "]") or ""
+	actionTextLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
+	actionTextLabel.TextStrokeTransparency = 0
+	actionTextLabel.TextSize = 13
+	actionTextLabel.Font = Enum.Font.Gotham
+	actionTextLabel.TextXAlignment = Enum.TextXAlignment.Center
+	actionTextLabel.TextYAlignment = Enum.TextYAlignment.Center
+	actionTextLabel.Parent = billboard
+
+	-- Baris 3: Instance Name (jika ObjectText terisi)
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "PromptName"
-	nameLabel.Size = UDim2.new(1, 0, 1, 0)
+	nameLabel.Size = UDim2.new(1, 0, 0, 18)
+	nameLabel.Position = UDim2.fromOffset(0, 37)
 	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = prompt.Name
-	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.Text = (objectText ~= "" and promptName ~= "") and ("@" .. promptName) or ""
+	nameLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 	nameLabel.TextStrokeTransparency = 0
-	nameLabel.TextSize = 15
-	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextSize = 12
+	nameLabel.Font = Enum.Font.Gotham
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
 	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
 	nameLabel.Parent = billboard
@@ -867,6 +917,8 @@ local function createProximityESP(prompt)
 	proximityESPData[prompt] = {
 		Billboard = billboard,
 		Highlight = highlight,
+		ObjectTextLabel = objectTextLabel,
+		ActionTextLabel = actionTextLabel,
 		NameLabel = nameLabel,
 	}
 end
