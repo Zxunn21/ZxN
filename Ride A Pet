@@ -732,6 +732,218 @@ local playerESPButtonCorner = Instance.new("UICorner")
 playerESPButtonCorner.CornerRadius = UDim.new(0, 7)
 playerESPButtonCorner.Parent = playerESPButton
 
+-- ESP Proximity Prompt
+local proximityESPEnabled = false
+local proximityESPData = {}
+
+local proximityESPLabel = Instance.new("TextLabel")
+proximityESPLabel.Name = "ProximityESPLabel"
+proximityESPLabel.Size = UDim2.new(0, 130, 0, 36)
+proximityESPLabel.Position = UDim2.fromOffset(5, 240)
+proximityESPLabel.BackgroundTransparency = 1
+proximityESPLabel.Text = "ESP Proximity Prompt"
+proximityESPLabel.TextColor3 = Color3.new(1, 1, 1)
+proximityESPLabel.TextSize = 13
+proximityESPLabel.Font = Enum.Font.GothamBold
+proximityESPLabel.TextXAlignment = Enum.TextXAlignment.Left
+proximityESPLabel.TextYAlignment = Enum.TextYAlignment.Center
+proximityESPLabel.ZIndex = 512
+proximityESPLabel.Parent = featurePanel
+
+local proximityESPButton = Instance.new("TextButton")
+proximityESPButton.Name = "ProximityESPButton"
+proximityESPButton.Size = UDim2.fromOffset(60, 36)
+proximityESPButton.AnchorPoint = Vector2.new(1, 0)
+proximityESPButton.Position = UDim2.new(1, -5, 0, 240)
+proximityESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+proximityESPButton.BorderSizePixel = 0
+proximityESPButton.Text = "OFF"
+proximityESPButton.TextColor3 = Color3.new(1, 1, 1)
+proximityESPButton.TextSize = 12
+proximityESPButton.Font = Enum.Font.GothamBold
+proximityESPButton.ZIndex = 512
+proximityESPButton.Parent = featurePanel
+
+local proximityESPButtonCorner = Instance.new("UICorner")
+proximityESPButtonCorner.CornerRadius = UDim.new(0, 7)
+proximityESPButtonCorner.Parent = proximityESPButton
+
+local function getPromptAdornee(prompt)
+	if not prompt or not prompt.Parent then
+		return nil
+	end
+
+	local parent = prompt.Parent
+	if parent:IsA("BasePart") or parent:IsA("Model") or parent:IsA("Attachment") then
+		return parent
+	end
+
+	local basePart = parent:FindFirstAncestorWhichIsA("BasePart")
+	if basePart then
+		return basePart
+	end
+
+	return parent:FindFirstAncestorWhichIsA("Model")
+end
+
+local function clearProximityESP(prompt)
+	local data = proximityESPData[prompt]
+	if not data then
+		return
+	end
+
+	if data.Billboard then
+		data.Billboard:Destroy()
+	end
+	if data.Highlight then
+		data.Highlight:Destroy()
+	end
+
+	proximityESPData[prompt] = nil
+end
+
+local function createProximityESP(prompt)
+	if not proximityESPEnabled or not prompt or not prompt:IsA("ProximityPrompt") then
+		return
+	end
+
+	if not prompt.Parent or not prompt.Enabled then
+		clearProximityESP(prompt)
+		return
+	end
+
+	local adornee = getPromptAdornee(prompt)
+	if not adornee then
+		clearProximityESP(prompt)
+		return
+	end
+
+	local data = proximityESPData[prompt]
+	if data and data.Billboard and data.Billboard.Parent and data.Highlight and data.Highlight.Parent then
+		data.Billboard.Adornee = adornee
+		data.Highlight.Adornee = adornee
+		data.Billboard.Enabled = true
+		data.Highlight.Enabled = true
+		data.NameLabel.Text = prompt.Name
+		return
+	end
+
+	clearProximityESP(prompt)
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ZxN_ProximityESP"
+	billboard.Size = UDim2.fromOffset(220, 34)
+	billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = math.huge
+	billboard.Adornee = adornee
+	billboard.Enabled = true
+	billboard.Parent = playerGui
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "PromptName"
+	nameLabel.Size = UDim2.new(1, 0, 1, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = prompt.Name
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextSize = 15
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+	nameLabel.Parent = billboard
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ZxN_ProximityHighlight"
+	highlight.Adornee = adornee
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(80, 170, 255)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Enabled = true
+	highlight.Parent = gui
+
+	proximityESPData[prompt] = {
+		Billboard = billboard,
+		Highlight = highlight,
+		NameLabel = nameLabel,
+	}
+end
+
+local function clearAllProximityESP()
+	for prompt in pairs(proximityESPData) do
+		clearProximityESP(prompt)
+	end
+end
+
+local function scanProximityESP()
+	if not proximityESPEnabled then
+		return
+	end
+
+	local seen = {}
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("ProximityPrompt") then
+			seen[obj] = true
+			createProximityESP(obj)
+		end
+	end
+
+	for prompt in pairs(proximityESPData) do
+		if not seen[prompt] or not prompt.Parent or not prompt.Enabled then
+			clearProximityESP(prompt)
+		end
+	end
+end
+
+local function setProximityESP(state)
+	proximityESPEnabled = state
+	proximityESPButton.Text = state and "ON" or "OFF"
+	proximityESPButton.BackgroundColor3 = state
+		and Color3.fromRGB(40, 150, 70)
+		or Color3.fromRGB(180, 50, 50)
+
+	if not state then
+		clearAllProximityESP()
+		return
+	end
+
+	scanProximityESP()
+end
+
+proximityESPButton.Activated:Connect(function()
+	setProximityESP(not proximityESPEnabled)
+end)
+
+workspace.DescendantAdded:Connect(function(obj)
+	if proximityESPEnabled and obj:IsA("ProximityPrompt") then
+		task.defer(createProximityESP, obj)
+	end
+end)
+
+workspace.DescendantRemoving:Connect(function(obj)
+	if obj:IsA("ProximityPrompt") then
+		clearProximityESP(obj)
+	end
+end)
+
+proximityESPButton:GetPropertyChangedSignal("Text"):Connect(function()
+	if proximityESPEnabled then
+		scanProximityESP()
+	end
+end)
+
+task.spawn(function()
+	while proximityESPButton and proximityESPButton.Parent do
+		task.wait(0.5)
+		if proximityESPEnabled then
+			scanProximityESP()
+		end
+	end
+	clearAllProximityESP()
+end)
+
 local function getPlayerESPRoot(other)
 	local character = other and other.Character
 	if not character then return nil end
@@ -1982,6 +2194,7 @@ local objectLineEnabled = false
 local objectBeams = {}
 local objectTargetParts = {}
 local objectStartAttachments = {}
+local objectHighlights = {}
 local currentTargetType = nil
 local currentTargetName = nil
 
@@ -2022,6 +2235,11 @@ local function clearObjectLines()
 		end
 	end
 	table.clear(objectStartAttachments)
+
+	for _, highlight in ipairs(objectHighlights) do
+		if highlight and highlight.Parent then highlight:Destroy() end
+	end
+	table.clear(objectHighlights)
 end
 
 -- P = BasePart, M = Model.
@@ -2085,6 +2303,17 @@ local function createObjectLines(targetType, targetName)
 		local position = getObjectPosition(target)
 
 		if position then
+			local highlight = Instance.new("Highlight")
+			highlight.Name = "ZxN_ObjectLineHighlight"
+			highlight.Adornee = target
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.FillColor = Color3.fromRGB(255, 220, 60)
+			highlight.FillTransparency = 0.72
+			highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+			highlight.OutlineTransparency = 0
+			highlight.Parent = gui
+			table.insert(objectHighlights, highlight)
+
 			local targetPart = Instance.new("Part")
 			targetPart.Name = "ObjectLineTarget"
 			targetPart.Anchored = true
