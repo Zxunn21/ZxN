@@ -6,20 +6,10 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local renderedEggs = workspace:FindFirstChild("RenderedEggs")
 
-local enabled = true
-local minSize = 3
 local speed = 300
 
 local speedEnabled = false
 local originalSpeed = nil
-
-local espList = {}
-
-local specialEggs = {
-	["Blackhole Egg"] = true,
-	["Galaxy Egg"] = true,
-	["Cherub Egg"] = true
-}
 
 local frameOpen = false
 local menuOpen = false
@@ -179,7 +169,7 @@ speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 speedInput.TextColor3 = Color3.new(1, 1, 1)
 speedInput.PlaceholderText = "Speed"
 speedInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-speedInput.Text = tostring(speed)
+speedInput.Text = ""
 speedInput.TextSize = 15
 speedInput.Font = Enum.Font.GothamBold
 speedInput.ClearTextOnFocus = false
@@ -192,7 +182,7 @@ speedInputCorner.CornerRadius = UDim.new(0, 7)
 speedInputCorner.Parent = speedInput
 
 local function showSpeedBubble()
-	speedInput.Text = tostring(speed)
+	speedInput.Text = ""
 	speedInput.Visible = false
 	speedBubbleText.Text = "Hold to Change"
 	speedBubbleText.Size = UDim2.new(1, -12, 1, -8)
@@ -1551,41 +1541,6 @@ local teleportCorner = Instance.new("UICorner")
 teleportCorner.CornerRadius = UDim.new(0, 7)
 teleportCorner.Parent = teleportButton
 
--- ESP toggle
-local espButton = Instance.new("TextButton")
-espButton.Size = UDim2.new(1, -20, 0, 38)
-espButton.Position = UDim2.fromOffset(10, 85)
-espButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-espButton.TextColor3 = Color3.new(1, 1, 1)
-espButton.Text = "ESP: ON"
-espButton.TextSize = 16
-espButton.Font = Enum.Font.GothamBold
-espButton.ZIndex = 601
-espButton.Parent = frameRideAPet
-
-local espCorner = Instance.new("UICorner")
-espCorner.CornerRadius = UDim.new(0, 7)
-espCorner.Parent = espButton
-
--- Minimum size
-local input = Instance.new("TextBox")
-input.Size = UDim2.new(1, -20, 0, 38)
-input.Position = UDim2.fromOffset(10, 132)
-input.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-input.TextColor3 = Color3.new(1, 1, 1)
-input.PlaceholderText = "Minimum Size"
-input.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-input.Text = "3"
-input.TextSize = 16
-input.Font = Enum.Font.GothamBold
-input.ClearTextOnFocus = false
-input.ZIndex = 601
-input.Parent = frameRideAPet
-
-local inputCorner = Instance.new("UICorner")
-inputCorner.CornerRadius = UDim.new(0, 7)
-inputCorner.Parent = input
-
 local teleportFrame = Instance.new("Frame")
 teleportFrame.Name = "TeleportFrame"
 teleportFrame.Size = UDim2.fromOffset(210, 240)
@@ -1822,14 +1777,6 @@ local function updateTeleportList()
 	end
 end
 
-local function setESPVisible(state)
-	for _, data in pairs(espList) do
-		if data.Billboard then
-			data.Billboard.Enabled = state
-		end
-	end
-end
-
 local function getHumanoid()
 	local character = player.Character
 
@@ -1933,13 +1880,28 @@ mainCloseButton.Activated:Connect(function()
 end)
 
 RideAPetButton_.Activated:Connect(function()
-	featurePanel.Visible = false
-	frameOpen = true
-	frameRideAPet.Visible = true
-	teleportFrame.Visible = false
-	updateTeleportList()
+	local RIDE_A_PET_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet"
+
+	local success, result = pcall(function()
+		if type(loadstring) ~= "function" then
+			error("loadstring tidak tersedia di lingkungan ini")
+		end
+		if type(game.HttpGet) ~= "function" then
+			error("game:HttpGet tidak tersedia di lingkungan ini")
+		end
+		return loadstring(game:HttpGet(RIDE_A_PET_URL, true))()
+	end)
+
+	if not success then
+		warn("[ZxN] Ride A Pet gagal dimuat: " .. tostring(result))
+	end
+
+	-- Tutup menu setelah eksekusi
 	menuFrame.Visible = false
 	menuOpen = false
+	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
 end)
 
 teleportButton.Activated:Connect(function()
@@ -1973,37 +1935,6 @@ closeButton.Activated:Connect(function()
 	frameOpen = false
 	menuFrame.Visible = false
 	menuOpen = false
-end)
-
--- ESP toggle
-espButton.Activated:Connect(function()
-	enabled = not enabled
-
-	if enabled then
-		espButton.Text = "ESP: ON"
-		espButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-		updateESP()
-	else
-		espButton.Text = "ESP: OFF"
-		espButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-		setESPVisible(false)
-	end
-end)
-
--- Minimum size
-input.FocusLost:Connect(function()
-	local number = tonumber(input.Text)
-
-	if number and number >= 0 then
-		minSize = number
-	else
-		minSize = 3
-		input.Text = "3"
-	end
-
-	if enabled then
-		updateESP()
-	end
 end)
 
 local function showServerBubble()
@@ -2191,7 +2122,7 @@ speedInput.FocusLost:Connect(function()
 
 	if number and number >= 0 then
 		speed = number
-		speedInput.Text = tostring(speed)
+		speedInput.Text = ""
 
 		if speedEnabled then
 			local humanoid = getHumanoid()
@@ -2200,7 +2131,7 @@ speedInput.FocusLost:Connect(function()
 			end
 		end
 	else
-		speedInput.Text = tostring(speed)
+		speedInput.Text = ""
 	end
 
 	hideSpeedBubble()
@@ -2250,116 +2181,6 @@ end
 
 makeDraggable(trigger)
 
--- Billboard
-local function createBillboard()
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "EggESP"
-	billboard.Size = UDim2.fromOffset(220, 45)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = math.huge
-	billboard.Enabled = false
-	billboard.Parent = gui
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
-	label.TextSize = 18
-	label.Font = Enum.Font.GothamBold
-	label.Parent = billboard
-
-	return billboard, label
-end
-
-local function makeESP(eggBase)
-	if espList[eggBase] then
-		return
-	end
-
-	local billboard, label = createBillboard()
-
-	espList[eggBase] = {
-		Billboard = billboard,
-		Label = label
-	}
-end
-
-local function makeModelESP(model)
-	if espList[model] then
-		return
-	end
-
-	local billboard, label = createBillboard()
-
-	espList[model] = {
-		Billboard = billboard,
-		Label = label
-	}
-end
-
-function updateESP()
-	findRenderedEggs()
-	if not renderedEggs or not renderedEggs.Parent then
-		return
-	end
-
-	for _, model in ipairs(renderedEggs:GetChildren()) do
-		if not model:IsA("Model") then
-			continue
-		end
-
-		if model.Name == "Cherub Egg" then
-			makeModelESP(model)
-
-			local data = espList[model]
-
-			local part = model.PrimaryPart
-				or model:FindFirstChildWhichIsA("BasePart", true)
-
-			if part then
-				data.Billboard.Adornee = part
-				data.Billboard.StudsOffset = Vector3.new(
-					0,
-					part.Size.Y / 2 + 2,
-					0
-				)
-
-				data.Label.Text = "Cherub Egg"
-				data.Billboard.Enabled = enabled
-			end
-		else
-			local eggBase = model:FindFirstChild("EggBase", true)
-
-			if eggBase and eggBase:IsA("BasePart") then
-				makeESP(eggBase)
-
-				local data = espList[eggBase]
-				local size = eggBase.Size
-				local eggName = model.Name
-				local specialEgg = specialEggs[eggName] == true
-
-				data.Billboard.Adornee = eggBase
-				data.Billboard.StudsOffset = Vector3.new(
-					0,
-					size.Y / 2 + 2,
-					0
-				)
-
-				data.Label.Text = string.format(
-					"%.2f (%s)",
-					size.X,
-					eggName
-				)
-
-				data.Billboard.Enabled =
-					enabled and (specialEgg or size.X >= minSize)
-			end
-		end
-	end
-end
-
 -- Instant ProximityPrompt
 local function makePromptInstant(prompt)
 	if prompt:IsA("ProximityPrompt") then
@@ -2385,14 +2206,10 @@ player.CharacterAdded:Connect(function(character)
 	updateSpeedButton()
 end)
 
--- ESP update loop
+-- Update loop
 task.spawn(function()
 	while true do
 		task.wait(0.05)
-
-		if enabled then
-			updateESP()
-		end
 
 		updatePlayerESP()
 		updateTeleportList()
@@ -2401,7 +2218,6 @@ end)
 
 updateSpeedButton()
 updateTeleportList()
-updateESP()
 
 -- OBJECT LINE / FITUR LINE
 local objectInput = featureObjectInput
