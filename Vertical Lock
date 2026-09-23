@@ -163,7 +163,7 @@ end)
 
 toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
-toggleButton.Size = UDim2.new(0, 160, 0, 50)
+toggleButton.Size = UDim2.new(0, 50, 0, 50)
 toggleButton.Position = UDim2.new(0.85, -80, 0.5, -25)
 toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50) -- Merah (OFF)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -179,7 +179,7 @@ uiCorner.Parent = toggleButton
 -- Tombol UP (di atas tombol Lock Vertikal): naikkan papan 1 stud
 local upButton = Instance.new("TextButton")
 upButton.Name = "UpButton"
-upButton.Size = UDim2.new(0, 160, 0, 40)
+upButton.Size = UDim2.new(0, 50, 0, 40)
 upButton.Position = UDim2.new(0.85, -80, 0.5, -95)
 upButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 upButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -195,7 +195,7 @@ upCorner.Parent = upButton
 -- Tombol DOWN (di bawah tombol Lock Vertikal): turunkan papan 1 stud
 local downButton = Instance.new("TextButton")
 downButton.Name = "DownButton"
-downButton.Size = UDim2.new(0, 160, 0, 40)
+downButton.Size = UDim2.new(0, 50, 0, 40)
 downButton.Position = UDim2.new(0.85, -80, 0.5, 30)
 downButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 downButton.TextColor3 = Color3.fromRGB(255, 255, 255)
