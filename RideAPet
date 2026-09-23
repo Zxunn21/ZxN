@@ -7,6 +7,13 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Guard: jika RideAPetGui sudah ada (script dieksekusi ulang),
+-- hapus instance lama dulu supaya tidak ganda.
+local existingGui = playerGui:FindFirstChild("RideAPetGui")
+if existingGui then
+	existingGui:Destroy()
+end
+
 -- ===================== ESP EGG (dari LocalScriptZxN) =====================
 local renderedEggs = workspace:FindFirstChild("RenderedEggs")
 
@@ -37,29 +44,6 @@ gui.IgnoreGuiInset = false
 gui.DisplayOrder = 999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.Parent = playerGui
-
--- Tombol kecil untuk membuka kembali window setelah di-close
-local openButton = Instance.new("TextButton")
-openButton.Name = "OpenButton"
-openButton.Size = UDim2.fromOffset(40, 40)
-openButton.Position = UDim2.new(0.8, 40, 0, 10)
-openButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-openButton.BorderSizePixel = 0
-openButton.Text = "R"
-openButton.TextColor3 = Color3.new(1, 1, 1)
-openButton.TextSize = 18
-openButton.Font = Enum.Font.GothamBold
-openButton.ZIndex = 1000
-openButton.Parent = gui
-
-local openCorner = Instance.new("UICorner")
-openCorner.CornerRadius = UDim.new(1, 0)
-openCorner.Parent = openButton
-
-local openStroke = Instance.new("UIStroke")
-openStroke.Thickness = 2
-openStroke.Color = Color3.fromRGB(255, 255, 255)
-openStroke.Parent = openButton
 
 -- Main window
 local mainFrame = Instance.new("Frame")
@@ -324,11 +308,7 @@ minSizeInput.FocusLost:Connect(function()
 end)
 
 closeButton.Activated:Connect(function()
-	mainFrame.Visible = false
-end)
-
-openButton.Activated:Connect(function()
-	mainFrame.Visible = not mainFrame.Visible
+	gui:Destroy()
 end)
 
 -- Drag window via top bar
@@ -369,7 +349,7 @@ end)
 
 -- ===================== LOOP =====================
 task.spawn(function()
-	while true do
+	while gui.Parent do
 		task.wait(0.05)
 
 		if espEnabled then
