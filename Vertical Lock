@@ -9,14 +9,13 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
 local isLocked = false
 local lockPlatform = nil
 local renderConnection = nil
+local platformYOffset = 0 -- penyesuaian naik/turun papan dari tombol UP/DOWN (0 = titik spawn asli)
+local toggleButton = nil -- forward declaration (dipakai oleh handler respawn)
 
---------------------------------------------------------------------------------
--- EVENT UPDATE KARAKTER (SAAT RESPAWN)
---------------------------------------------------------------------------------
-player.CharacterAdded:Connect(function(newCharacter)
+local characterAddedConnection = player.CharacterAdded:Connect(function(newCharacter)
 	character = newCharacter
 	humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
-	
+
 	-- Matikan platform jika pemain mati / respawn
 	if isLocked then
 		isLocked = false
@@ -24,12 +23,19 @@ player.CharacterAdded:Connect(function(newCharacter)
 			lockPlatform:Destroy()
 			lockPlatform = nil
 		end
+		if renderConnection then
+			renderConnection:Disconnect()
+			renderConnection = nil
+		end
+	end
+
+	-- Sinkronkan tampilan tombol setelah reset otomatis
+	if toggleButton then
+		toggleButton.Text = "Lock Vertikal: OFF"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
 	end
 end)
 
---------------------------------------------------------------------------------
--- FUNGSIONALITAS CREATION & REMOVAL PLATFORM
---------------------------------------------------------------------------------
 local function enablePlatformLock()
 	if not humanoidRootPart then return end
 
@@ -46,7 +52,7 @@ local function enablePlatformLock()
 	-- Buat Part Pijakan Transparan
 	lockPlatform = Instance.new("Part")
 	lockPlatform.Name = "TransparentLockPlatform"
-	lockPlatform.Size = Vector3.new(100, 1, 100) -- Ukuran Lebar 100x100
+	lockPlatform.Size = Vector3.new(5, 1, 5) -- Ukuran Lebar 100x100
 	lockPlatform.Position = Vector3.new(humanoidRootPart.Position.X, spawnY, humanoidRootPart.Position.Z)
 	lockPlatform.Anchored = true
 	lockPlatform.CanCollide = true
@@ -54,13 +60,16 @@ local function enablePlatformLock()
 	lockPlatform.Material = Enum.Material.SmoothPlastic
 	lockPlatform.Parent = workspace
 
-	-- Loop untuk memperbarui posisi horizontal (X dan Z) platform mengikuti pemain
-	-- Ketinggian vertikal (Y) akan tetap terkunci di spawnY
 	if renderConnection then renderConnection:Disconnect() end
-	
-	renderConnection = RunService.RenderStepped:Connect(function()
+
+	local currentY = spawnY + platformYOffset
+
+	renderConnection = RunService.RenderStepped:Connect(function(dt)
 		if isLocked and lockPlatform and humanoidRootPart then
-			lockPlatform.Position = Vector3.new(humanoidRootPart.Position.X, spawnY, humanoidRootPart.Position.Z)
+			local targetY = spawnY + platformYOffset
+			-- Lerp halus menuju ketinggian target (tidak melompat)
+			currentY = currentY + (targetY - currentY) * math.min(dt * 12, 1)
+			lockPlatform.Position = Vector3.new(humanoidRootPart.Position.X, currentY, humanoidRootPart.Position.Z)
 		end
 	end)
 end
@@ -70,27 +79,46 @@ local function disablePlatformLock()
 		renderConnection:Disconnect()
 		renderConnection = nil
 	end
-	
+
 	if lockPlatform then
 		lockPlatform:Destroy()
 		lockPlatform = nil
 	end
 end
 
---------------------------------------------------------------------------------
--- PEMBUATAN UI TOMBOL ON / OFF
---------------------------------------------------------------------------------
 local playerGui = player:WaitForChild("PlayerGui")
 
 local existingGui = playerGui:FindFirstChild("VerticalLockGui")
 if existingGui then existingGui:Destroy() end
+
+-- Bersihkan sisa platform dari instance script sebelumnya (mencegah zombie platform)
+for _, descendant in ipairs(workspace:GetDescendants()) do
+	if descendant:IsA("BasePart") and descendant.Name == "TransparentLockPlatform" then
+		descendant:Destroy()
+	end
+end
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "VerticalLockGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
-local toggleButton = Instance.new("TextButton")
+-- Jika GUI dihapus (tombol OFF di ZxN atau instance script baru),
+-- matikan SELURUH script ini agar tidak menjadi zombie
+local offsetConnection = nil
+screenGui.Destroying:Connect(function()
+	disablePlatformLock()
+	if offsetConnection then
+		offsetConnection:Disconnect()
+		offsetConnection = nil
+	end
+	if characterAddedConnection then
+		characterAddedConnection:Disconnect()
+		characterAddedConnection = nil
+	end
+end)
+
+toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
 toggleButton.Size = UDim2.new(0, 160, 0, 50)
 toggleButton.Position = UDim2.new(0.85, -80, 0.5, -25)
@@ -105,9 +133,76 @@ local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 8)
 uiCorner.Parent = toggleButton
 
---------------------------------------------------------------------------------
--- EVENT CLICK TOMBOL
---------------------------------------------------------------------------------
+-- Tombol UP (di atas tombol Lock Vertikal): naikkan papan 1 stud
+local upButton = Instance.new("TextButton")
+upButton.Name = "UpButton"
+upButton.Size = UDim2.new(0, 160, 0, 40)
+upButton.Position = UDim2.new(0.85, -80, 0.5, -95)
+upButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+upButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+upButton.TextSize = 16
+upButton.Font = Enum.Font.SourceSansBold
+upButton.Text = "UP"
+upButton.Parent = screenGui
+
+local upCorner = Instance.new("UICorner")
+upCorner.CornerRadius = UDim.new(0, 8)
+upCorner.Parent = upButton
+
+-- Tombol DOWN (di bawah tombol Lock Vertikal): turunkan papan 1 stud
+local downButton = Instance.new("TextButton")
+downButton.Name = "DownButton"
+downButton.Size = UDim2.new(0, 160, 0, 40)
+downButton.Position = UDim2.new(0.85, -80, 0.5, 30)
+downButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+downButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+downButton.TextSize = 16
+downButton.Font = Enum.Font.SourceSansBold
+downButton.Text = "DOWN"
+downButton.Parent = screenGui
+
+local downCorner = Instance.new("UICorner")
+downCorner.CornerRadius = UDim.new(0, 8)
+downCorner.Parent = downButton
+
+local holdDirection = 0 -- 1 = UP ditahan, -1 = DOWN ditahan, 0 = tidak ada
+local MOVE_SPEED = 12 -- kecepatan gerak papan (stud per detik)
+
+local function bindHoldButton(button, direction)
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			holdDirection = direction
+		end
+	end)
+
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			if holdDirection == direction then
+				holdDirection = 0
+			end
+		end
+	end)
+
+	-- Jaga-jaga jika kursor keluar dari tombol saat masih ditahan
+	button.MouseLeave:Connect(function()
+		if holdDirection == direction then
+			holdDirection = 0
+		end
+	end)
+end
+
+bindHoldButton(upButton, 2)
+bindHoldButton(downButton, -2)
+
+-- Loop kontinu: selama tombol ditahan, offset bergerak mulus sesuai waktu (delta time)
+offsetConnection = RunService.RenderStepped:Connect(function(dt)
+	if holdDirection ~= 0 then
+		platformYOffset += holdDirection * MOVE_SPEED * dt
+	end
+end)
+
 toggleButton.MouseButton1Click:Connect(function()
 	isLocked = not isLocked
 
