@@ -851,6 +851,89 @@ task.spawn(function()
 	end)
 end)
 
+-- Light System
+task.spawn(function()
+	local lightSystemEnabled = false
+
+	local lightSystemLabel = Instance.new("TextLabel")
+	lightSystemLabel.Name = "LightSystemLabel"
+	lightSystemLabel.Size = UDim2.new(0, 130, 0, 36)
+	lightSystemLabel.Position = UDim2.fromOffset(5, 340)
+	lightSystemLabel.BackgroundTransparency = 1
+	lightSystemLabel.Text = "Light System"
+	lightSystemLabel.TextColor3 = Color3.new(1, 1, 1)
+	lightSystemLabel.TextSize = 13
+	lightSystemLabel.Font = Enum.Font.GothamBold
+	lightSystemLabel.TextXAlignment = Enum.TextXAlignment.Left
+	lightSystemLabel.TextYAlignment = Enum.TextYAlignment.Center
+	lightSystemLabel.ZIndex = 512
+	lightSystemLabel.Parent = featurePanel
+
+	local lightSystemButton = Instance.new("TextButton")
+	lightSystemButton.Name = "LightSystemButton"
+	lightSystemButton.Size = UDim2.fromOffset(60, 36)
+	lightSystemButton.AnchorPoint = Vector2.new(1, 0)
+	lightSystemButton.Position = UDim2.new(1, -5, 0, 340)
+	lightSystemButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	lightSystemButton.BorderSizePixel = 0
+	lightSystemButton.Text = "OFF"
+	lightSystemButton.TextColor3 = Color3.new(1, 1, 1)
+	lightSystemButton.TextSize = 12
+	lightSystemButton.Font = Enum.Font.GothamBold
+	lightSystemButton.ZIndex = 512
+	lightSystemButton.Parent = featurePanel
+
+	local lightSystemButtonCorner = Instance.new("UICorner")
+	lightSystemButtonCorner.CornerRadius = UDim.new(0, 7)
+	lightSystemButtonCorner.Parent = lightSystemButton
+
+	local LIGHT_SYSTEM_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting"
+
+	local function updateLightSystemButton()
+		if lightSystemEnabled then
+			lightSystemButton.Text = "ON"
+			lightSystemButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		else
+			lightSystemButton.Text = "OFF"
+			lightSystemButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		end
+	end
+
+	lightSystemButton.Activated:Connect(function()
+		lightSystemEnabled = not lightSystemEnabled
+		updateLightSystemButton()
+
+		if lightSystemEnabled then
+			local success, result = pcall(function()
+				if type(loadstring) ~= "function" then
+					error("loadstring tidak tersedia di lingkungan ini")
+				end
+				if type(game.HttpGet) ~= "function" then
+					error("game:HttpGet tidak tersedia di lingkungan ini")
+				end
+				return loadstring(game:HttpGet(LIGHT_SYSTEM_URL, true))()
+			end)
+
+			if not success then
+				warn("[ZxN] Light System gagal dimuat: " .. tostring(result))
+				lightSystemEnabled = false
+				updateLightSystemButton()
+			end
+		else
+			-- Saat tombol OFF: hapus GUI TorchOnHeadGui dari PlayerGui
+			local player = game:GetService("Players").LocalPlayer
+			local playerGui = player and player:FindFirstChild("PlayerGui")
+			if playerGui then
+				for _, descendant in ipairs(playerGui:GetDescendants()) do
+					if descendant.Name == "TorchOnHeadGui" then
+						descendant:Destroy()
+					end
+				end
+			end
+		end
+	end)
+end)
+
 local function getPromptAdornee(prompt)
 	if not prompt or not prompt.Parent then
 		return nil
