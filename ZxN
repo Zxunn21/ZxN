@@ -758,59 +758,55 @@ local proximityESPButtonCorner = Instance.new("UICorner")
 proximityESPButtonCorner.CornerRadius = UDim.new(0, 7)
 proximityESPButtonCorner.Parent = proximityESPButton
 
--- Vertical Lock
-task.spawn(function()
-	local verticalLockEnabled = false
+-- Helper: Buat fitur toggle berbasis link (loadstring + HttpGet)
+local function createLinkFeature(labelText, yPosition, url, guiNameToDestroy)
+	local enabled = false
 
-	local verticalLockLabel = Instance.new("TextLabel")
-	verticalLockLabel.Name = "VerticalLockLabel"
-	verticalLockLabel.Size = UDim2.new(0, 130, 0, 36)
-	verticalLockLabel.Position = UDim2.fromOffset(5, 290)
-	verticalLockLabel.BackgroundTransparency = 1
-	verticalLockLabel.Text = "Vertical Lock"
-	verticalLockLabel.TextColor3 = Color3.new(1, 1, 1)
-	verticalLockLabel.TextSize = 13
-	verticalLockLabel.Font = Enum.Font.GothamBold
-	verticalLockLabel.TextXAlignment = Enum.TextXAlignment.Left
-	verticalLockLabel.TextYAlignment = Enum.TextYAlignment.Center
-	verticalLockLabel.ZIndex = 512
-	verticalLockLabel.Parent = featurePanel
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 130, 0, 36)
+	label.Position = UDim2.fromOffset(5, yPosition)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextSize = 13
+	label.Font = Enum.Font.GothamBold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.ZIndex = 512
+	label.Parent = featurePanel
 
-	local verticalLockButton = Instance.new("TextButton")
-	verticalLockButton.Name = "VerticalLockButton"
-	verticalLockButton.Size = UDim2.fromOffset(60, 36)
-	verticalLockButton.AnchorPoint = Vector2.new(1, 0)
-	verticalLockButton.Position = UDim2.new(1, -5, 0, 290)
-	verticalLockButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	verticalLockButton.BorderSizePixel = 0
-	verticalLockButton.Text = "OFF"
-	verticalLockButton.TextColor3 = Color3.new(1, 1, 1)
-	verticalLockButton.TextSize = 12
-	verticalLockButton.Font = Enum.Font.GothamBold
-	verticalLockButton.ZIndex = 512
-	verticalLockButton.Parent = featurePanel
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(60, 36)
+	button.AnchorPoint = Vector2.new(1, 0)
+	button.Position = UDim2.new(1, -5, 0, yPosition)
+	button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	button.BorderSizePixel = 0
+	button.Text = "OFF"
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextSize = 12
+	button.Font = Enum.Font.GothamBold
+	button.ZIndex = 512
+	button.Parent = featurePanel
 
-	local verticalLockButtonCorner = Instance.new("UICorner")
-	verticalLockButtonCorner.CornerRadius = UDim.new(0, 7)
-	verticalLockButtonCorner.Parent = verticalLockButton
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = button
 
-	local VERTICAL_LOCK_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock"
-
-	local function updateVerticalLockButton()
-		if verticalLockEnabled then
-			verticalLockButton.Text = "ON"
-			verticalLockButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	local function updateButton()
+		if enabled then
+			button.Text = "ON"
+			button.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 		else
-			verticalLockButton.Text = "OFF"
-			verticalLockButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+			button.Text = "OFF"
+			button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 		end
 	end
 
-	verticalLockButton.Activated:Connect(function()
-		verticalLockEnabled = not verticalLockEnabled
-		updateVerticalLockButton()
+	button.Activated:Connect(function()
+		enabled = not enabled
+		updateButton()
 
-		if verticalLockEnabled then
+		if enabled then
 			local success, result = pcall(function()
 				if type(loadstring) ~= "function" then
 					error("loadstring tidak tersedia di lingkungan ini")
@@ -818,111 +814,34 @@ task.spawn(function()
 				if type(game.HttpGet) ~= "function" then
 					error("game:HttpGet tidak tersedia di lingkungan ini")
 				end
-				return loadstring(game:HttpGet(VERTICAL_LOCK_URL, true))()
+				return loadstring(game:HttpGet(url, true))()
 			end)
 
 			if not success then
-				warn("[ZxN] Vertical Lock gagal dimuat: " .. tostring(result))
-				verticalLockEnabled = false
-				updateVerticalLockButton()
+				warn("[ZxN] " .. labelText .. " gagal dimuat: " .. tostring(result))
+				enabled = false
+				updateButton()
 			end
 		else
-			-- Saat tombol OFF: hapus GUI Vertical Lock dari PlayerGui
-			local player = game:GetService("Players").LocalPlayer
-			local playerGui = player and player:FindFirstChild("PlayerGui")
-			if playerGui then
+			if guiNameToDestroy and playerGui then
 				for _, descendant in ipairs(playerGui:GetDescendants()) do
-					if descendant.Name == "VerticalLockGui" then
+					if descendant.Name == guiNameToDestroy then
 						descendant:Destroy()
 					end
 				end
 			end
 		end
 	end)
-end)
+end
+
+-- Vertical Lock
+createLinkFeature("Vertical Lock", 290, "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock", "VerticalLockGui")
 
 -- Light System
-task.spawn(function()
-	local lightSystemEnabled = false
+createLinkFeature("Light System", 340, "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting", "TorchOnHeadGui")
 
-	local lightSystemLabel = Instance.new("TextLabel")
-	lightSystemLabel.Name = "LightSystemLabel"
-	lightSystemLabel.Size = UDim2.new(0, 130, 0, 36)
-	lightSystemLabel.Position = UDim2.fromOffset(5, 340)
-	lightSystemLabel.BackgroundTransparency = 1
-	lightSystemLabel.Text = "Light System"
-	lightSystemLabel.TextColor3 = Color3.new(1, 1, 1)
-	lightSystemLabel.TextSize = 13
-	lightSystemLabel.Font = Enum.Font.GothamBold
-	lightSystemLabel.TextXAlignment = Enum.TextXAlignment.Left
-	lightSystemLabel.TextYAlignment = Enum.TextYAlignment.Center
-	lightSystemLabel.ZIndex = 512
-	lightSystemLabel.Parent = featurePanel
-
-	local lightSystemButton = Instance.new("TextButton")
-	lightSystemButton.Name = "LightSystemButton"
-	lightSystemButton.Size = UDim2.fromOffset(60, 36)
-	lightSystemButton.AnchorPoint = Vector2.new(1, 0)
-	lightSystemButton.Position = UDim2.new(1, -5, 0, 340)
-	lightSystemButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	lightSystemButton.BorderSizePixel = 0
-	lightSystemButton.Text = "OFF"
-	lightSystemButton.TextColor3 = Color3.new(1, 1, 1)
-	lightSystemButton.TextSize = 12
-	lightSystemButton.Font = Enum.Font.GothamBold
-	lightSystemButton.ZIndex = 512
-	lightSystemButton.Parent = featurePanel
-
-	local lightSystemButtonCorner = Instance.new("UICorner")
-	lightSystemButtonCorner.CornerRadius = UDim.new(0, 7)
-	lightSystemButtonCorner.Parent = lightSystemButton
-
-	local LIGHT_SYSTEM_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting"
-
-	local function updateLightSystemButton()
-		if lightSystemEnabled then
-			lightSystemButton.Text = "ON"
-			lightSystemButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-		else
-			lightSystemButton.Text = "OFF"
-			lightSystemButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-		end
-	end
-
-	lightSystemButton.Activated:Connect(function()
-		lightSystemEnabled = not lightSystemEnabled
-		updateLightSystemButton()
-
-		if lightSystemEnabled then
-			local success, result = pcall(function()
-				if type(loadstring) ~= "function" then
-					error("loadstring tidak tersedia di lingkungan ini")
-				end
-				if type(game.HttpGet) ~= "function" then
-					error("game:HttpGet tidak tersedia di lingkungan ini")
-				end
-				return loadstring(game:HttpGet(LIGHT_SYSTEM_URL, true))()
-			end)
-
-			if not success then
-				warn("[ZxN] Light System gagal dimuat: " .. tostring(result))
-				lightSystemEnabled = false
-				updateLightSystemButton()
-			end
-		else
-			-- Saat tombol OFF: hapus GUI TorchOnHeadGui dari PlayerGui
-			local player = game:GetService("Players").LocalPlayer
-			local playerGui = player and player:FindFirstChild("PlayerGui")
-			if playerGui then
-				for _, descendant in ipairs(playerGui:GetDescendants()) do
-					if descendant.Name == "TorchOnHeadGui" then
-						descendant:Destroy()
-					end
-				end
-			end
-		end
-	end)
-end)
+-- Auto Proximity Prompt
+createLinkFeature("Auto Proximity Prompt", 390, "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt", "AutoProximityPromptGui")
 
 local function getPromptAdornee(prompt)
 	if not prompt or not prompt.Parent then
