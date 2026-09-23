@@ -1,0 +1,382 @@
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+local isTorchOn = false
+local torchPart = nil
+local torchLight = nil
+
+local lightRange = 50
+local lightBrightness = 2
+local orbSize = 1
+
+local LIGHT_COLOR = Color3.fromRGB(255, 255, 255)
+local ORB_HEIGHT = 10
+
+local toggleButton = nil
+
+local function cleanupTorch()
+	if torchPart then
+		torchPart:Destroy()
+		torchPart = nil
+		torchLight = nil
+	end
+
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if descendant:IsA("BasePart") and string.match(descendant.Name, "^ZxN") then
+			descendant:Destroy()
+		end
+	end
+end
+
+local function findExistingTorch()
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if descendant:IsA("BasePart") and (descendant.Name == "ZxN Orb" or descendant.Name == "ZxN Burn") then
+			return descendant
+		end
+	end
+	return nil
+end
+
+local function adoptExistingTorch(part)
+	torchPart = part
+	torchLight = part:FindFirstChildOfClass("PointLight")
+
+	if not torchLight then
+		local oldLight = part:FindFirstChildOfClass("SpotLight")
+		if oldLight then oldLight:Destroy() end
+		torchLight = Instance.new("PointLight")
+		torchLight.Shadows = true
+		torchLight.Parent = part
+	end
+
+	local oldFire = part:FindFirstChildOfClass("Fire")
+	if oldFire then oldFire:Destroy() end
+
+	local char = part.Parent
+	if char then
+		local oldShade = char:FindFirstChild("ZxN Shade")
+		if oldShade then oldShade:Destroy() end
+		local oldShade2 = char:FindFirstChild("ZxN Burn Shade")
+		if oldShade2 then oldShade2:Destroy() end
+	end
+
+	torchPart.Shape = Enum.PartType.Ball
+	torchPart.Material = Enum.Material.Neon
+	torchPart.Color = LIGHT_COLOR
+	torchPart.Transparency = 1
+	torchPart.Size = Vector3.new(orbSize, orbSize, orbSize)
+
+	if torchLight then
+		torchLight.Color = LIGHT_COLOR
+		torchLight.Range = lightRange
+		torchLight.Brightness = lightBrightness
+		torchLight.Shadows = true
+	end
+end
+
+local function createTorch()
+	local existing = findExistingTorch()
+	if existing then
+		adoptExistingTorch(existing)
+		return
+	end
+
+	local char = player.Character
+	if not char then return end
+	local head = char:FindFirstChild("Head")
+	if not head then return end
+
+	torchPart = Instance.new("Part")
+	torchPart.Name = "ZxN Orb"
+	torchPart.Shape = Enum.PartType.Ball
+	torchPart.Size = Vector3.new(orbSize, orbSize, orbSize)
+	torchPart.Color = LIGHT_COLOR
+	torchPart.Material = Enum.Material.Neon
+	torchPart.Transparency = 1
+	torchPart.CanCollide = false
+	torchPart.Massless = true
+	torchPart.Anchored = false
+
+	torchLight = Instance.new("PointLight")
+	torchLight.Color = LIGHT_COLOR
+	torchLight.Range = lightRange
+	torchLight.Brightness = lightBrightness
+	torchLight.Shadows = true
+	torchLight.Parent = torchPart
+
+	torchPart.CFrame = head.CFrame * CFrame.new(0, head.Size.Y / 2 + ORB_HEIGHT, 0)
+	torchPart.Parent = char
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = head
+	weld.Part1 = torchPart
+	weld.Parent = torchPart
+end
+
+local playerGui = player:WaitForChild("PlayerGui")
+
+local existingGui = playerGui:FindFirstChild("TorchGui")
+if existingGui then existingGui:Destroy() end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TorchGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "TorchOnHeadGui"
+mainFrame.Size = UDim2.new(0, 220, 0, 270)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 10)
+frameCorner.Parent = mainFrame
+
+local function makeButton(name, size, position, text, bgColor)
+	local btn = Instance.new("TextButton")
+	btn.Name = name
+	btn.Size = size
+	btn.Position = position
+	btn.BackgroundColor3 = bgColor
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextSize = 14
+	btn.Font = Enum.Font.SourceSansBold
+	btn.Text = text
+	btn.Parent = mainFrame
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = btn
+
+	return btn
+end
+
+local function makeTextBox(name, size, position, placeholder, defaultValue)
+	local box = Instance.new("TextBox")
+	box.Name = name
+	box.Size = size
+	box.Position = position
+	box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	box.TextColor3 = Color3.fromRGB(255, 255, 255)
+	box.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+	box.TextSize = 14
+	box.Font = Enum.Font.SourceSans
+	box.PlaceholderText = placeholder
+	box.Text = tostring(defaultValue)
+	box.ClearTextOnFocus = false
+	box.Parent = mainFrame
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = box
+
+	return box
+end
+
+toggleButton = makeButton(
+	"ToggleButton",
+	UDim2.new(0, 160, 0, 50),
+	UDim2.new(0.5, -80, 0, 45),
+	"Orb: OFF",
+	Color3.fromRGB(220, 50, 50)
+)
+
+local rangeBox = makeTextBox(
+	"RangeBox",
+	UDim2.new(0, 100, 0, 40),
+	UDim2.new(0.5, -100, 0, 110),
+	"Luas (stud)",
+	lightRange
+)
+local rangeMinus = makeButton(
+	"RangeMinus",
+	UDim2.new(0, 45, 0, 40),
+	UDim2.new(0.5, 5, 0, 110),
+	"-",
+	Color3.fromRGB(80, 80, 80)
+)
+local rangePlus = makeButton(
+	"RangePlus",
+	UDim2.new(0, 45, 0, 40),
+	UDim2.new(0.5, 55, 0, 110),
+	"+",
+	Color3.fromRGB(80, 80, 80)
+)
+
+local brightBox = makeTextBox(
+	"BrightBox",
+	UDim2.new(0, 100, 0, 40),
+	UDim2.new(0.5, -100, 0, 160),
+	"Kekuatan",
+	lightBrightness
+)
+local brightMinus = makeButton(
+	"BrightMinus",
+	UDim2.new(0, 45, 0, 40),
+	UDim2.new(0.5, 5, 0, 160),
+	"-",
+	Color3.fromRGB(80, 80, 80)
+)
+local brightPlus = makeButton(
+	"BrightPlus",
+	UDim2.new(0, 45, 0, 40),
+	UDim2.new(0.5, 55, 0, 160),
+	"+",
+	Color3.fromRGB(80, 80, 80)
+)
+
+local orbBox = makeTextBox(
+	"OrbBox",
+	UDim2.new(0, 100, 0, 40),
+	UDim2.new(0.5, -100, 0, 210),
+	"Besar orb",
+	orbSize
+)
+local orbMinus = makeButton(
+	"OrbMinus",
+	UDim2.new(0, 45, 0, 40),
+	UDim2.new(0.5, 5, 0, 210),
+	"-",
+	Color3.fromRGB(80, 80, 80)
+)
+local orbPlus = makeButton(
+	"OrbPlus",
+	UDim2.new(0, 45, 0, 40),
+	UDim2.new(0.5, 55, 0, 210),
+	"+",
+	Color3.fromRGB(80, 80, 80)
+)
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -36, 0, 6)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 16
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Text = "X"
+closeButton.Parent = mainFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
+
+closeButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+end)
+
+local function applyLightSettings()
+	if torchLight then
+		torchLight.Range = lightRange
+		torchLight.Brightness = lightBrightness
+	end
+end
+
+local function setRange(value)
+	local n = tonumber(value)
+	if n then
+		lightRange = math.clamp(n, 1, 60)
+		rangeBox.Text = tostring(lightRange)
+		applyLightSettings()
+	end
+end
+
+local function setBrightness(value)
+	local n = tonumber(value)
+	if n then
+		lightBrightness = math.clamp(n, 0, 10)
+		brightBox.Text = tostring(lightBrightness)
+		applyLightSettings()
+	end
+end
+
+local function setOrbSize(value)
+	local n = tonumber(value)
+	if n then
+		orbSize = math.clamp(n, 0.5, 10)
+		orbBox.Text = tostring(orbSize)
+		if torchPart then
+			torchPart.Size = Vector3.new(orbSize, orbSize, orbSize)
+		end
+	end
+end
+
+rangeBox.FocusLost:Connect(function(enterPressed)
+	setRange(rangeBox.Text)
+end)
+
+brightBox.FocusLost:Connect(function(enterPressed)
+	setBrightness(brightBox.Text)
+end)
+
+rangeMinus.MouseButton1Click:Connect(function()
+	setRange(lightRange - 5)
+end)
+rangePlus.MouseButton1Click:Connect(function()
+	setRange(lightRange + 5)
+end)
+brightMinus.MouseButton1Click:Connect(function()
+	setBrightness(lightBrightness - 0.5)
+end)
+brightPlus.MouseButton1Click:Connect(function()
+	setBrightness(lightBrightness + 0.5)
+end)
+orbBox.FocusLost:Connect(function(enterPressed)
+	setOrbSize(orbBox.Text)
+end)
+orbMinus.MouseButton1Click:Connect(function()
+	setOrbSize(orbSize - 0.5)
+end)
+orbPlus.MouseButton1Click:Connect(function()
+	setOrbSize(orbSize + 0.5)
+end)
+
+toggleButton.MouseButton1Click:Connect(function()
+	isTorchOn = not isTorchOn
+
+	if isTorchOn then
+		toggleButton.Text = "Orb: ON"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+		createTorch()
+	else
+		toggleButton.Text = "Orb: OFF"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+		cleanupTorch()
+	end
+end)
+
+local characterAddedConnection = player.CharacterAdded:Connect(function(newCharacter)
+	local head = newCharacter:WaitForChild("Head", 10)
+
+	if isTorchOn then
+		isTorchOn = false
+		cleanupTorch()
+
+		if toggleButton then
+			toggleButton.Text = "Orb: OFF"
+			toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+		end
+	end
+end)
+
+screenGui.Destroying:Connect(function()
+	if characterAddedConnection then
+		characterAddedConnection:Disconnect()
+		characterAddedConnection = nil
+	end
+end)
+
+local existingTorch = findExistingTorch()
+if existingTorch then
+	isTorchOn = true
+	adoptExistingTorch(existingTorch)
+	toggleButton.Text = "Orb: ON"
+	toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+end
