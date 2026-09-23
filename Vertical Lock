@@ -36,7 +36,35 @@ local characterAddedConnection = player.CharacterAdded:Connect(function(newChara
 	end
 end)
 
+-- Hitung titik terendah tubuh pemain (kaki) secara dinamis
+-- agar platform selalu spawn TEPAT di bawah kaki, apa pun pose karakter (berdiri/lompat)
+local function getLowestBodyY(char)
+	local lowestY = nil
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") and part.Name ~= "ZxN" then
+			-- Lewati handle aksesori (topi dll) agar tidak menggeser posisi spawn
+			if part.Parent and part.Parent:IsA("Accessory") then
+				continue
+			end
+			local bottomY = part.Position.Y - part.Size.Y / 2
+			if lowestY == nil or bottomY < lowestY then
+				lowestY = bottomY
+			end
+		end
+	end
+	-- Fallback jika tidak ada part tubuh ditemukan (asumsi tinggi standar karakter)
+	if lowestY == nil and humanoidRootPart then
+		lowestY = humanoidRootPart.Position.Y - 3
+	end
+	return lowestY
+end
+
 local function enablePlatformLock()
+	-- Selalu ambil referensi karakter terbaru (mencegah referensi basi/stale
+	-- yang menyebabkan platform gagal spawn saat lompat atau setelah respawn)
+	character = player.Character
+	if not character then return end
+	humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return end
 
 	-- Hapus platform lama jika masih tersisa
@@ -45,19 +73,26 @@ local function enablePlatformLock()
 		lockPlatform = nil
 	end
 
-	-- Hitung posisi di bawah kaki pemain
-	-- (Offset -3 stud mengasumsikan tinggi standar karakter Roblox dari HRP ke Kaki)
-	local spawnY = humanoidRootPart.Position.Y - 3.5
+	-- Reset penyesuaian UP/DOWN agar platform selalu spawn TEPAT di bawah kaki
+	-- setiap kali tombol ON dinyalakan (termasuk setelah dimatikan lalu dinyalakan lagi)
+	platformYOffset = 0
 
 	-- Buat Part Pijakan Transparan
 	lockPlatform = Instance.new("Part")
-	lockPlatform.Name = "TransparentLockPlatform"
-	lockPlatform.Size = Vector3.new(5, 1, 5) -- Ukuran Lebar 100x100
-	lockPlatform.Position = Vector3.new(humanoidRootPart.Position.X, spawnY, humanoidRootPart.Position.Z)
+	lockPlatform.Name = "ZxN"
+	lockPlatform.Size = Vector3.new(5, 1, 5)
 	lockPlatform.Anchored = true
 	lockPlatform.CanCollide = true
 	lockPlatform.Transparency = 1 -- Transparan sepenuhnya (Ubah ke 0.5 jika ingin sedikit terlihat saat debug)
 	lockPlatform.Material = Enum.Material.SmoothPlastic
+
+	-- Posisi Y: permukaan ATAS platform tepat di titik terendah kaki pemain
+	-- (Position.Y - Size.Y/2 = permukaan atas), sehingga TIDAK ADA celah vertikal
+	local feetY = getLowestBodyY(character)
+	if feetY == nil then return end
+	local spawnY = feetY - lockPlatform.Size.Y / 2
+
+	lockPlatform.Position = Vector3.new(humanoidRootPart.Position.X, spawnY, humanoidRootPart.Position.Z)
 	lockPlatform.Parent = workspace
 
 	if renderConnection then renderConnection:Disconnect() end
@@ -84,6 +119,13 @@ local function disablePlatformLock()
 		lockPlatform:Destroy()
 		lockPlatform = nil
 	end
+
+	-- Pastikan tidak ada part ZxN lain yang tersisa di workspace (pembersihan total)
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if descendant:IsA("BasePart") and descendant.Name == "ZxN" then
+			descendant:Destroy()
+		end
+	end
 end
 
 local playerGui = player:WaitForChild("PlayerGui")
@@ -93,7 +135,8 @@ if existingGui then existingGui:Destroy() end
 
 -- Bersihkan sisa platform dari instance script sebelumnya (mencegah zombie platform)
 for _, descendant in ipairs(workspace:GetDescendants()) do
-	if descendant:IsA("BasePart") and descendant.Name == "TransparentLockPlatform" then
+	if descendant:IsA("BasePart")
+		and (descendant.Name == "TransparentLockPlatform" or descendant.Name == "ZxN") then
 		descendant:Destroy()
 	end
 end
@@ -126,7 +169,7 @@ toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50) -- Merah (OFF)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.TextSize = 16
 toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.Text = "Lock Vertikal: OFF"
+toggleButton.Text = "OFF"
 toggleButton.Parent = screenGui
 
 local uiCorner = Instance.new("UICorner")
@@ -207,11 +250,11 @@ toggleButton.MouseButton1Click:Connect(function()
 	isLocked = not isLocked
 
 	if isLocked then
-		toggleButton.Text = "Lock Vertikal: ON"
+		toggleButton.Text = "ON"
 		toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- Hijau (ON)
 		enablePlatformLock()
 	else
-		toggleButton.Text = "Lock Vertikal: OFF"
+		toggleButton.Text = "OFF"
 		toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50) -- Merah (OFF)
 		disablePlatformLock()
 	end
