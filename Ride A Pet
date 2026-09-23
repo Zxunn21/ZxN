@@ -690,7 +690,7 @@ for _, button in ipairs({
 	jumpDragButton,
 	jumpPlusButton,
 	jumpMinusButton
-}) do
+	}) do
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 7)
 	corner.Parent = button
@@ -767,6 +767,78 @@ proximityESPButton.Parent = featurePanel
 local proximityESPButtonCorner = Instance.new("UICorner")
 proximityESPButtonCorner.CornerRadius = UDim.new(0, 7)
 proximityESPButtonCorner.Parent = proximityESPButton
+
+-- Vertical Lock
+task.spawn(function()
+	local verticalLockEnabled = false
+
+	local verticalLockLabel = Instance.new("TextLabel")
+	verticalLockLabel.Name = "VerticalLockLabel"
+	verticalLockLabel.Size = UDim2.new(0, 130, 0, 36)
+	verticalLockLabel.Position = UDim2.fromOffset(5, 290)
+	verticalLockLabel.BackgroundTransparency = 1
+	verticalLockLabel.Text = "Vertical Lock"
+	verticalLockLabel.TextColor3 = Color3.new(1, 1, 1)
+	verticalLockLabel.TextSize = 13
+	verticalLockLabel.Font = Enum.Font.GothamBold
+	verticalLockLabel.TextXAlignment = Enum.TextXAlignment.Left
+	verticalLockLabel.TextYAlignment = Enum.TextYAlignment.Center
+	verticalLockLabel.ZIndex = 512
+	verticalLockLabel.Parent = featurePanel
+
+	local verticalLockButton = Instance.new("TextButton")
+	verticalLockButton.Name = "VerticalLockButton"
+	verticalLockButton.Size = UDim2.fromOffset(60, 36)
+	verticalLockButton.AnchorPoint = Vector2.new(1, 0)
+	verticalLockButton.Position = UDim2.new(1, -5, 0, 290)
+	verticalLockButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	verticalLockButton.BorderSizePixel = 0
+	verticalLockButton.Text = "OFF"
+	verticalLockButton.TextColor3 = Color3.new(1, 1, 1)
+	verticalLockButton.TextSize = 12
+	verticalLockButton.Font = Enum.Font.GothamBold
+	verticalLockButton.ZIndex = 512
+	verticalLockButton.Parent = featurePanel
+
+	local verticalLockButtonCorner = Instance.new("UICorner")
+	verticalLockButtonCorner.CornerRadius = UDim.new(0, 7)
+	verticalLockButtonCorner.Parent = verticalLockButton
+
+	local VERTICAL_LOCK_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock"
+
+	local function updateVerticalLockButton()
+		if verticalLockEnabled then
+			verticalLockButton.Text = "ON"
+			verticalLockButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		else
+			verticalLockButton.Text = "OFF"
+			verticalLockButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		end
+	end
+
+	verticalLockButton.Activated:Connect(function()
+		verticalLockEnabled = not verticalLockEnabled
+		updateVerticalLockButton()
+
+		if verticalLockEnabled then
+			local success, result = pcall(function()
+				if type(loadstring) ~= "function" then
+					error("loadstring tidak tersedia di lingkungan ini")
+				end
+				if type(game.HttpGet) ~= "function" then
+					error("game:HttpGet tidak tersedia di lingkungan ini")
+				end
+				return loadstring(game:HttpGet(VERTICAL_LOCK_URL, true))()
+			end)
+
+			if not success then
+				warn("[ZxN] Vertical Lock gagal dimuat: " .. tostring(result))
+				verticalLockEnabled = false
+				updateVerticalLockButton()
+			end
+		end
+	end)
+end)
 
 local function getPromptAdornee(prompt)
 	if not prompt or not prompt.Parent then
