@@ -836,6 +836,17 @@ task.spawn(function()
 				verticalLockEnabled = false
 				updateVerticalLockButton()
 			end
+		else
+			-- Saat tombol OFF: hapus GUI Vertical Lock dari PlayerGui
+			local player = game:GetService("Players").LocalPlayer
+			local playerGui = player and player:FindFirstChild("PlayerGui")
+			if playerGui then
+				for _, descendant in ipairs(playerGui:GetDescendants()) do
+					if descendant.Name == "VerticalLockGui" then
+						descendant:Destroy()
+					end
+				end
+			end
 		end
 	end)
 end)
