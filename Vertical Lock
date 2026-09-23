@@ -1,0 +1,123 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+
+-- Variable State
+local isLocked = false
+local lockPlatform = nil
+local renderConnection = nil
+
+--------------------------------------------------------------------------------
+-- EVENT UPDATE KARAKTER (SAAT RESPAWN)
+--------------------------------------------------------------------------------
+player.CharacterAdded:Connect(function(newCharacter)
+	character = newCharacter
+	humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+	
+	-- Matikan platform jika pemain mati / respawn
+	if isLocked then
+		isLocked = false
+		if lockPlatform then
+			lockPlatform:Destroy()
+			lockPlatform = nil
+		end
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- FUNGSIONALITAS CREATION & REMOVAL PLATFORM
+--------------------------------------------------------------------------------
+local function enablePlatformLock()
+	if not humanoidRootPart then return end
+
+	-- Hapus platform lama jika masih tersisa
+	if lockPlatform then
+		lockPlatform:Destroy()
+		lockPlatform = nil
+	end
+
+	-- Hitung posisi di bawah kaki pemain
+	-- (Offset -3 stud mengasumsikan tinggi standar karakter Roblox dari HRP ke Kaki)
+	local spawnY = humanoidRootPart.Position.Y - 3.5
+
+	-- Buat Part Pijakan Transparan
+	lockPlatform = Instance.new("Part")
+	lockPlatform.Name = "TransparentLockPlatform"
+	lockPlatform.Size = Vector3.new(100, 1, 100) -- Ukuran Lebar 100x100
+	lockPlatform.Position = Vector3.new(humanoidRootPart.Position.X, spawnY, humanoidRootPart.Position.Z)
+	lockPlatform.Anchored = true
+	lockPlatform.CanCollide = true
+	lockPlatform.Transparency = 1 -- Transparan sepenuhnya (Ubah ke 0.5 jika ingin sedikit terlihat saat debug)
+	lockPlatform.Material = Enum.Material.SmoothPlastic
+	lockPlatform.Parent = workspace
+
+	-- Loop untuk memperbarui posisi horizontal (X dan Z) platform mengikuti pemain
+	-- Ketinggian vertikal (Y) akan tetap terkunci di spawnY
+	if renderConnection then renderConnection:Disconnect() end
+	
+	renderConnection = RunService.RenderStepped:Connect(function()
+		if isLocked and lockPlatform and humanoidRootPart then
+			lockPlatform.Position = Vector3.new(humanoidRootPart.Position.X, spawnY, humanoidRootPart.Position.Z)
+		end
+	end)
+end
+
+local function disablePlatformLock()
+	if renderConnection then
+		renderConnection:Disconnect()
+		renderConnection = nil
+	end
+	
+	if lockPlatform then
+		lockPlatform:Destroy()
+		lockPlatform = nil
+	end
+end
+
+--------------------------------------------------------------------------------
+-- PEMBUATAN UI TOMBOL ON / OFF
+--------------------------------------------------------------------------------
+local playerGui = player:WaitForChild("PlayerGui")
+
+local existingGui = playerGui:FindFirstChild("VerticalLockGui")
+if existingGui then existingGui:Destroy() end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "VerticalLockGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 160, 0, 50)
+toggleButton.Position = UDim2.new(0.85, -80, 0.5, -25)
+toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50) -- Merah (OFF)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 16
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.Text = "Lock Vertikal: OFF"
+toggleButton.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = toggleButton
+
+--------------------------------------------------------------------------------
+-- EVENT CLICK TOMBOL
+--------------------------------------------------------------------------------
+toggleButton.MouseButton1Click:Connect(function()
+	isLocked = not isLocked
+
+	if isLocked then
+		toggleButton.Text = "Lock Vertikal: ON"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- Hijau (ON)
+		enablePlatformLock()
+	else
+		toggleButton.Text = "Lock Vertikal: OFF"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50) -- Merah (OFF)
+		disablePlatformLock()
+	end
+end)
