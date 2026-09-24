@@ -427,8 +427,6 @@ featureButtonCorner.Parent = featureButton
 
 local RideAPetButton_
 local featurePanel
-local objectLineToggle
-local featureObjectInput
 
 gameButton.Activated:Connect(function()
 	gameOpen = true
@@ -445,12 +443,6 @@ featureButton.Activated:Connect(function()
 	RideAPetButton_.Visible = false
 	featurePanel.Visible = true
 	subMenu.CanvasPosition = Vector2.new(0, 0)
-
-	-- Matikan fitur line saat panel dibuka ulang.
-	if objectLineToggle then
-		objectLineToggle.Text = "OFF"
-		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
 end)
 
 RideAPetButton_ = Instance.new("TextButton")
@@ -478,7 +470,6 @@ featurePanel.Parent = subMenu
 
 local featureTitle = Instance.new("TextLabel")
 featureTitle.Size = UDim2.new(1, -10, 0, 30)
-featureTitle.Position = UDim2.fromOffset(5, 0)
 featureTitle.BackgroundTransparency = 1
 featureTitle.Text = "Fitur"
 featureTitle.TextColor3 = Color3.new(1, 1, 1)
@@ -486,75 +477,31 @@ featureTitle.TextSize = 18
 featureTitle.Font = Enum.Font.GothamBold
 featureTitle.TextXAlignment = Enum.TextXAlignment.Left
 featureTitle.ZIndex = 511
+featureTitle.LayoutOrder = 1
 featureTitle.Parent = featurePanel
 
--- Control input dan tombol Line dibuat di panel Fitur.
-featureObjectInput = Instance.new("TextBox")
-featureObjectInput.Name = "ObjectCoordinateInput"
-featureObjectInput.Size = UDim2.new(0, 110, 0, 40)
-featureObjectInput.Position = UDim2.fromOffset(90, 40)
-featureObjectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-featureObjectInput.BorderSizePixel = 0
-featureObjectInput.Text = ""
-featureObjectInput.PlaceholderText = "P part / M model"
-featureObjectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-featureObjectInput.TextColor3 = Color3.new(1, 1, 1)
-featureObjectInput.TextSize = 13
-featureObjectInput.Font = Enum.Font.GothamBold
-featureObjectInput.ClearTextOnFocus = false
-featureObjectInput.TextXAlignment = Enum.TextXAlignment.Center
-featureObjectInput.ZIndex = 512
-featureObjectInput.Parent = featurePanel
-
-local featureObjectInputCorner = Instance.new("UICorner")
-featureObjectInputCorner.CornerRadius = UDim.new(0, 8)
-featureObjectInputCorner.Parent = featureObjectInput
-
-local featureObjectInputStroke = Instance.new("UIStroke")
-featureObjectInputStroke.Thickness = 2
-featureObjectInputStroke.Color = Color3.fromRGB(210, 210, 210)
-featureObjectInputStroke.Parent = featureObjectInput
-
-objectLineToggle = Instance.new("TextButton")
-objectLineToggle.Name = "ObjectLineToggle"
-objectLineToggle.Size = UDim2.new(0, 60, 0, 40)
-objectLineToggle.AnchorPoint = Vector2.new(1, 0)
-objectLineToggle.Position = UDim2.new(1, -5, 0, 40)
-objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-objectLineToggle.BorderSizePixel = 0
-objectLineToggle.Text = "OFF"
-objectLineToggle.TextColor3 = Color3.new(1, 1, 1)
-objectLineToggle.TextSize = 13
-objectLineToggle.Font = Enum.Font.GothamBold
-objectLineToggle.ZIndex = 512
-objectLineToggle.Parent = featurePanel
-
-local objectLineToggleCorner = Instance.new("UICorner")
-objectLineToggleCorner.CornerRadius = UDim.new(0, 8)
-objectLineToggleCorner.Parent = objectLineToggle
-
-local objectLineLabel = Instance.new("TextLabel")
-objectLineLabel.Name = "ObjectLineLabel"
-objectLineLabel.Size = UDim2.new(0, 80, 0, 40)
-objectLineLabel.Position = UDim2.fromOffset(5, 40)
-objectLineLabel.BackgroundTransparency = 1
-objectLineLabel.Text = "Line to Object"
-objectLineLabel.TextColor3 = Color3.new(1, 1, 1)
-objectLineLabel.TextSize = 12
-objectLineLabel.Font = Enum.Font.GothamBold
-objectLineLabel.TextXAlignment = Enum.TextXAlignment.Left
-objectLineLabel.TextYAlignment = Enum.TextYAlignment.Center
-objectLineLabel.ZIndex = 512
-objectLineLabel.Parent = featurePanel
+-- Susunan item di panel Fitur diatur otomatis oleh UIListLayout.
+local featureListLayout = Instance.new("UIListLayout")
+featureListLayout.Padding = UDim.new(0, 8)
+featureListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+featureListLayout.Parent = featurePanel
 
 -- ESP Proximity Prompt
 local proximityESPEnabled = false
 local proximityESPData = {}
 
+local proximityRow = Instance.new("Frame")
+proximityRow.Name = "ProximityESPRow"
+proximityRow.Size = UDim2.new(1, 0, 0, 36)
+proximityRow.BackgroundTransparency = 1
+proximityRow.LayoutOrder = 2
+proximityRow.ZIndex = 512
+proximityRow.Parent = featurePanel
+
 local proximityESPLabel = Instance.new("TextLabel")
 proximityESPLabel.Name = "ProximityESPLabel"
 proximityESPLabel.Size = UDim2.new(0, 130, 0, 36)
-proximityESPLabel.Position = UDim2.fromOffset(5, 140)
+proximityESPLabel.Position = UDim2.fromOffset(5, 0)
 proximityESPLabel.BackgroundTransparency = 1
 proximityESPLabel.Text = "ESP Proximity Prompt"
 proximityESPLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -563,13 +510,13 @@ proximityESPLabel.Font = Enum.Font.GothamBold
 proximityESPLabel.TextXAlignment = Enum.TextXAlignment.Left
 proximityESPLabel.TextYAlignment = Enum.TextYAlignment.Center
 proximityESPLabel.ZIndex = 512
-proximityESPLabel.Parent = featurePanel
+proximityESPLabel.Parent = proximityRow
 
 local proximityESPButton = Instance.new("TextButton")
 proximityESPButton.Name = "ProximityESPButton"
 proximityESPButton.Size = UDim2.fromOffset(60, 36)
-proximityESPButton.AnchorPoint = Vector2.new(1, 0)
-proximityESPButton.Position = UDim2.new(1, -5, 0, 140)
+proximityESPButton.AnchorPoint = Vector2.new(1, 0.5)
+proximityESPButton.Position = UDim2.new(1, -5, 0.5, 0)
 proximityESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 proximityESPButton.BorderSizePixel = 0
 proximityESPButton.Text = "OFF"
@@ -577,7 +524,7 @@ proximityESPButton.TextColor3 = Color3.new(1, 1, 1)
 proximityESPButton.TextSize = 12
 proximityESPButton.Font = Enum.Font.GothamBold
 proximityESPButton.ZIndex = 512
-proximityESPButton.Parent = featurePanel
+proximityESPButton.Parent = proximityRow
 
 local proximityESPButtonCorner = Instance.new("UICorner")
 proximityESPButtonCorner.CornerRadius = UDim.new(0, 7)
@@ -589,19 +536,24 @@ local linkFeatures = {
 	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToHide = "TorchOnHeadGui" },
 	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToHide = "AutoProximityPromptGui" },
 	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToHide = "CameraSettingViewGui" },
-	{ description = "PlayerTools",           url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToHide = "PlayerToolsGui", preserve = true },
+	{ description = "Player Tools",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToHide = "PlayerToolsGui", preserve = true },
+	{ description = "Objects Tools",         url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ObjectsTools",        guiToHide = "ObjectsToolsGui" },
 }
 
-local LINK_FEATURE_BASE_Y = 190
-local LINK_FEATURE_STEP_Y = 50
-
 local function createLinkFeature(index, feature)
-	local yPosition = LINK_FEATURE_BASE_Y + (index - 1) * LINK_FEATURE_STEP_Y
 	local enabled = false
+
+	local row = Instance.new("Frame")
+	row.Name = feature.description .. "Row"
+	row.Size = UDim2.new(1, 0, 0, 36)
+	row.BackgroundTransparency = 1
+	row.LayoutOrder = 2 + index
+	row.ZIndex = 512
+	row.Parent = featurePanel
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(0, 130, 0, 36)
-	label.Position = UDim2.fromOffset(5, yPosition)
+	label.Position = UDim2.fromOffset(5, 0)
 	label.BackgroundTransparency = 1
 	label.Text = feature.description
 	label.TextColor3 = Color3.new(1, 1, 1)
@@ -610,12 +562,12 @@ local function createLinkFeature(index, feature)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.ZIndex = 512
-	label.Parent = featurePanel
+	label.Parent = row
 
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.fromOffset(60, 36)
-	button.AnchorPoint = Vector2.new(1, 0)
-	button.Position = UDim2.new(1, -5, 0, yPosition)
+	button.AnchorPoint = Vector2.new(1, 0.5)
+	button.Position = UDim2.new(1, -5, 0.5, 0)
 	button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	button.BorderSizePixel = 0
 	button.Text = "OFF"
@@ -623,7 +575,7 @@ local function createLinkFeature(index, feature)
 	button.TextSize = 12
 	button.Font = Enum.Font.GothamBold
 	button.ZIndex = 512
-	button.Parent = featurePanel
+	button.Parent = row
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 7)
@@ -1675,293 +1627,3 @@ end)
 updateSpeedButton()
 updateTeleportList()
 
--- OBJECT LINE / FITUR LINE
-local objectInput = featureObjectInput
-local objectLineEnabled = false
-
-local objectBeams = {}
-local objectTargetParts = {}
-local objectStartAttachments = {}
-local objectHighlights = {}
-local currentTargetType = nil
-local currentTargetName = nil
-
-local function getObjectPosition(object)
-	if not object or not object.Parent then
-		return nil
-	end
-
-	if object:IsA("BasePart") then
-		return object.Position
-	end
-
-	if object:IsA("Model") then
-		return object:GetPivot().Position
-	end
-
-	return nil
-end
-
-local function clearObjectLines()
-	for _, beam in ipairs(objectBeams) do
-		if beam and beam.Parent then
-			beam:Destroy()
-		end
-	end
-	table.clear(objectBeams)
-
-	for _, data in ipairs(objectTargetParts) do
-		if data.part and data.part.Parent then
-			data.part:Destroy()
-		end
-	end
-	table.clear(objectTargetParts)
-
-	for _, attachment in ipairs(objectStartAttachments) do
-		if attachment and attachment.Parent then
-			attachment:Destroy()
-		end
-	end
-	table.clear(objectStartAttachments)
-
-	for _, highlight in ipairs(objectHighlights) do
-		if highlight and highlight.Parent then highlight:Destroy() end
-	end
-	table.clear(objectHighlights)
-end
-
--- P = BasePart, M = Model.
--- Pencarian case-insensitive dan partial/contains:
--- "m cherub" -> "Cherub Egg"
--- "p part"  -> semua BasePart yang namanya mengandung "part"
-local function findObjects(targetType, targetName)
-	local results = {}
-
-	if not targetType or not targetName then
-		return results
-	end
-
-	targetName = targetName:match("^%s*(.-)%s*$")
-	if targetName == "" then
-		return results
-	end
-
-	local wanted = string.lower(targetName)
-
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		local typeMatches =
-			(targetType == "P" and obj:IsA("BasePart"))
-			or (targetType == "M" and obj:IsA("Model"))
-
-		if typeMatches and string.find(string.lower(obj.Name), wanted, 1, true) then
-			table.insert(results, obj)
-		end
-	end
-
-	return results
-end
-
-local function getRootPart()
-	local character = player.Character
-	if not character then
-		return nil
-	end
-
-	return character:FindFirstChild("HumanoidRootPart")
-end
-
-local function createObjectLines(targetType, targetName)
-	clearObjectLines()
-
-	if not objectLineEnabled then
-		return
-	end
-
-	local rootPart = getRootPart()
-	if not rootPart then
-		return
-	end
-
-	local targets = findObjects(targetType, targetName)
-	if #targets == 0 then
-		return
-	end
-
-	for _, target in ipairs(targets) do
-		local position = getObjectPosition(target)
-
-		if position then
-			local highlight = Instance.new("Highlight")
-			highlight.Name = "ZxN_ObjectLineHighlight"
-			highlight.Adornee = target
-			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-			highlight.FillColor = Color3.fromRGB(255, 220, 60)
-			highlight.FillTransparency = 0.72
-			highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-			highlight.OutlineTransparency = 0
-			highlight.Parent = gui
-			table.insert(objectHighlights, highlight)
-
-			local targetPart = Instance.new("Part")
-			targetPart.Name = "ObjectLineTarget"
-			targetPart.Anchored = true
-			targetPart.CanCollide = false
-			targetPart.CanTouch = false
-			targetPart.CanQuery = false
-			targetPart.CastShadow = false
-			targetPart.Transparency = 1
-			targetPart.Size = Vector3.new(0.1, 0.1, 0.1)
-			targetPart.CFrame = CFrame.new(position)
-			targetPart.Parent = workspace
-
-			local startAttachment = Instance.new("Attachment")
-			startAttachment.Name = "ObjectLineStart"
-			startAttachment.Parent = rootPart
-
-			local endAttachment = Instance.new("Attachment")
-			endAttachment.Name = "ObjectLineEnd"
-			endAttachment.Parent = targetPart
-
-			local beam = Instance.new("Beam")
-			beam.Name = "ObjectLineBeam"
-			beam.Attachment0 = startAttachment
-			beam.Attachment1 = endAttachment
-			beam.Width0 = 0.35
-			beam.Width1 = 0.35
-			beam.Color = ColorSequence.new(Color3.new(1, 1, 1))
-			beam.Transparency = NumberSequence.new(0)
-			beam.FaceCamera = true
-			beam.LightEmission = 1
-			beam.Segments = 1
-			beam.Parent = targetPart
-
-			table.insert(objectBeams, beam)
-			table.insert(objectTargetParts, {
-				part = targetPart,
-				target = target
-			})
-			table.insert(objectStartAttachments, startAttachment)
-		end
-	end
-
-	currentTargetType = targetType
-	currentTargetName = targetName
-end
-
-local function parseObjectInput()
-	local input = objectInput.Text:match("^%s*(.-)%s*$")
-
-	if input == "" then
-		return nil, nil
-	end
-
-	local targetType, targetName = input:match("^([PpMm])%s+(.+)$")
-	if not targetType or not targetName then
-		return nil, nil
-	end
-
-	targetName = targetName:match("^%s*(.-)%s*$")
-	if targetName == "" then
-		return nil, nil
-	end
-
-	return string.upper(targetType), targetName
-end
-
-local function updateObjectLine()
-	local targetType, targetName = parseObjectInput()
-
-	if not targetType or not targetName then
-		currentTargetType = nil
-		currentTargetName = nil
-		clearObjectLines()
-		return
-	end
-
-	currentTargetType = targetType
-	currentTargetName = targetName
-
-	if objectLineEnabled then
-		createObjectLines(targetType, targetName)
-	else
-		clearObjectLines()
-	end
-end
-
-local function updateObjectLineButton()
-	if objectLineEnabled then
-		objectLineToggle.Text = "ON"
-		objectLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-	else
-		objectLineToggle.Text = "OFF"
-		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
-end
-
-objectLineToggle.Activated:Connect(function()
-	objectLineEnabled = not objectLineEnabled
-	updateObjectLineButton()
-
-	if objectLineEnabled then
-		updateObjectLine()
-	else
-		clearObjectLines()
-	end
-end)
-
-objectInput.FocusLost:Connect(function()
-	updateObjectLine()
-end)
-
-objectInput:GetPropertyChangedSignal("Text"):Connect(function()
-	if objectLineEnabled then
-		updateObjectLine()
-	else
-		-- Saat OFF, jangan membuat line baru.
-		clearObjectLines()
-	end
-end)
-
-player.CharacterAdded:Connect(function(character)
-	character:WaitForChild("HumanoidRootPart", 5)
-	task.wait(0.2)
-
-	if objectLineEnabled and currentTargetType and currentTargetName then
-		createObjectLines(currentTargetType, currentTargetName)
-	end
-end)
-
-task.spawn(function()
-	while objectInput and objectInput.Parent do
-		task.wait(0.1)
-
-		if objectLineEnabled then
-			local needsRefresh = false
-
-			for _, data in ipairs(objectTargetParts) do
-				local target = data.target
-				local targetPart = data.part
-
-				if not target or not target.Parent or not targetPart or not targetPart.Parent then
-					needsRefresh = true
-					break
-				end
-
-				local position = getObjectPosition(target)
-				if position then
-					targetPart.Position = position
-				end
-			end
-
-			if needsRefresh and currentTargetType and currentTargetName then
-				createObjectLines(currentTargetType, currentTargetName)
-			elseif currentTargetType and currentTargetName and #objectTargetParts == 0 then
-				createObjectLines(currentTargetType, currentTargetName)
-			end
-		end
-	end
-
-	clearObjectLines()
-end)
-
-updateObjectLineButton()
