@@ -21,7 +21,7 @@ local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.fromScale(0.4,0.6)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.Position = UDim2.new(0.5,0, 0.3, 0)
+mainFrame.Position = UDim2.new(0.5,0, 0.5, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 mainFrame.BackgroundTransparency = 0.5
 mainFrame.BorderSizePixel = 0
@@ -270,6 +270,86 @@ local highlightPlayerButtonCorner = Instance.new("UICorner")
 highlightPlayerButtonCorner.CornerRadius = UDim.new(0, 7)
 highlightPlayerButtonCorner.Parent = highlightPlayerButton
 
+-- Row: Hide Name Tag (hilangkan nama/billboard di atas player lain)
+local hideNameTagEnabled = false
+
+local hideNameTagLabel = Instance.new("TextLabel")
+hideNameTagLabel.Name = "HideNameTagLabel"
+hideNameTagLabel.Size = UDim2.new(0, 150, 0, 36)
+hideNameTagLabel.Position = UDim2.fromOffset(10, 160)
+hideNameTagLabel.BackgroundTransparency = 1
+hideNameTagLabel.Text = "Hide Name Tag"
+hideNameTagLabel.TextColor3 = Color3.new(1, 1, 1)
+hideNameTagLabel.TextSize = 14
+hideNameTagLabel.Font = Enum.Font.GothamBold
+hideNameTagLabel.TextXAlignment = Enum.TextXAlignment.Left
+hideNameTagLabel.TextYAlignment = Enum.TextYAlignment.Center
+hideNameTagLabel.ZIndex = 512
+hideNameTagLabel.Parent = mainFrame
+
+local hideNameTagButton = Instance.new("TextButton")
+hideNameTagButton.Name = "HideNameTagButton"
+hideNameTagButton.Size = UDim2.fromOffset(60, 36)
+hideNameTagButton.AnchorPoint = Vector2.new(1, 0)
+hideNameTagButton.Position = UDim2.new(1, -10, 0, 160)
+hideNameTagButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+hideNameTagButton.BorderSizePixel = 0
+hideNameTagButton.Text = "OFF"
+hideNameTagButton.TextColor3 = Color3.new(1, 1, 1)
+hideNameTagButton.TextSize = 13
+hideNameTagButton.Font = Enum.Font.GothamBold
+hideNameTagButton.ZIndex = 512
+hideNameTagButton.Parent = mainFrame
+
+local hideNameTagButtonCorner = Instance.new("UICorner")
+hideNameTagButtonCorner.CornerRadius = UDim.new(0, 7)
+hideNameTagButtonCorner.Parent = hideNameTagButton
+
+local function applyHideNameTag(other)
+	if other == player then return end
+	local character = other and other.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		if hideNameTagEnabled then
+			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+			humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		else
+			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Player
+			humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.Player
+		end
+	end
+
+	-- Sembunyikan BillboardGui custom yang menempel di kepala player lain
+	local head = character:FindFirstChild("Head")
+	if head then
+		for _, child in ipairs(head:GetChildren()) do
+			if child:IsA("BillboardGui") then
+				child.Enabled = not hideNameTagEnabled
+			end
+		end
+	end
+end
+
+local function setHideNameTag(state)
+	hideNameTagEnabled = state
+	hideNameTagButton.Text = state and "ON" or "OFF"
+	hideNameTagButton.BackgroundColor3 = state
+		and Color3.fromRGB(40, 150, 70)
+		or Color3.fromRGB(180, 50, 50)
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player then
+			applyHideNameTag(other)
+		end
+	end
+end
+
+hideNameTagButton.Activated:Connect(function()
+	setHideNameTag(not hideNameTagEnabled)
+end)
+
 -- ESP functions (copied from LocalScriptZxN)
 
 local function getPlayerESPRoot(other)
@@ -446,7 +526,7 @@ local currentSingleTargetName = nil
 local singleESPLabel = Instance.new("TextLabel")
 singleESPLabel.Name = "SingleESPLabel"
 singleESPLabel.Size = UDim2.new(0, 260, 0, 30)
-singleESPLabel.Position = UDim2.fromOffset(10, 166)
+singleESPLabel.Position = UDim2.fromOffset(10, 202)
 singleESPLabel.BackgroundTransparency = 1
 singleESPLabel.Text = "ESP Single/Partial Player"
 singleESPLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -460,7 +540,7 @@ singleESPLabel.Parent = mainFrame
 local singleESPInput = Instance.new("TextBox")
 singleESPInput.Name = "SingleESPInput"
 singleESPInput.Size = UDim2.fromOffset(120, 36)
-singleESPInput.Position = UDim2.fromOffset(10, 200)
+singleESPInput.Position = UDim2.fromOffset(10, 236)
 singleESPInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 singleESPInput.BorderSizePixel = 0
 singleESPInput.Text = ""
@@ -487,7 +567,7 @@ local singleESPButton = Instance.new("TextButton")
 singleESPButton.Name = "SingleESPButton"
 singleESPButton.Size = UDim2.fromOffset(55, 36)
 singleESPButton.AnchorPoint = Vector2.new(1, 0)
-singleESPButton.Position = UDim2.new(1, -70, 0, 200)
+singleESPButton.Position = UDim2.new(1, -70, 0, 236)
 singleESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 singleESPButton.BorderSizePixel = 0
 singleESPButton.Text = "ESP"
@@ -505,7 +585,7 @@ local singleLineButton = Instance.new("TextButton")
 singleLineButton.Name = "SingleLineButton"
 singleLineButton.Size = UDim2.fromOffset(55, 36)
 singleLineButton.AnchorPoint = Vector2.new(1, 0)
-singleLineButton.Position = UDim2.new(1, -10, 0, 200)
+singleLineButton.Position = UDim2.new(1, -10, 0, 236)
 singleLineButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 singleLineButton.BorderSizePixel = 0
 singleLineButton.Text = "Line"
@@ -894,6 +974,35 @@ function createSingleLines(targetName)
 end
 
 local function updateSingleLineButton()
+
+-- ============================================================
+-- SCROLLABLE CONTENT (hanya menambah scroll, tidak mengubah elemen lain)
+-- ============================================================
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ContentScroll"
+scrollFrame.Size = UDim2.new(1, 0, 1, -36)
+scrollFrame.Position = UDim2.fromOffset(0, 36)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.ScrollBarImageColor = Color3.fromRGB(180, 180, 180)
+scrollFrame.CanvasSize = UDim2.new(1, 0, 0, 0)
+scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scrollFrame.ZIndex = 510
+scrollFrame.Parent = mainFrame
+
+-- Pindahkan semua baris konten ke dalam scroll frame.
+-- TopBar, UICorner, dan UIStroke tetap di mainFrame.
+-- Posisi setiap elemen tidak berubah karena lebar canvas = lebar mainFrame.
+for _, child in ipairs(mainFrame:GetChildren()) do
+	if child ~= topBar
+		and child ~= scrollFrame
+		and not child:IsA("UICorner")
+		and not child:IsA("UIStroke") then
+		child.Parent = scrollFrame
+	end
+end
 	if singleLineEnabled then
 		singleLineButton.Text = "ON"
 		singleLineButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -951,6 +1060,15 @@ task.spawn(function()
 					elseif character and not highlight then
 						createPlayerHighlight(other)
 					end
+				end
+			end
+		end
+
+		-- Keep name tags hidden (termasuk player yang baru join/respawn)
+		if hideNameTagEnabled then
+			for _, other in ipairs(Players:GetPlayers()) do
+				if other ~= player then
+					applyHideNameTag(other)
 				end
 			end
 		end
