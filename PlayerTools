@@ -306,7 +306,7 @@ local function updatePlayerESP()
 			end
 		end
 	end
-ends
+end
 
 -- ============================================================
 -- ESP SINGLE / PARTIAL PLAYER
