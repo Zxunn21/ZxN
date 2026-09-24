@@ -1,1 +1,768 @@
---Hello
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ============================================================
+-- GUI
+-- ============================================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "PlayerToolsGui"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.DisplayOrder = 999
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+gui.Parent = playerGui
+
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.fromOffset(280, 190)
+mainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 500
+mainFrame.Parent = gui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Thickness = 1
+mainStroke.Color = Color3.fromRGB(100, 100, 100)
+mainStroke.Parent = mainFrame
+
+-- Draggable top bar
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 36)
+topBar.Position = UDim2.fromOffset(0, 0)
+topBar.BackgroundTransparency = 1
+topBar.Active = true
+topBar.ZIndex = 550
+topBar.Parent = mainFrame
+
+local topBarTitle = Instance.new("TextLabel")
+topBarTitle.Name = "Title"
+topBarTitle.Size = UDim2.new(1, -12, 1, 0)
+topBarTitle.Position = UDim2.fromOffset(12, 0)
+topBarTitle.BackgroundTransparency = 1
+topBarTitle.Text = "Player Tools"
+topBarTitle.TextColor3 = Color3.new(1, 1, 1)
+topBarTitle.TextSize = 16
+topBarTitle.Font = Enum.Font.GothamBold
+topBarTitle.TextXAlignment = Enum.TextXAlignment.Left
+topBarTitle.ZIndex = 551
+topBarTitle.Parent = topBar
+
+-- Dragging logic
+local dragging = false
+local dragStart
+local dragStartPosition = nil
+local dragInputConnection
+
+local function beginDrag(input)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1
+		and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+	dragging = true
+	dragStart = input.Position
+	dragStartPosition = mainFrame.Position
+end
+
+local function updateDrag(input)
+	if not dragging then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement
+		and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+	local delta = input.Position - dragStart
+	mainFrame.Position = UDim2.new(
+		dragStartPosition.X.Scale,
+		dragStartPosition.X.Offset + delta.X,
+		dragStartPosition.Y.Scale,
+		dragStartPosition.Y.Offset + delta.Y
+	)
+end
+
+topBar.InputBegan:Connect(beginDrag)
+topBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragInputConnection = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInputConnection then
+		updateDrag(input)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- ============================================================
+-- ESP ALL PLAYERS
+-- ============================================================
+
+local playerESPEnabled = false
+local playerESPData = {}
+
+-- Row: ESP All Players
+local espAllLabel = Instance.new("TextLabel")
+espAllLabel.Name = "ESPAllLabel"
+espAllLabel.Size = UDim2.new(0, 150, 0, 36)
+espAllLabel.Position = UDim2.fromOffset(10, 46)
+espAllLabel.BackgroundTransparency = 1
+espAllLabel.Text = "ESP All Players"
+espAllLabel.TextColor3 = Color3.new(1, 1, 1)
+espAllLabel.TextSize = 14
+espAllLabel.Font = Enum.Font.GothamBold
+espAllLabel.TextXAlignment = Enum.TextXAlignment.Left
+espAllLabel.TextYAlignment = Enum.TextYAlignment.Center
+espAllLabel.ZIndex = 512
+espAllLabel.Parent = mainFrame
+
+local espAllButton = Instance.new("TextButton")
+espAllButton.Name = "ESPAllButton"
+espAllButton.Size = UDim2.fromOffset(60, 36)
+espAllButton.AnchorPoint = Vector2.new(1, 0)
+espAllButton.Position = UDim2.new(1, -10, 0, 46)
+espAllButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+espAllButton.BorderSizePixel = 0
+espAllButton.Text = "OFF"
+espAllButton.TextColor3 = Color3.new(1, 1, 1)
+espAllButton.TextSize = 13
+espAllButton.Font = Enum.Font.GothamBold
+espAllButton.ZIndex = 512
+espAllButton.Parent = mainFrame
+
+local espAllButtonCorner = Instance.new("UICorner")
+espAllButtonCorner.CornerRadius = UDim.new(0, 7)
+espAllButtonCorner.Parent = espAllButton
+
+-- ESP functions (copied from LocalScriptZxN)
+
+local function getPlayerESPRoot(other)
+	local character = other and other.Character
+	if not character then return nil end
+	return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function removePlayerESP(other)
+	local data = playerESPData[other]
+	if data and data.Billboard then
+		data.Billboard:Destroy()
+	end
+	playerESPData[other] = nil
+end
+
+local function createPlayerESP(other)
+	if other == player or not playerESPEnabled then return end
+	local root = getPlayerESPRoot(other)
+	if not root then return end
+
+	local data = playerESPData[other]
+	if data and data.Billboard and data.Billboard.Parent then
+		data.Billboard.Adornee = root
+		data.Billboard.Enabled = true
+		return
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "PlayerTools_PlayerESP"
+	billboard.Size = UDim2.fromOffset(260, 62)
+	billboard.StudsOffset = Vector3.new(0, 3.6, 0)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = math.huge
+	billboard.Adornee = root
+	billboard.Enabled = true
+	billboard.Parent = playerGui
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, 0, 0, 22)
+	nameLabel.Position = UDim2.fromOffset(0, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = tostring(other.DisplayName or other.Name)
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextSize = 17
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.Parent = billboard
+
+	local usernameLabel = Instance.new("TextLabel")
+	usernameLabel.Size = UDim2.new(1, 0, 0, 18)
+	usernameLabel.Position = UDim2.fromOffset(0, 20)
+	usernameLabel.BackgroundTransparency = 1
+	usernameLabel.Text = "@" .. tostring(other.Name)
+	usernameLabel.TextColor3 = Color3.fromRGB(225, 225, 225)
+	usernameLabel.TextStrokeTransparency = 0
+	usernameLabel.TextSize = 12
+	usernameLabel.Font = Enum.Font.Gotham
+	usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	usernameLabel.Parent = billboard
+
+	local distanceLabel = Instance.new("TextLabel")
+	distanceLabel.Size = UDim2.new(1, 0, 0, 18)
+	distanceLabel.Position = UDim2.fromOffset(0, 37)
+	distanceLabel.BackgroundTransparency = 1
+	distanceLabel.Text = "0 stud"
+	distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	distanceLabel.TextStrokeTransparency = 0
+	distanceLabel.TextSize = 12
+	distanceLabel.Font = Enum.Font.Gotham
+	distanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+	distanceLabel.Parent = billboard
+
+	playerESPData[other] = {
+		Billboard = billboard,
+		NameLabel = nameLabel,
+		UsernameLabel = usernameLabel,
+		DistanceLabel = distanceLabel,
+	}
+end
+
+local function clearPlayerESP()
+	for other, data in pairs(playerESPData) do
+		if data and data.Billboard then
+			data.Billboard:Destroy()
+		end
+		playerESPData[other] = nil
+	end
+end
+
+local function setPlayerESP(state)
+	playerESPEnabled = state
+	espAllButton.Text = state and "ON" or "OFF"
+	espAllButton.BackgroundColor3 = state
+		and Color3.fromRGB(40, 150, 70)
+		or Color3.fromRGB(180, 50, 50)
+
+	if not state then
+		clearPlayerESP()
+		return
+	end
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player then
+			createPlayerESP(other)
+		end
+	end
+end
+
+espAllButton.Activated:Connect(function()
+	setPlayerESP(not playerESPEnabled)
+end)
+
+Players.PlayerAdded:Connect(function(other)
+	if playerESPEnabled then
+		other.CharacterAdded:Connect(function()
+			task.wait(0.2)
+			if playerESPEnabled then
+				createPlayerESP(other)
+			end
+		end)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(other)
+	removePlayerESP(other)
+end)
+
+local function updatePlayerESP()
+	if not playerESPEnabled then return end
+	local myRoot = getPlayerESPRoot(player)
+	if not myRoot then return end
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player then
+			local root = getPlayerESPRoot(other)
+			if root then
+				createPlayerESP(other)
+				local data = playerESPData[other]
+				if data then
+					data.Billboard.Adornee = root
+					data.Billboard.Enabled = true
+					data.NameLabel.Text = other.DisplayName
+					data.UsernameLabel.Text = "@" .. other.Name
+					local distance = (myRoot.Position - root.Position).Magnitude
+					data.DistanceLabel.Text = string.format("%d stud", math.floor(distance + 0.5))
+				end
+			else
+				local data = playerESPData[other]
+				if data and data.Billboard then
+					data.Billboard.Enabled = false
+				end
+			end
+		end
+	end
+ends
+
+-- ============================================================
+-- ESP SINGLE / PARTIAL PLAYER
+-- ============================================================
+
+local singleESPEnabled = false
+local singleESPData = {}
+local singleLineEnabled = false
+local singleBeams = {}
+local singleTargetParts = {}
+local currentSingleTargetName = nil
+
+-- Row: ESP Single/Partial Player
+local singleESPLabel = Instance.new("TextLabel")
+singleESPLabel.Name = "SingleESPLabel"
+singleESPLabel.Size = UDim2.new(0, 260, 0, 30)
+singleESPLabel.Position = UDim2.fromOffset(10, 88)
+singleESPLabel.BackgroundTransparency = 1
+singleESPLabel.Text = "ESP Single/Partial Player"
+singleESPLabel.TextColor3 = Color3.new(1, 1, 1)
+singleESPLabel.TextSize = 14
+singleESPLabel.Font = Enum.Font.GothamBold
+singleESPLabel.TextXAlignment = Enum.TextXAlignment.Left
+singleESPLabel.TextYAlignment = Enum.TextYAlignment.Center
+singleESPLabel.ZIndex = 512
+singleESPLabel.Parent = mainFrame
+
+local singleESPInput = Instance.new("TextBox")
+singleESPInput.Name = "SingleESPInput"
+singleESPInput.Size = UDim2.fromOffset(120, 36)
+singleESPInput.Position = UDim2.fromOffset(10, 122)
+singleESPInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+singleESPInput.BorderSizePixel = 0
+singleESPInput.Text = ""
+singleESPInput.PlaceholderText = "Partial name..."
+singleESPInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+singleESPInput.TextColor3 = Color3.new(1, 1, 1)
+singleESPInput.TextSize = 13
+singleESPInput.Font = Enum.Font.GothamBold
+singleESPInput.ClearTextOnFocus = false
+singleESPInput.TextXAlignment = Enum.TextXAlignment.Center
+singleESPInput.ZIndex = 512
+singleESPInput.Parent = mainFrame
+
+local singleInputCorner = Instance.new("UICorner")
+singleInputCorner.CornerRadius = UDim.new(0, 8)
+singleInputCorner.Parent = singleESPInput
+
+local singleInputStroke = Instance.new("UIStroke")
+singleInputStroke.Thickness = 2
+singleInputStroke.Color = Color3.fromRGB(210, 210, 210)
+singleInputStroke.Parent = singleESPInput
+
+local singleESPButton = Instance.new("TextButton")
+singleESPButton.Name = "SingleESPButton"
+singleESPButton.Size = UDim2.fromOffset(55, 36)
+singleESPButton.AnchorPoint = Vector2.new(1, 0)
+singleESPButton.Position = UDim2.new(1, -70, 0, 122)
+singleESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+singleESPButton.BorderSizePixel = 0
+singleESPButton.Text = "ESP"
+singleESPButton.TextColor3 = Color3.new(1, 1, 1)
+singleESPButton.TextSize = 12
+singleESPButton.Font = Enum.Font.GothamBold
+singleESPButton.ZIndex = 512
+singleESPButton.Parent = mainFrame
+
+local singleESPButtonCorner = Instance.new("UICorner")
+singleESPButtonCorner.CornerRadius = UDim.new(0, 7)
+singleESPButtonCorner.Parent = singleESPButton
+
+local singleLineButton = Instance.new("TextButton")
+singleLineButton.Name = "SingleLineButton"
+singleLineButton.Size = UDim2.fromOffset(55, 36)
+singleLineButton.AnchorPoint = Vector2.new(1, 0)
+singleLineButton.Position = UDim2.new(1, -10, 0, 122)
+singleLineButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+singleLineButton.BorderSizePixel = 0
+singleLineButton.Text = "Line"
+singleLineButton.TextColor3 = Color3.new(1, 1, 1)
+singleLineButton.TextSize = 12
+singleLineButton.Font = Enum.Font.GothamBold
+singleLineButton.ZIndex = 512
+singleLineButton.Parent = mainFrame
+
+local singleLineButtonCorner = Instance.new("UICorner")
+singleLineButtonCorner.CornerRadius = UDim.new(0, 7)
+singleLineButtonCorner.Parent = singleLineButton
+
+-- Single ESP functions
+
+local function findPlayersByName(targetName)
+	local results = {}
+	if not targetName then return results end
+
+	targetName = targetName:match("^%s*(.-)%s*$")
+	if targetName == "" then return results end
+
+	local wanted = string.lower(targetName)
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player and string.find(string.lower(other.Name), wanted, 1, true) then
+			table.insert(results, other)
+		end
+	end
+
+	return results
+end
+
+local function removeSingleESP(other)
+	local data = singleESPData[other]
+	if not data then return end
+
+	if data.Billboard then
+		data.Billboard:Destroy()
+	end
+	if data.Highlight then
+		data.Highlight:Destroy()
+	end
+
+	singleESPData[other] = nil
+end
+
+local function createSingleESP(other)
+	if other == player or not singleESPEnabled then return end
+	local root = getPlayerESPRoot(other)
+	if not root then return end
+
+	local data = singleESPData[other]
+	if data and data.Billboard and data.Billboard.Parent and data.Highlight and data.Highlight.Parent then
+		data.Billboard.Adornee = root
+		data.Billboard.Enabled = true
+		data.Highlight.Adornee = other.Character
+		data.Highlight.Enabled = true
+		return
+	end
+
+	removeSingleESP(other)
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "PlayerTools_SingleESP"
+	billboard.Size = UDim2.fromOffset(260, 62)
+	billboard.StudsOffset = Vector3.new(0, 3.6, 0)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = math.huge
+	billboard.Adornee = root
+	billboard.Enabled = true
+	billboard.Parent = playerGui
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, 0, 0, 22)
+	nameLabel.Position = UDim2.fromOffset(0, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = tostring(other.DisplayName or other.Name)
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextSize = 17
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.Parent = billboard
+
+	local usernameLabel = Instance.new("TextLabel")
+	usernameLabel.Size = UDim2.new(1, 0, 0, 18)
+	usernameLabel.Position = UDim2.fromOffset(0, 20)
+	usernameLabel.BackgroundTransparency = 1
+	usernameLabel.Text = "@" .. tostring(other.Name)
+	usernameLabel.TextColor3 = Color3.fromRGB(225, 225, 225)
+	usernameLabel.TextStrokeTransparency = 0
+	usernameLabel.TextSize = 12
+	usernameLabel.Font = Enum.Font.Gotham
+	usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	usernameLabel.Parent = billboard
+
+	local distanceLabel = Instance.new("TextLabel")
+	distanceLabel.Size = UDim2.new(1, 0, 0, 18)
+	distanceLabel.Position = UDim2.fromOffset(0, 37)
+	distanceLabel.BackgroundTransparency = 1
+	distanceLabel.Text = "0 stud"
+	distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	distanceLabel.TextStrokeTransparency = 0
+	distanceLabel.TextSize = 12
+	distanceLabel.Font = Enum.Font.Gotham
+	distanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+	distanceLabel.Parent = billboard
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "PlayerTools_SingleHighlight"
+	highlight.Adornee = other.Character
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(80, 170, 255)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Enabled = true
+	highlight.Parent = gui
+
+	singleESPData[other] = {
+		Billboard = billboard,
+		Highlight = highlight,
+		NameLabel = nameLabel,
+		UsernameLabel = usernameLabel,
+		DistanceLabel = distanceLabel,
+	}
+end
+
+local function clearSingleESP()
+	for other in pairs(singleESPData) do
+		removeSingleESP(other)
+	end
+end
+
+local function applySingleESP()
+	if not singleESPEnabled then return end
+
+	local name = singleESPInput.Text:match("^%s*(.-)%s*$")
+	if name == "" then return end
+
+	currentSingleTargetName = name
+
+	-- Remove ESP from players that no longer match
+	local targets = findPlayersByName(name)
+	local targetSet = {}
+	for _, other in ipairs(targets) do
+		targetSet[other] = true
+	end
+
+	for other in pairs(singleESPData) do
+		if not targetSet[other] then
+			removeSingleESP(other)
+		end
+	end
+
+	-- Create ESP for newly matched players
+	for _, other in ipairs(targets) do
+		createSingleESP(other)
+	end
+end
+
+local function setSingleESP(state)
+	singleESPEnabled = state
+	singleESPButton.Text = state and "ON" or "ESP"
+	singleESPButton.BackgroundColor3 = state
+		and Color3.fromRGB(40, 150, 70)
+		or Color3.fromRGB(180, 50, 50)
+
+	if not state then
+		clearSingleESP()
+		return
+	end
+
+	applySingleESP()
+end
+
+singleESPButton.Activated:Connect(function()
+	setSingleESP(not singleESPEnabled)
+end)
+
+singleESPInput.FocusLost:Connect(function()
+	if singleESPEnabled then
+		applySingleESP()
+	end
+end)
+
+singleESPInput:GetPropertyChangedSignal("Text"):Connect(function()
+	if singleESPEnabled then
+		applySingleESP()
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(other)
+	removeSingleESP(other)
+	if singleLineEnabled and currentSingleTargetName then
+		createSingleLines(currentSingleTargetName)
+	end
+end)
+
+Players.PlayerAdded:Connect(function(other)
+	if singleESPEnabled and currentSingleTargetName then
+		other.CharacterAdded:Connect(function()
+			task.wait(0.2)
+			if singleESPEnabled and currentSingleTargetName then
+				applySingleESP()
+			end
+		end)
+	end
+end)
+
+-- ============================================================
+-- SINGLE PLAYER LINE (BEAM)
+-- ============================================================
+
+local function clearSingleLines()
+	for _, beam in ipairs(singleBeams) do
+		if beam and beam.Parent then
+			beam:Destroy()
+		end
+	end
+	table.clear(singleBeams)
+
+	for _, data in ipairs(singleTargetParts) do
+		if data.part and data.part.Parent then
+			data.part:Destroy()
+		end
+	end
+	table.clear(singleTargetParts)
+end
+
+local function createSingleLines(targetName)
+	clearSingleLines()
+
+	if not singleLineEnabled then return end
+
+	local rootPart = getPlayerESPRoot(player)
+	if not rootPart then return end
+
+	local targets = findPlayersByName(targetName)
+
+	for _, other in ipairs(targets) do
+		local targetRoot = getPlayerESPRoot(other)
+
+		if targetRoot then
+			local targetPart = Instance.new("Part")
+			targetPart.Name = "SingleLineTarget"
+			targetPart.Anchored = true
+			targetPart.CanCollide = false
+			targetPart.CanTouch = false
+			targetPart.CanQuery = false
+			targetPart.CastShadow = false
+			targetPart.Transparency = 1
+			targetPart.Size = Vector3.new(0.1, 0.1, 0.1)
+			targetPart.Position = targetRoot.Position
+			targetPart.Parent = workspace
+
+			local startAttachment = Instance.new("Attachment")
+			startAttachment.Name = "SingleLineStart"
+			startAttachment.Parent = rootPart
+
+			local endAttachment = Instance.new("Attachment")
+			endAttachment.Name = "SingleLineEnd"
+			endAttachment.Parent = targetPart
+
+			local beam = Instance.new("Beam")
+			beam.Name = "SingleLineBeam"
+			beam.Attachment0 = startAttachment
+			beam.Attachment1 = endAttachment
+			beam.Width0 = 0.35
+			beam.Width1 = 0.35
+			beam.Color = ColorSequence.new(Color3.new(1, 1, 1))
+			beam.Transparency = NumberSequence.new(0)
+			beam.FaceCamera = true
+			beam.LightEmission = 1
+			beam.Segments = 1
+			beam.Parent = targetPart
+
+			table.insert(singleBeams, beam)
+			table.insert(singleTargetParts, {
+				part = targetPart,
+				player = other
+			})
+		end
+	end
+end
+
+local function updateSingleLineButton()
+	if singleLineEnabled then
+		singleLineButton.Text = "ON"
+		singleLineButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		singleLineButton.Text = "Line"
+		singleLineButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end
+
+singleLineButton.Activated:Connect(function()
+	singleLineEnabled = not singleLineEnabled
+	updateSingleLineButton()
+
+	if singleLineEnabled then
+		local name = singleESPInput.Text:match("^%s*(.-)%s*$")
+		if name ~= "" then
+			createSingleLines(name)
+		end
+	else
+		clearSingleLines()
+	end
+end)
+
+player.CharacterAdded:Connect(function(character)
+	character:WaitForChild("HumanoidRootPart", 5)
+	task.wait(0.2)
+
+	if singleESPEnabled and currentSingleTargetName then
+		applySingleESP()
+	end
+	if singleLineEnabled and currentSingleTargetName then
+		createSingleLines(currentSingleTargetName)
+	end
+end)
+
+-- Update loop
+task.spawn(function()
+	while true do
+		task.wait(0.05)
+
+		-- Update All Players ESP
+		updatePlayerESP()
+
+		-- Update Single ESP distances
+		if singleESPEnabled then
+			local myRoot = getPlayerESPRoot(player)
+			if myRoot then
+				for _, other in ipairs(Players:GetPlayers()) do
+					if other ~= player then
+						local root = getPlayerESPRoot(other)
+						local data = singleESPData[other]
+						if root and data then
+							data.Billboard.Adornee = root
+							data.Billboard.Enabled = true
+							data.Highlight.Adornee = other.Character
+							data.Highlight.Enabled = true
+							data.NameLabel.Text = other.DisplayName
+							data.UsernameLabel.Text = "@" .. other.Name
+							local distance = (myRoot.Position - root.Position).Magnitude
+							data.DistanceLabel.Text = string.format("%d stud", math.floor(distance + 0.5))
+						elseif not root and data then
+							data.Billboard.Enabled = false
+							data.Highlight.Enabled = false
+						end
+					end
+				end
+			end
+		end
+
+		-- Update Single Lines
+		if singleLineEnabled and currentSingleTargetName then
+			local needsRefresh = false
+
+			for _, data in ipairs(singleTargetParts) do
+				local other = data.player
+				local targetRoot = getPlayerESPRoot(other)
+
+				if not targetRoot or not data.part or not data.part.Parent then
+					needsRefresh = true
+					break
+				end
+
+				data.part.Position = targetRoot.Position
+			end
+
+			if needsRefresh then
+				createSingleLines(currentSingleTargetName)
+			elseif #singleTargetParts == 0 then
+				createSingleLines(currentSingleTargetName)
+			end
+		end
+	end
+end)
+
+updateSingleLineButton()
