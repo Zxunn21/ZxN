@@ -1,0 +1,341 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Jump Button Editor
+local jumpButtonSavedPosition = nil
+local jumpButtonSavedSize = nil
+local jumpButtonDragMode = false
+local jumpButtonDragConnection = nil
+local jumpButtonInputConnection = nil
+local jumpButtonEndConnection = nil
+local jumpButton
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "AditionalButtonsGui"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.DisplayOrder = 999
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+gui.Parent = playerGui
+
+-- Main frame
+local frame = Instance.new("Frame")
+frame.Name = "JumpButtonFrame"
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.Size = UDim2.fromScale(0.4, 0.5)
+frame.Position = UDim2.new(0.5, 0, 0.5, -50)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BackgroundTransparency = 0.3
+frame.BorderSizePixel = 0
+frame.ZIndex = 500
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 10)
+frameCorner.Parent = frame
+
+local frameStroke = Instance.new("UIStroke")
+frameStroke.Thickness = 1
+frameStroke.Color = Color3.fromRGB(100, 100, 100)
+frameStroke.Parent = frame
+
+-- Top bar (draggable)
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 36)
+topBar.Position = UDim2.fromOffset(0, 0)
+topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+topBar.BorderSizePixel = 0
+topBar.ZIndex = 550
+topBar.Parent = frame
+
+local topBarCorner = Instance.new("UICorner")
+topBarCorner.CornerRadius = UDim.new(0, 10)
+topBarCorner.Parent = topBar
+
+local topBarTitle = Instance.new("TextLabel")
+topBarTitle.Name = "Title"
+topBarTitle.Size = UDim2.new(1, -12, 1, 0)
+topBarTitle.Position = UDim2.fromOffset(12, 0)
+topBarTitle.BackgroundTransparency = 1
+topBarTitle.Text = "Jump Button"
+topBarTitle.TextColor3 = Color3.new(1, 1, 1)
+topBarTitle.TextSize = 16
+topBarTitle.Font = Enum.Font.GothamBold
+topBarTitle.TextXAlignment = Enum.TextXAlignment.Left
+topBarTitle.ZIndex = 551
+topBarTitle.Parent = topBar
+
+-- Drag logic for top bar
+local dragging = false
+local dragStart
+local startPosition
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPosition = frame.Position
+	end
+end)
+
+topBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		if dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(
+				startPosition.X.Scale,
+				startPosition.X.Offset + delta.X,
+				startPosition.Y.Scale,
+				startPosition.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- Content area
+local contentArea = Instance.new("Frame")
+contentArea.Name = "Content"
+contentArea.Size = UDim2.new(1, 0, 1, -36)
+contentArea.Position = UDim2.fromOffset(0, 36)
+contentArea.BackgroundTransparency = 1
+contentArea.ZIndex = 510
+contentArea.Parent = frame
+
+local jumpTitle = Instance.new("TextLabel")
+jumpTitle.Name = "JumpButtonTitle"
+jumpTitle.Size = UDim2.fromOffset(95, 36)
+jumpTitle.Position = UDim2.fromOffset(5, 10)
+jumpTitle.BackgroundTransparency = 1
+jumpTitle.Text = "Jump Button"
+jumpTitle.TextColor3 = Color3.new(1, 1, 1)
+jumpTitle.TextSize = 14
+jumpTitle.Font = Enum.Font.GothamBold
+jumpTitle.TextXAlignment = Enum.TextXAlignment.Left
+jumpTitle.TextYAlignment = Enum.TextYAlignment.Center
+jumpTitle.ZIndex = 512
+jumpTitle.Parent = contentArea
+
+local jumpDragButton = Instance.new("TextButton")
+jumpDragButton.Name = "JumpDragButton"
+jumpDragButton.Size = UDim2.fromOffset(58, 36)
+jumpDragButton.AnchorPoint = Vector2.new(1, 0)
+jumpDragButton.Position = UDim2.new(1, -112, 0, 10)
+jumpDragButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+jumpDragButton.BorderSizePixel = 0
+jumpDragButton.Text = "Drag"
+jumpDragButton.TextColor3 = Color3.new(1, 1, 1)
+jumpDragButton.TextSize = 12
+jumpDragButton.Font = Enum.Font.GothamBold
+jumpDragButton.ZIndex = 512
+jumpDragButton.Parent = contentArea
+
+local jumpPlusButton = Instance.new("TextButton")
+jumpPlusButton.Name = "JumpPlusButton"
+jumpPlusButton.Size = UDim2.fromOffset(45, 36)
+jumpPlusButton.AnchorPoint = Vector2.new(1, 0)
+jumpPlusButton.Position = UDim2.new(1, -61, 0, 10)
+jumpPlusButton.BackgroundColor3 = Color3.fromRGB(50, 130, 70)
+jumpPlusButton.BorderSizePixel = 0
+jumpPlusButton.Text = "+"
+jumpPlusButton.TextColor3 = Color3.new(1, 1, 1)
+jumpPlusButton.TextSize = 20
+jumpPlusButton.Font = Enum.Font.GothamBold
+jumpPlusButton.ZIndex = 512
+jumpPlusButton.Parent = contentArea
+
+local jumpMinusButton = Instance.new("TextButton")
+jumpMinusButton.Name = "JumpMinusButton"
+jumpMinusButton.Size = UDim2.fromOffset(45, 36)
+jumpMinusButton.AnchorPoint = Vector2.new(1, 0)
+jumpMinusButton.Position = UDim2.new(1, -10, 0, 10)
+jumpMinusButton.BackgroundColor3 = Color3.fromRGB(150, 70, 70)
+jumpMinusButton.BorderSizePixel = 0
+jumpMinusButton.Text = "-"
+jumpMinusButton.TextColor3 = Color3.new(1, 1, 1)
+jumpMinusButton.TextSize = 20
+jumpMinusButton.Font = Enum.Font.GothamBold
+jumpMinusButton.ZIndex = 512
+jumpMinusButton.Parent = contentArea
+
+for _, button in ipairs({
+	jumpDragButton,
+	jumpPlusButton,
+	jumpMinusButton
+	}) do
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = button
+end
+
+local function findJumpButton()
+	local touchGui = playerGui:FindFirstChild("TouchGui", true)
+	if not touchGui then
+		return nil
+	end
+
+	return touchGui:FindFirstChild("JumpButton", true)
+end
+
+local function applySavedJumpButton()
+	jumpButton = findJumpButton()
+	if not jumpButton then
+		return
+	end
+
+	if jumpButtonSavedPosition then
+		jumpButton.Position = jumpButtonSavedPosition
+	end
+
+	if jumpButtonSavedSize then
+		jumpButton.Size = jumpButtonSavedSize
+	end
+end
+
+local function setJumpDragMode(enabled)
+	jumpButtonDragMode = enabled
+	jumpDragButton.Text = enabled and "Drag ON" or "Drag"
+	jumpDragButton.BackgroundColor3 = enabled
+		and Color3.fromRGB(50, 150, 85)
+		or Color3.fromRGB(70, 70, 70)
+
+	jumpButton = findJumpButton()
+	if not jumpButton then
+		return
+	end
+
+	if jumpButtonDragConnection then
+		jumpButtonDragConnection:Disconnect()
+		jumpButtonDragConnection = nil
+	end
+
+	if jumpButtonInputConnection then
+		jumpButtonInputConnection:Disconnect()
+		jumpButtonInputConnection = nil
+	end
+
+	if not enabled then
+		return
+	end
+
+	local draggingJump = false
+	local dragStart
+	local startPosition
+
+	jumpButtonDragConnection = jumpButton.InputBegan:Connect(function(input)
+		if not jumpButtonDragMode then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			draggingJump = true
+			dragStart = input.Position
+			startPosition = jumpButton.Position
+		end
+	end)
+
+	jumpButtonInputConnection = jumpButton.InputChanged:Connect(function(input)
+		if not jumpButtonDragMode or not draggingJump then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			local delta = input.Position - dragStart
+
+			jumpButton.Position = UDim2.new(
+				startPosition.X.Scale,
+				startPosition.X.Offset + delta.X,
+				startPosition.Y.Scale,
+				startPosition.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	if jumpButtonEndConnection then
+		jumpButtonEndConnection:Disconnect()
+	end
+
+	jumpButtonEndConnection = UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			if draggingJump and jumpButton then
+				jumpButtonSavedPosition = jumpButton.Position
+			end
+			draggingJump = false
+		end
+	end)
+end
+
+jumpDragButton.Activated:Connect(function()
+	setJumpDragMode(not jumpButtonDragMode)
+end)
+
+jumpPlusButton.Activated:Connect(function()
+	jumpButton = findJumpButton()
+	if not jumpButton then
+		return
+	end
+
+	local size = jumpButton.Size
+	jumpButton.Size = UDim2.new(
+		size.X.Scale,
+		math.min(size.X.Offset + 10, 180),
+		size.Y.Scale,
+		math.min(size.Y.Offset + 10, 180)
+	)
+
+	jumpButtonSavedSize = jumpButton.Size
+end)
+
+jumpMinusButton.Activated:Connect(function()
+	jumpButton = findJumpButton()
+	if not jumpButton then
+		return
+	end
+
+	local size = jumpButton.Size
+	jumpButton.Size = UDim2.new(
+		size.X.Scale,
+		math.max(size.X.Offset - 10, 40),
+		size.Y.Scale,
+		math.max(size.Y.Offset - 10, 40)
+	)
+
+	jumpButtonSavedSize = jumpButton.Size
+end)
+
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	applySavedJumpButton()
+
+	if jumpButtonDragMode then
+		setJumpDragMode(true)
+	end
+end)
+
+task.spawn(function()
+	for _ = 1, 30 do
+		if findJumpButton() then
+			applySavedJumpButton()
+			break
+		end
+		task.wait(0.5)
+	end
+end)
