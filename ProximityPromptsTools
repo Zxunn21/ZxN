@@ -1,0 +1,481 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ===================== GUI =====================
+local gui = Instance.new("ScreenGui")
+gui.Name = "ProximityPromptsToolsGui"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999
+ gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+gui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0.4, 0, 0.5, 0)
+mainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 500
+mainFrame.Parent = gui
+
+local mainFrameCorner = Instance.new("UICorner")
+mainFrameCorner.CornerRadius = UDim.new(0, 10)
+mainFrameCorner.Parent = mainFrame
+
+local mainFrameStroke = Instance.new("UIStroke")
+mainFrameStroke.Thickness = 1
+mainFrameStroke.Color = Color3.fromRGB(100, 100, 100)
+mainFrameStroke.Parent = mainFrame
+
+-- Topbar (dragable)
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 36)
+topBar.Position = UDim2.fromOffset(0, 0)
+topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+topBar.BorderSizePixel = 0
+ topBar.Active = true
+topBar.ZIndex = 550
+topBar.Parent = mainFrame
+
+local topBarCorner = Instance.new("UICorner")
+topBarCorner.CornerRadius = UDim.new(0, 10)
+topBarCorner.Parent = topBar
+
+local topBarTitle = Instance.new("TextLabel")
+topBarTitle.Name = "Title"
+topBarTitle.Size = UDim2.new(1, -80, 1, 0)
+topBarTitle.Position = UDim2.fromOffset(12, 0)
+topBarTitle.BackgroundTransparency = 1
+topBarTitle.Text = "Proximity Prompt Tools"
+topBarTitle.TextColor3 = Color3.new(1, 1, 1)
+topBarTitle.TextSize = 16
+topBarTitle.Font = Enum.Font.GothamBold
+topBarTitle.TextXAlignment = Enum.TextXAlignment.Left
+topBarTitle.ZIndex = 551
+topBarTitle.Parent = topBar
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.fromOffset(30, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 3)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "×"
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.TextSize = 25
+closeButton.Font = Enum.Font.GothamBold
+closeButton.ZIndex = 552
+closeButton.Parent = topBar
+
+-- Drag logic untuk topbar
+local dragging = false
+local dragStart
+local startPosition
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPosition = mainFrame.Position
+	end
+end)
+
+topBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		if dragging then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(
+				startPosition.X.Scale,
+				startPosition.X.Offset + delta.X,
+				startPosition.Y.Scale,
+				startPosition.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+closeButton.Activated:Connect(function()
+	gui.Enabled = false
+end)
+
+-- Konten di bawah topbar, tersusun otomatis
+local content = Instance.new("Frame")
+content.Name = "Content"
+content.Size = UDim2.new(1, 0, 1, -46)
+content.Position = UDim2.fromOffset(0, 40)
+content.BackgroundTransparency = 1
+content.ZIndex = 510
+content.Parent = mainFrame
+
+local contentPadding = Instance.new("UIPadding")
+contentPadding.PaddingLeft = UDim.new(0, 10)
+contentPadding.PaddingRight = UDim.new(0, 10)
+contentPadding.PaddingTop = UDim.new(0, 5)
+contentPadding.PaddingBottom = UDim.new(0, 10)
+contentPadding.Parent = content
+
+local contentLayout = Instance.new("UIListLayout")
+contentLayout.Padding = UDim.new(0, 8)
+contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+contentLayout.Parent = content
+
+-- ===================== BARIS 1: ESP PROXIMITY PROMPT =====================
+local proximityESPEnabled = false
+local proximityESPData = {}
+
+-- Toggle baris teks yang muncul saat ESP aktif
+local showObjectText = true
+local showActionText = true
+local showName = true
+
+local espRow = Instance.new("Frame")
+espRow.Name = "ProximityESPRow"
+espRow.Size = UDim2.new(1, 0, 0, 36)
+espRow.BackgroundTransparency = 1
+espRow.LayoutOrder = 1
+espRow.ZIndex = 512
+espRow.Parent = content
+
+local espLabel = Instance.new("TextLabel")
+espLabel.Name = "ProximityESPLabel"
+espLabel.Size = UDim2.new(0, 130, 0, 36)
+espLabel.Position = UDim2.fromOffset(5, 0)
+espLabel.BackgroundTransparency = 1
+espLabel.Text = "ESP Proximity Prompt"
+espLabel.TextColor3 = Color3.new(1, 1, 1)
+espLabel.TextSize = 13
+espLabel.Font = Enum.Font.GothamBold
+espLabel.TextXAlignment = Enum.TextXAlignment.Left
+espLabel.TextYAlignment = Enum.TextYAlignment.Center
+espLabel.ZIndex = 512
+espLabel.Parent = espRow
+
+local espButton = Instance.new("TextButton")
+espButton.Name = "ProximityESPButton"
+espButton.Size = UDim2.fromOffset(60, 36)
+espButton.AnchorPoint = Vector2.new(1, 0.5)
+espButton.Position = UDim2.new(1, -5, 0.5, 0)
+espButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+espButton.BorderSizePixel = 0
+espButton.Text = "OFF"
+espButton.TextColor3 = Color3.new(1, 1, 1)
+espButton.TextSize = 12
+espButton.Font = Enum.Font.GothamBold
+espButton.ZIndex = 512
+espButton.Parent = espRow
+
+local espButtonCorner = Instance.new("UICorner")
+espButtonCorner.CornerRadius = UDim.new(0, 7)
+espButtonCorner.Parent = espButton
+
+-- ===================== TOMBOL TOGGLE BARIS TEKS (1 baris, 3 tombol) =====================
+local textToggleRow = Instance.new("Frame")
+textToggleRow.Name = "TextToggleRow"
+textToggleRow.Size = UDim2.new(1, 0, 0, 36)
+textToggleRow.BackgroundTransparency = 1
+textToggleRow.LayoutOrder = 2
+textToggleRow.ZIndex = 512
+textToggleRow.Parent = content
+
+local textToggleLayout = Instance.new("UIListLayout")
+textToggleLayout.FillDirection = Enum.FillDirection.Horizontal
+textToggleLayout.Padding = UDim.new(0, 8)
+textToggleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+textToggleLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+textToggleLayout.Parent = textToggleRow
+
+local function createTextToggle(order, buttonText, getEnabled, setEnabled)
+	local button = Instance.new("TextButton")
+	button.Name = buttonText .. "Button"
+	button.Size = UDim2.new(1/3, -8, 1, 0)
+	button.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	button.BorderSizePixel = 0
+	button.Text = buttonText .. ": ON"
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextSize = 12
+	button.Font = Enum.Font.GothamBold
+	button.LayoutOrder = order
+	button.ZIndex = 512
+	button.Parent = textToggleRow
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = button
+
+	local function updateButton()
+		if getEnabled() then
+			button.Text = buttonText .. ": ON"
+			button.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		else
+			button.Text = buttonText .. ": OFF"
+			button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		end
+	end
+
+	button.Activated:Connect(function()
+		setEnabled(not getEnabled())
+		updateButton()
+		refreshProximityESP()
+	end)
+
+	updateButton()
+end
+
+-- ===================== LOGIKA ESP =====================
+local function getPromptAdornee(prompt)
+	if not prompt or not prompt.Parent then
+		return nil
+	end
+
+	local parent = prompt.Parent
+	if parent:IsA("BasePart") or parent:IsA("Model") or parent:IsA("Attachment") then
+		return parent
+	end
+
+	local basePart = parent:FindFirstAncestorWhichIsA("BasePart")
+	if basePart then
+		return basePart
+	end
+
+	return parent:FindFirstAncestorWhichIsA("Model")
+end
+
+local function clearProximityESP(prompt)
+	local data = proximityESPData[prompt]
+	if not data then
+		return
+	end
+
+	if data.Billboard then
+		data.Billboard:Destroy()
+	end
+	if data.Highlight then
+		data.Highlight:Destroy()
+	end
+
+	proximityESPData[prompt] = nil
+end
+
+local function getPromptTextInfo(prompt)
+	local objectText = tostring(prompt.ObjectText or "")
+	local actionText = tostring(prompt.ActionText or "")
+	local promptName = tostring(prompt.Name or "")
+
+	local mainText = objectText ~= "" and objectText or promptName
+	if mainText == "" then
+		mainText = "ProximityPrompt"
+	end
+
+	return mainText, actionText, promptName, objectText
+end
+
+local function createProximityESP(prompt)
+	if not proximityESPEnabled or not prompt or not prompt:IsA("ProximityPrompt") then
+		return
+	end
+
+	if not prompt.Parent or not prompt.Enabled then
+		clearProximityESP(prompt)
+		return
+	end
+
+	local adornee = getPromptAdornee(prompt)
+	if not adornee then
+		clearProximityESP(prompt)
+		return
+	end
+
+	local mainText, actionText, promptName, objectText = getPromptTextInfo(prompt)
+
+	local data = proximityESPData[prompt]
+	if data and data.Billboard and data.Billboard.Parent and data.Highlight and data.Highlight.Parent then
+		data.Billboard.Adornee = adornee
+		data.Highlight.Adornee = adornee
+		data.Billboard.Enabled = true
+		data.Highlight.Enabled = true
+		data.ObjectTextLabel.Visible = showObjectText
+		data.ActionTextLabel.Visible = showActionText
+		data.NameLabel.Visible = showName
+		data.ObjectTextLabel.Text = mainText
+		data.ActionTextLabel.Text = actionText ~= "" and ("[" .. actionText .. "]") or ""
+		data.NameLabel.Text = (objectText ~= "" and promptName ~= "") and ("@" .. promptName) or ""
+		return
+	end
+
+	clearProximityESP(prompt)
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "PPT_ProximityESP"
+	billboard.Size = UDim2.fromOffset(260, 62)
+	billboard.StudsOffset = Vector3.new(0, 3.2, 0)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = math.huge
+	billboard.Adornee = adornee
+	billboard.Enabled = true
+	billboard.Parent = playerGui
+
+	-- Baris 1: ObjectText
+	local objectTextLabel = Instance.new("TextLabel")
+	objectTextLabel.Name = "ObjectText"
+	objectTextLabel.Size = UDim2.new(1, 0, 0, 22)
+	objectTextLabel.Position = UDim2.fromOffset(0, 0)
+	objectTextLabel.BackgroundTransparency = 1
+	objectTextLabel.Text = mainText
+	objectTextLabel.TextColor3 = Color3.new(1, 1, 1)
+	objectTextLabel.TextStrokeTransparency = 0
+	objectTextLabel.TextSize = 16
+	objectTextLabel.Font = Enum.Font.GothamBold
+	objectTextLabel.TextXAlignment = Enum.TextXAlignment.Center
+	objectTextLabel.TextYAlignment = Enum.TextYAlignment.Center
+	objectTextLabel.Visible = showObjectText
+	objectTextLabel.Parent = billboard
+
+	-- Baris 2: ActionText
+	local actionTextLabel = Instance.new("TextLabel")
+	actionTextLabel.Name = "ActionText"
+	actionTextLabel.Size = UDim2.new(1, 0, 0, 18)
+	actionTextLabel.Position = UDim2.fromOffset(0, 20)
+	actionTextLabel.BackgroundTransparency = 1
+	actionTextLabel.Text = actionText ~= "" and ("[" .. actionText .. "]") or ""
+	actionTextLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
+	actionTextLabel.TextStrokeTransparency = 0
+	actionTextLabel.TextSize = 13
+	actionTextLabel.Font = Enum.Font.Gotham
+	actionTextLabel.TextXAlignment = Enum.TextXAlignment.Center
+	actionTextLabel.TextYAlignment = Enum.TextYAlignment.Center
+	actionTextLabel.Visible = showActionText
+	actionTextLabel.Parent = billboard
+
+	-- Baris 3: Name
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "PromptName"
+	nameLabel.Size = UDim2.new(1, 0, 0, 18)
+	nameLabel.Position = UDim2.fromOffset(0, 37)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = (objectText ~= "" and promptName ~= "") and ("@" .. promptName) or ""
+	nameLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextSize = 12
+	nameLabel.Font = Enum.Font.Gotham
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+	nameLabel.Visible = showName
+	nameLabel.Parent = billboard
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "PPT_ProximityHighlight"
+	highlight.Adornee = adornee
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(80, 170, 255)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Enabled = true
+	highlight.Parent = gui
+
+	proximityESPData[prompt] = {
+		Billboard = billboard,
+		Highlight = highlight,
+		ObjectTextLabel = objectTextLabel,
+		ActionTextLabel = actionTextLabel,
+		NameLabel = nameLabel,
+	}
+end
+
+function refreshProximityESP()
+	for prompt in pairs(proximityESPData) do
+		local data = proximityESPData[prompt]
+		if data then
+			data.ObjectTextLabel.Visible = showObjectText
+			data.ActionTextLabel.Visible = showActionText
+			data.NameLabel.Visible = showName
+		end
+	end
+end
+
+local function clearAllProximityESP()
+	for prompt in pairs(proximityESPData) do
+		clearProximityESP(prompt)
+	end
+end
+
+local function scanProximityESP()
+	if not proximityESPEnabled then
+		return
+	end
+
+	local seen = {}
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("ProximityPrompt") then
+			seen[obj] = true
+			createProximityESP(obj)
+		end
+	end
+
+	for prompt in pairs(proximityESPData) do
+		if not seen[prompt] or not prompt.Parent or not prompt.Enabled then
+			clearProximityESP(prompt)
+		end
+	end
+end
+
+local function setProximityESP(state)
+	proximityESPEnabled = state
+	espButton.Text = state and "ON" or "OFF"
+	espButton.BackgroundColor3 = state
+		and Color3.fromRGB(40, 150, 70)
+		or Color3.fromRGB(180, 50, 50)
+
+	if not state then
+		clearAllProximityESP()
+		return
+	end
+
+	scanProximityESP()
+end
+
+espButton.Activated:Connect(function()
+	setProximityESP(not proximityESPEnabled)
+end)
+
+workspace.DescendantAdded:Connect(function(obj)
+	if proximityESPEnabled and obj:IsA("ProximityPrompt") then
+		task.defer(createProximityESP, obj)
+	end
+end)
+
+workspace.DescendantRemoving:Connect(function(obj)
+	if obj:IsA("ProximityPrompt") then
+		clearProximityESP(obj)
+	end
+end)
+
+-- Buat tombol toggle setelah fungsi refresh tersedia
+createTextToggle(2, "ObjectText", function() return showObjectText end, function(v) showObjectText = v end)
+createTextToggle(3, "ActionText", function() return showActionText end, function(v) showActionText = v end)
+createTextToggle(4, "Name", function() return showName end, function(v) showName = v end)
+
+-- Loop pemeliharaan ESP
+task.spawn(function()
+	while gui and gui.Parent do
+		task.wait(0.5)
+		if proximityESPEnabled then
+			scanProximityESP()
+		end
+	end
+	clearAllProximityESP()
+end)
+
