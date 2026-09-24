@@ -758,15 +758,26 @@ local proximityESPButtonCorner = Instance.new("UICorner")
 proximityESPButtonCorner.CornerRadius = UDim.new(0, 7)
 proximityESPButtonCorner.Parent = proximityESPButton
 
--- Helper: Buat fitur toggle berbasis link (loadstring + HttpGet)
-local function createLinkFeature(labelText, yPosition, url, guiNameToDestroy)
+-- Link Features
+local linkFeatures = {
+	{ description = "Vertical Lock",         url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",     guiToDestroy = "VerticalLockGui" },
+	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToDestroy = "TorchOnHeadGui" },
+	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToDestroy = "AutoProximityPromptGui" },
+	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToDestroy = "CameraSettingViewGui" },
+}
+
+local LINK_FEATURE_BASE_Y = 290
+local LINK_FEATURE_STEP_Y = 50
+
+local function createLinkFeature(index, feature)
+	local yPosition = LINK_FEATURE_BASE_Y + (index - 1) * LINK_FEATURE_STEP_Y
 	local enabled = false
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(0, 130, 0, 36)
 	label.Position = UDim2.fromOffset(5, yPosition)
 	label.BackgroundTransparency = 1
-	label.Text = labelText
+	label.Text = feature.description
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextSize = 13
 	label.Font = Enum.Font.GothamBold
@@ -814,18 +825,18 @@ local function createLinkFeature(labelText, yPosition, url, guiNameToDestroy)
 				if type(game.HttpGet) ~= "function" then
 					error("game:HttpGet tidak tersedia di lingkungan ini")
 				end
-				return loadstring(game:HttpGet(url, true))()
+				return loadstring(game:HttpGet(feature.url, true))()
 			end)
 
 			if not success then
-				warn("[ZxN] " .. labelText .. " gagal dimuat: " .. tostring(result))
+				warn("[ZxN] " .. feature.description .. " gagal dimuat: " .. tostring(result))
 				enabled = false
 				updateButton()
 			end
 		else
-			if guiNameToDestroy and playerGui then
+			if feature.guiToDestroy and playerGui then
 				for _, descendant in ipairs(playerGui:GetDescendants()) do
-					if descendant.Name == guiNameToDestroy then
+					if descendant.Name == feature.guiToDestroy then
 						descendant:Destroy()
 					end
 				end
@@ -834,14 +845,9 @@ local function createLinkFeature(labelText, yPosition, url, guiNameToDestroy)
 	end)
 end
 
--- Vertical Lock
-createLinkFeature("Vertical Lock", 290, "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock", "VerticalLockGui")
-
--- Light System
-createLinkFeature("Light System", 340, "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting", "TorchOnHeadGui")
-
--- Auto Proximity Prompt
-createLinkFeature("Auto Proximity Prompt", 390, "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt", "AutoProximityPromptGui")
+for i, feature in ipairs(linkFeatures) do
+	createLinkFeature(i, feature)
+end
 
 local function getPromptAdornee(prompt)
 	if not prompt or not prompt.Parent then
