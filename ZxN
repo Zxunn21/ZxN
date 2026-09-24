@@ -532,12 +532,14 @@ proximityESPButtonCorner.Parent = proximityESPButton
 
 -- Link Features
 local linkFeatures = {
-	{ description = "Vertical Lock",         url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",     guiToHide = "VerticalLockGui" },
-	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToHide = "TorchOnHeadGui" },
-	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToHide = "AutoProximityPromptGui" },
-	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToHide = "CameraSettingViewGui" },
-	{ description = "Player Tools",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToHide = "PlayerToolsGui", preserve = true },
-	{ description = "Objects Tools",         url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ObjectsTools",        guiToHide = "ObjectsToolsGui" },
+	{ description = "Vertical Lock",             url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",         guiToHide = "VerticalLockGui" },
+	{ description = "Light System",              url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",                guiToHide = "TorchOnHeadGui" },
+	{ description = "Auto Proximity Prompt",     url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",          guiToHide = "AutoProximityPromptGui" },
+	{ description = "Camera Setting View",       url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",       guiToHide = "CameraSettingViewGui" },
+	{ description = "Player Tools",              url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",             guiToHide = "PlayerToolsGui", preserve = true },
+	{ description = "Objects Tools",             url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ObjectsTools",            guiToHide = "ObjectsToolsGui" },
+	{ description = "Additional Buutons",        url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AdditionalButtons",       guiToHide = "AdditionalButtonsGui" },
+	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",   guiToHide = "ProximityPromptsToolsGui" },
 }
 
 local function createLinkFeature(index, feature)
