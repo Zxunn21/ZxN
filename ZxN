@@ -547,81 +547,6 @@ objectLineLabel.TextYAlignment = Enum.TextYAlignment.Center
 objectLineLabel.ZIndex = 512
 objectLineLabel.Parent = featurePanel
 
--- Jump Button Editor
-local jumpButtonSavedPosition = nil
-local jumpButtonSavedSize = nil
-local jumpButtonDragMode = false
-local jumpButtonDragConnection = nil
-local jumpButtonInputConnection = nil
-local jumpButtonEndConnection = nil
-local jumpButton
-
-local jumpTitle = Instance.new("TextLabel")
-jumpTitle.Name = "JumpButtonTitle"
-jumpTitle.Size = UDim2.fromOffset(95, 36)
-jumpTitle.Position = UDim2.fromOffset(5, 140)
-jumpTitle.BackgroundTransparency = 1
-jumpTitle.Text = "Jump Button"
-jumpTitle.TextColor3 = Color3.new(1, 1, 1)
-jumpTitle.TextSize = 14
-jumpTitle.Font = Enum.Font.GothamBold
-jumpTitle.TextXAlignment = Enum.TextXAlignment.Left
-jumpTitle.TextYAlignment = Enum.TextYAlignment.Center
-jumpTitle.ZIndex = 512
-jumpTitle.Parent = featurePanel
-
-local jumpDragButton = Instance.new("TextButton")
-jumpDragButton.Name = "JumpDragButton"
-jumpDragButton.Size = UDim2.fromOffset(58, 36)
-jumpDragButton.AnchorPoint = Vector2.new(1, 0)
-jumpDragButton.Position = UDim2.new(1, -112, 0, 140)
-jumpDragButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-jumpDragButton.BorderSizePixel = 0
-jumpDragButton.Text = "Drag"
-jumpDragButton.TextColor3 = Color3.new(1, 1, 1)
-jumpDragButton.TextSize = 12
-jumpDragButton.Font = Enum.Font.GothamBold
-jumpDragButton.ZIndex = 512
-jumpDragButton.Parent = featurePanel
-
-local jumpPlusButton = Instance.new("TextButton")
-jumpPlusButton.Name = "JumpPlusButton"
-jumpPlusButton.Size = UDim2.fromOffset(45, 36)
-jumpPlusButton.AnchorPoint = Vector2.new(1, 0)
-jumpPlusButton.Position = UDim2.new(1, -61, 0, 140)
-jumpPlusButton.BackgroundColor3 = Color3.fromRGB(50, 130, 70)
-jumpPlusButton.BorderSizePixel = 0
-jumpPlusButton.Text = "+"
-jumpPlusButton.TextColor3 = Color3.new(1, 1, 1)
-jumpPlusButton.TextSize = 20
-jumpPlusButton.Font = Enum.Font.GothamBold
-jumpPlusButton.ZIndex = 512
-jumpPlusButton.Parent = featurePanel
-
-local jumpMinusButton = Instance.new("TextButton")
-jumpMinusButton.Name = "JumpMinusButton"
-jumpMinusButton.Size = UDim2.fromOffset(45, 36)
-jumpMinusButton.AnchorPoint = Vector2.new(1, 0)
-jumpMinusButton.Position = UDim2.new(1, -10, 0, 140)
-jumpMinusButton.BackgroundColor3 = Color3.fromRGB(150, 70, 70)
-jumpMinusButton.BorderSizePixel = 0
-jumpMinusButton.Text = "-"
-jumpMinusButton.TextColor3 = Color3.new(1, 1, 1)
-jumpMinusButton.TextSize = 20
-jumpMinusButton.Font = Enum.Font.GothamBold
-jumpMinusButton.ZIndex = 512
-jumpMinusButton.Parent = featurePanel
-
-for _, button in ipairs({
-	jumpDragButton,
-	jumpPlusButton,
-	jumpMinusButton
-	}) do
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 7)
-	corner.Parent = button
-end
-
 -- ESP Proximity Prompt
 local proximityESPEnabled = false
 local proximityESPData = {}
@@ -629,7 +554,7 @@ local proximityESPData = {}
 local proximityESPLabel = Instance.new("TextLabel")
 proximityESPLabel.Name = "ProximityESPLabel"
 proximityESPLabel.Size = UDim2.new(0, 130, 0, 36)
-proximityESPLabel.Position = UDim2.fromOffset(5, 240)
+proximityESPLabel.Position = UDim2.fromOffset(5, 140)
 proximityESPLabel.BackgroundTransparency = 1
 proximityESPLabel.Text = "ESP Proximity Prompt"
 proximityESPLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -644,7 +569,7 @@ local proximityESPButton = Instance.new("TextButton")
 proximityESPButton.Name = "ProximityESPButton"
 proximityESPButton.Size = UDim2.fromOffset(60, 36)
 proximityESPButton.AnchorPoint = Vector2.new(1, 0)
-proximityESPButton.Position = UDim2.new(1, -5, 0, 240)
+proximityESPButton.Position = UDim2.new(1, -5, 0, 140)
 proximityESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 proximityESPButton.BorderSizePixel = 0
 proximityESPButton.Text = "OFF"
@@ -660,14 +585,14 @@ proximityESPButtonCorner.Parent = proximityESPButton
 
 -- Link Features
 local linkFeatures = {
-	{ description = "Vertical Lock",         url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",     guiToDestroy = "VerticalLockGui" },
-	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToDestroy = "TorchOnHeadGui" },
-	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToDestroy = "AutoProximityPromptGui" },
-	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToDestroy = "CameraSettingViewGui" },
-	{ description = "PlayerTools",           url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToDestroy = "PlayerToolsGui" },
+	{ description = "Vertical Lock",         url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",     guiToHide = "VerticalLockGui" },
+	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToHide = "TorchOnHeadGui" },
+	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToHide = "AutoProximityPromptGui" },
+	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToHide = "CameraSettingViewGui" },
+	{ description = "PlayerTools",           url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToHide = "PlayerToolsGui" },
 }
 
-local LINK_FEATURE_BASE_Y = 290
+local LINK_FEATURE_BASE_Y = 190
 local LINK_FEATURE_STEP_Y = 50
 
 local function createLinkFeature(index, feature)
@@ -735,10 +660,10 @@ local function createLinkFeature(index, feature)
 				updateButton()
 			end
 		else
-			if feature.guiToDestroy and playerGui then
+			if feature.guiToHide and playerGui then
 				for _, descendant in ipairs(playerGui:GetDescendants()) do
-					if descendant.Name == feature.guiToDestroy then
-						descendant:Destroy()
+					if descendant.Name == feature.guiToHide and descendant:IsA("GuiObject") then
+						descendant.Visible = false
 					end
 				end
 			end
@@ -976,165 +901,6 @@ task.spawn(function()
 		end
 	end
 	clearAllProximityESP()
-end)
-
-local function findJumpButton()
-	local touchGui = playerGui:FindFirstChild("TouchGui", true)
-	if not touchGui then
-		return nil
-	end
-
-	return touchGui:FindFirstChild("JumpButton", true)
-end
-
-local function applySavedJumpButton()
-	jumpButton = findJumpButton()
-	if not jumpButton then
-		return
-	end
-
-	if jumpButtonSavedPosition then
-		jumpButton.Position = jumpButtonSavedPosition
-	end
-
-	if jumpButtonSavedSize then
-		jumpButton.Size = jumpButtonSavedSize
-	end
-end
-
-local function setJumpDragMode(enabled)
-	jumpButtonDragMode = enabled
-	jumpDragButton.Text = enabled and "Drag ON" or "Drag"
-	jumpDragButton.BackgroundColor3 = enabled
-		and Color3.fromRGB(50, 150, 85)
-		or Color3.fromRGB(70, 70, 70)
-
-	jumpButton = findJumpButton()
-	if not jumpButton then
-		return
-	end
-
-	if jumpButtonDragConnection then
-		jumpButtonDragConnection:Disconnect()
-		jumpButtonDragConnection = nil
-	end
-
-	if jumpButtonInputConnection then
-		jumpButtonInputConnection:Disconnect()
-		jumpButtonInputConnection = nil
-	end
-
-	if not enabled then
-		return
-	end
-
-	local draggingJump = false
-	local dragStart
-	local startPosition
-
-	jumpButtonDragConnection = jumpButton.InputBegan:Connect(function(input)
-		if not jumpButtonDragMode then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-
-			draggingJump = true
-			dragStart = input.Position
-			startPosition = jumpButton.Position
-		end
-	end)
-
-	jumpButtonInputConnection = jumpButton.InputChanged:Connect(function(input)
-		if not jumpButtonDragMode or not draggingJump then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
-
-			local delta = input.Position - dragStart
-
-			jumpButton.Position = UDim2.new(
-				startPosition.X.Scale,
-				startPosition.X.Offset + delta.X,
-				startPosition.Y.Scale,
-				startPosition.Y.Offset + delta.Y
-			)
-		end
-	end)
-
-	if jumpButtonEndConnection then
-		jumpButtonEndConnection:Disconnect()
-	end
-
-	jumpButtonEndConnection = UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			if draggingJump and jumpButton then
-				jumpButtonSavedPosition = jumpButton.Position
-			end
-			draggingJump = false
-		end
-	end)
-end
-
-jumpDragButton.Activated:Connect(function()
-	setJumpDragMode(not jumpButtonDragMode)
-end)
-
-jumpPlusButton.Activated:Connect(function()
-	jumpButton = findJumpButton()
-	if not jumpButton then
-		return
-	end
-
-	local size = jumpButton.Size
-	jumpButton.Size = UDim2.new(
-		size.X.Scale,
-		math.min(size.X.Offset + 10, 180),
-		size.Y.Scale,
-		math.min(size.Y.Offset + 10, 180)
-	)
-
-	jumpButtonSavedSize = jumpButton.Size
-end)
-
-jumpMinusButton.Activated:Connect(function()
-	jumpButton = findJumpButton()
-	if not jumpButton then
-		return
-	end
-
-	local size = jumpButton.Size
-	jumpButton.Size = UDim2.new(
-		size.X.Scale,
-		math.max(size.X.Offset - 10, 40),
-		size.Y.Scale,
-		math.max(size.Y.Offset - 10, 40)
-	)
-
-	jumpButtonSavedSize = jumpButton.Size
-end)
-
-player.CharacterAdded:Connect(function()
-	task.wait(1)
-	applySavedJumpButton()
-
-	if jumpButtonDragMode then
-		setJumpDragMode(true)
-	end
-end)
-
-task.spawn(function()
-	for _ = 1, 30 do
-		if findJumpButton() then
-			applySavedJumpButton()
-			break
-		end
-		task.wait(0.5)
-	end
 end)
 
 -- Control frame
