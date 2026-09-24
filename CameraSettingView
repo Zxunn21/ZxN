@@ -1,0 +1,250 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- =================================================================
+-- 1. PEMBUATAN GUI KODE
+-- =================================================================
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CameraSettingViewGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 280, 0, 250)
+mainFrame.Position = UDim2.new(0.5, -140, 0.4, -125)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+-- Top Bar (Draggable)
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 35)
+topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 8)
+topCorner.Parent = topBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -10, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Camera Settings"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = topBar
+
+-- Layout Container
+local container = Instance.new("Frame")
+container.Size = UDim2.new(1, -20, 1, -45)
+container.Position = UDim2.new(0, 10, 0, 40)
+container.BackgroundTransparency = 1
+container.Parent = mainFrame
+
+local uiList = Instance.new("UIListLayout")
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0, 8)
+uiList.Parent = container
+
+-- Helper untuk membuat tombol toggle
+local function createToggleButton(name, text, layoutOrder)
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.Size = UDim2.new(1, 0, 0, 32)
+	button.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+	button.Text = text .. " [OFF]"
+	button.TextColor3 = Color3.fromRGB(200, 200, 200)
+	button.Font = Enum.Font.SourceSans
+	button.TextSize = 14
+	button.LayoutOrder = layoutOrder
+	button.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = button
+
+	return button
+end
+
+local btnFPP = createToggleButton("BtnFPP", "FPP Mode", 1)
+local btnTPP = createToggleButton("BtnTPP", "TPP Mode", 2)
+
+-- Frame Khusus Input Max Distance
+local distFrame = Instance.new("Frame")
+distFrame.Size = UDim2.new(1, 0, 0, 32)
+distFrame.BackgroundTransparency = 1
+distFrame.LayoutOrder = 3
+distFrame.Parent = container
+
+local btnMaxDist = Instance.new("TextButton")
+btnMaxDist.Size = UDim2.new(0.6, -4, 1, 0)
+btnMaxDist.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+btnMaxDist.Text = "Max Dist [OFF]"
+btnMaxDist.TextColor3 = Color3.fromRGB(200, 200, 200)
+btnMaxDist.Font = Enum.Font.SourceSans
+btnMaxDist.TextSize = 14
+btnMaxDist.Parent = distFrame
+
+local btnDistCorner = Instance.new("UICorner")
+btnDistCorner.CornerRadius = UDim.new(0, 6)
+btnDistCorner.Parent = btnMaxDist
+
+local inputMaxDist = Instance.new("TextBox")
+inputMaxDist.Size = UDim2.new(0.4, 0, 1, 0)
+inputMaxDist.Position = UDim2.new(0.6, 4, 0, 0)
+inputMaxDist.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+inputMaxDist.Text = "5000"
+inputMaxDist.TextColor3 = Color3.fromRGB(255, 255, 255)
+inputMaxDist.Font = Enum.Font.SourceSans
+inputMaxDist.TextSize = 14
+inputMaxDist.Parent = distFrame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 6)
+inputCorner.Parent = inputMaxDist
+
+local btnNoClip = createToggleButton("BtnNoClip", "No Clip Camera", 4)
+
+-- =================================================================
+-- 2. DRAGGABLE LOGIC (Top Bar)
+-- =================================================================
+
+local dragging = false
+local dragInput, dragStart, startPos
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+topBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- =================================================================
+-- 3. FITUR LOGIC CAMERA
+-- =================================================================
+
+local isFPP = false
+local isTPP = false
+local isMaxDist = false
+local isNoClip = false
+
+local function updateButtonState(button, state, text)
+	if state then
+		button.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		button.Text = text .. " [ON]"
+	else
+		button.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+		button.TextColor3 = Color3.fromRGB(200, 200, 200)
+		button.Text = text .. " [OFF]"
+	end
+end
+
+-- Toggle FPP
+btnFPP.MouseButton1Click:Connect(function()
+	isFPP = not isFPP
+	if isFPP and isTPP then
+		isTPP = false
+		updateButtonState(btnTPP, false, "TPP Mode")
+	end
+	updateButtonState(btnFPP, isFPP, "FPP Mode")
+end)
+
+-- Toggle TPP
+btnTPP.MouseButton1Click:Connect(function()
+	isTPP = not isTPP
+	if isTPP and isFPP then
+		isFPP = false
+		updateButtonState(btnFPP, false, "FPP Mode")
+	end
+	updateButtonState(btnTPP, isTPP, "TPP Mode")
+end)
+
+-- Toggle Max Distance
+btnMaxDist.MouseButton1Click:Connect(function()
+	isMaxDist = not isMaxDist
+	updateButtonState(btnMaxDist, isMaxDist, "Max Dist")
+end)
+
+-- Toggle No Clip Camera
+btnNoClip.MouseButton1Click:Connect(function()
+	isNoClip = not isNoClip
+	updateButtonState(btnNoClip, isNoClip, "No Clip Camera")
+end)
+
+-- Loop Utama Kamera
+RunService.RenderStepped:Connect(function()
+	-- 1. FPP Logic
+	if isFPP then
+		player.CameraMinZoomDistance = 0.5
+		player.CameraMaxZoomDistance = 0.5
+		player.CameraMode = Enum.CameraMode.LockFirstPerson
+	end
+
+	-- 2. TPP Logic
+	if isTPP then
+		player.CameraMode = Enum.CameraMode.Classic
+		if player.CameraMinZoomDistance < 10 then
+			player.CameraMinZoomDistance = 10
+		end
+	end
+
+	-- Reset jika keduanya mati
+	if not isFPP and not isTPP and not isMaxDist then
+		player.CameraMode = Enum.CameraMode.Classic
+		player.CameraMinZoomDistance = 0.5
+		player.CameraMaxZoomDistance = 128
+	end
+
+	-- 3. Max Distance Logic
+	if isMaxDist then
+		local dist = tonumber(inputMaxDist.Text) or 5000
+		player.CameraMaxZoomDistance = dist
+	end
+
+	-- 4. No Clip Camera Logic
+	if isNoClip then
+		player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+	else
+		player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+	end
+end)
