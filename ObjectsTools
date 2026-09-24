@@ -1,0 +1,444 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Cek apakah GUI sudah ada sebelumnya
+local existingGui = playerGui:FindFirstChild("ObjekToolsGui")
+if existingGui then
+	existingGui:Destroy()
+end
+
+-- Buat ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ObjectsToolsGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- Frame utama 60% x 50%
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.Size = UDim2.new(0.4, 0, 0.5, 0)
+mainFrame.Position = UDim2.new(0.5, 0, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.5
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainFrameCorner = Instance.new("UICorner")
+mainFrameCorner.CornerRadius = UDim.new(0, 10)
+mainFrameCorner.Parent = mainFrame
+
+-- Topbar draggable
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 40)
+topBar.Position = UDim2.new(0, 0, 0, 0)
+topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+topBar.BackgroundTransparency = 0.3
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local topBarCorner = Instance.new("UICorner")
+topBarCorner.CornerRadius = UDim.new(0, 10)
+topBarCorner.Parent = topBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -50, 1, 0)
+titleLabel.Position = UDim2.fromOffset(10, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Objek Tools"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.TextSize = 16
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+titleLabel.Parent = topBar
+
+-- Fungsi draggable
+local dragging = false
+local dragStart
+local startPosition
+
+topBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPosition = mainFrame.Position
+	end
+end)
+
+topBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		if dragging then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(
+				startPosition.X.Scale,
+				startPosition.X.Offset + delta.X,
+				startPosition.Y.Scale,
+				startPosition.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- Konten frame
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "Content"
+contentFrame.Size = UDim2.new(1, -20, 1, -50)
+contentFrame.Position = UDim2.fromOffset(10, 45)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = mainFrame
+
+-- === LINE TO OBJECT ===
+local lineLabel = Instance.new("TextLabel")
+lineLabel.Name = "LineLabel"
+lineLabel.Size = UDim2.new(0, 120, 0, 40)
+lineLabel.Position = UDim2.fromOffset(5, 5)
+lineLabel.BackgroundTransparency = 1
+lineLabel.Text = "Line to Object"
+lineLabel.TextColor3 = Color3.new(1, 1, 1)
+lineLabel.TextSize = 14
+lineLabel.Font = Enum.Font.GothamBold
+lineLabel.TextXAlignment = Enum.TextXAlignment.Left
+lineLabel.TextYAlignment = Enum.TextYAlignment.Center
+lineLabel.Parent = contentFrame
+
+local objectInput = Instance.new("TextBox")
+objectInput.Name = "ObjectCoordinateInput"
+objectInput.Size = UDim2.new(0, 200, 0, 40)
+objectInput.Position = UDim2.fromOffset(130, 5)
+objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+objectInput.BorderSizePixel = 0
+objectInput.Text = ""
+objectInput.PlaceholderText = "P part / M model"
+objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+objectInput.TextColor3 = Color3.new(1, 1, 1)
+objectInput.TextSize = 13
+objectInput.Font = Enum.Font.GothamBold
+objectInput.ClearTextOnFocus = false
+objectInput.TextXAlignment = Enum.TextXAlignment.Center
+objectInput.Parent = contentFrame
+
+local objectInputCorner = Instance.new("UICorner")
+objectInputCorner.CornerRadius = UDim.new(0, 8)
+objectInputCorner.Parent = objectInput
+
+local objectInputStroke = Instance.new("UIStroke")
+objectInputStroke.Thickness = 2
+objectInputStroke.Color = Color3.fromRGB(210, 210, 210)
+objectInputStroke.Parent = objectInput
+
+local objectLineToggle = Instance.new("TextButton")
+objectLineToggle.Name = "ObjectLineToggle"
+objectLineToggle.Size = UDim2.new(0, 60, 0, 40)
+objectLineToggle.AnchorPoint = Vector2.new(1, 0)
+objectLineToggle.Position = UDim2.new(1, -5, 0, 5)
+objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+objectLineToggle.BorderSizePixel = 0
+objectLineToggle.Text = "OFF"
+objectLineToggle.TextColor3 = Color3.new(1, 1, 1)
+objectLineToggle.TextSize = 13
+objectLineToggle.Font = Enum.Font.GothamBold
+objectLineToggle.Parent = contentFrame
+
+local objectLineToggleCorner = Instance.new("UICorner")
+objectLineToggleCorner.CornerRadius = UDim.new(0, 8)
+objectLineToggleCorner.Parent = objectLineToggle
+
+-- LOGIKA LINE TO OBJECT
+local objectLineEnabled = false
+local objectBeams = {}
+local objectTargetParts = {}
+local objectStartAttachments = {}
+local objectHighlights = {}
+local currentTargetType = nil
+local currentTargetName = nil
+
+local function getObjectPosition(object)
+	if not object or not object.Parent then
+		return nil
+	end
+
+	if object:IsA("BasePart") then
+		return object.Position
+	end
+
+	if object:IsA("Model") then
+		return object:GetPivot().Position
+	end
+
+	return nil
+end
+
+local function clearObjectLines()
+	for _, beam in ipairs(objectBeams) do
+		if beam and beam.Parent then
+			beam:Destroy()
+		end
+	end
+	table.clear(objectBeams)
+
+	for _, data in ipairs(objectTargetParts) do
+		if data.part and data.part.Parent then
+			data.part:Destroy()
+		end
+	end
+	table.clear(objectTargetParts)
+
+	for _, attachment in ipairs(objectStartAttachments) do
+		if attachment and attachment.Parent then
+			attachment:Destroy()
+		end
+	end
+	table.clear(objectStartAttachments)
+
+	for _, highlight in ipairs(objectHighlights) do
+		if highlight and highlight.Parent then highlight:Destroy() end
+	end
+	table.clear(objectHighlights)
+end
+
+local function findObjects(targetType, targetName)
+	local results = {}
+
+	if not targetType or not targetName then
+		return results
+	end
+
+	targetName = targetName:match("^%s*(.-)%s*$")
+	if targetName == "" then
+		return results
+	end
+
+	local wanted = string.lower(targetName)
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		local typeMatches =
+			(targetType == "P" and obj:IsA("BasePart"))
+			or (targetType == "M" and obj:IsA("Model"))
+
+		if typeMatches and string.find(string.lower(obj.Name), wanted, 1, true) then
+			table.insert(results, obj)
+		end
+	end
+
+	return results
+end
+
+local function getRootPart()
+	local character = player.Character
+	if not character then
+		return nil
+	end
+
+	return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function createObjectLines(targetType, targetName)
+	clearObjectLines()
+
+	if not objectLineEnabled then
+		return
+	end
+
+	local rootPart = getRootPart()
+	if not rootPart then
+		return
+	end
+
+	local targets = findObjects(targetType, targetName)
+	if #targets == 0 then
+		return
+	end
+
+	for _, target in ipairs(targets) do
+		local position = getObjectPosition(target)
+
+		if position then
+			local highlight = Instance.new("Highlight")
+			highlight.Name = "ObjekTools_ObjectLineHighlight"
+			highlight.Adornee = target
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.FillColor = Color3.fromRGB(255, 220, 60)
+			highlight.FillTransparency = 0.72
+			highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+			highlight.OutlineTransparency = 0
+			highlight.Parent = screenGui
+			table.insert(objectHighlights, highlight)
+
+			local targetPart = Instance.new("Part")
+			targetPart.Name = "ObjectLineTarget"
+			targetPart.Anchored = true
+			targetPart.CanCollide = false
+			targetPart.CanTouch = false
+			targetPart.CanQuery = false
+			targetPart.CastShadow = false
+			targetPart.Transparency = 1
+			targetPart.Size = Vector3.new(0.1, 0.1, 0.1)
+			targetPart.CFrame = CFrame.new(position)
+			targetPart.Parent = workspace
+
+			local startAttachment = Instance.new("Attachment")
+			startAttachment.Name = "ObjectLineStart"
+			startAttachment.Parent = rootPart
+
+			local endAttachment = Instance.new("Attachment")
+			endAttachment.Name = "ObjectLineEnd"
+			endAttachment.Parent = targetPart
+
+			local beam = Instance.new("Beam")
+			beam.Name = "ObjectLineBeam"
+			beam.Attachment0 = startAttachment
+			beam.Attachment1 = endAttachment
+			beam.Width0 = 0.35
+			beam.Width1 = 0.35
+			beam.Color = ColorSequence.new(Color3.new(1, 1, 1))
+			beam.Transparency = NumberSequence.new(0)
+			beam.FaceCamera = true
+			beam.LightEmission = 1
+			beam.Segments = 1
+			beam.Parent = targetPart
+
+			table.insert(objectBeams, beam)
+			table.insert(objectTargetParts, {
+				part = targetPart,
+				target = target
+			})
+			table.insert(objectStartAttachments, startAttachment)
+		end
+	end
+
+	currentTargetType = targetType
+	currentTargetName = targetName
+end
+
+local function parseObjectInput()
+	local input = objectInput.Text:match("^%s*(.-)%s*$")
+
+	if input == "" then
+		return nil, nil
+	end
+
+	local targetType, targetName = input:match("^([PpMm])%s+(.+)$")
+	if not targetType or not targetName then
+		return nil, nil
+	end
+
+	targetName = targetName:match("^%s*(.-)%s*$")
+	if targetName == "" then
+		return nil, nil
+	end
+
+	return string.upper(targetType), targetName
+end
+
+local function updateObjectLine()
+	local targetType, targetName = parseObjectInput()
+
+	if not targetType or not targetName then
+		currentTargetType = nil
+		currentTargetName = nil
+		clearObjectLines()
+		return
+	end
+
+	currentTargetType = targetType
+	currentTargetName = targetName
+
+	if objectLineEnabled then
+		createObjectLines(targetType, targetName)
+	else
+		clearObjectLines()
+	end
+end
+
+local function updateObjectLineButton()
+	if objectLineEnabled then
+		objectLineToggle.Text = "ON"
+		objectLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		objectLineToggle.Text = "OFF"
+		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end
+
+objectLineToggle.Activated:Connect(function()
+	objectLineEnabled = not objectLineEnabled
+	updateObjectLineButton()
+
+	if objectLineEnabled then
+		updateObjectLine()
+	else
+		clearObjectLines()
+	end
+end)
+
+objectInput.FocusLost:Connect(function()
+	updateObjectLine()
+end)
+
+objectInput:GetPropertyChangedSignal("Text"):Connect(function()
+	if objectLineEnabled then
+		updateObjectLine()
+	else
+		clearObjectLines()
+	end
+end)
+
+player.CharacterAdded:Connect(function(character)
+	character:WaitForChild("HumanoidRootPart", 5)
+	task.wait(0.2)
+
+	if objectLineEnabled and currentTargetType and currentTargetName then
+		createObjectLines(currentTargetType, currentTargetName)
+	end
+end)
+
+task.spawn(function()
+	while objectInput and objectInput.Parent do
+		task.wait(0.1)
+
+		if objectLineEnabled then
+			local needsRefresh = false
+
+			for _, data in ipairs(objectTargetParts) do
+				local target = data.target
+				local targetPart = data.part
+
+				if not target or not target.Parent or not targetPart or not targetPart.Parent then
+					needsRefresh = true
+					break
+				end
+
+				local position = getObjectPosition(target)
+				if position then
+					targetPart.Position = position
+				end
+			end
+
+			if needsRefresh and currentTargetType and currentTargetName then
+				createObjectLines(currentTargetType, currentTargetName)
+			elseif currentTargetType and currentTargetName and #objectTargetParts == 0 then
+				createObjectLines(currentTargetType, currentTargetName)
+			end
+		end
+	end
+
+	clearObjectLines()
+end)
+
+updateObjectLineButton()print("Hello world!")
