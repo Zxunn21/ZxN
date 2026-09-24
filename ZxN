@@ -428,9 +428,7 @@ featureButtonCorner.Parent = featureButton
 local RideAPetButton_
 local featurePanel
 local objectLineToggle
-local playerLineToggle
 local featureObjectInput
-local featurePlayerInput
 
 gameButton.Activated:Connect(function()
 	gameOpen = true
@@ -448,14 +446,10 @@ featureButton.Activated:Connect(function()
 	featurePanel.Visible = true
 	subMenu.CanvasPosition = Vector2.new(0, 0)
 
-	-- Matikan kedua fitur line saat panel dibuka ulang.
+	-- Matikan fitur line saat panel dibuka ulang.
 	if objectLineToggle then
 		objectLineToggle.Text = "OFF"
 		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
-	if playerLineToggle then
-		playerLineToggle.Text = "OFF"
-		playerLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 end)
 
@@ -553,64 +547,6 @@ objectLineLabel.TextYAlignment = Enum.TextYAlignment.Center
 objectLineLabel.ZIndex = 512
 objectLineLabel.Parent = featurePanel
 
-local featurePlayerLabel = Instance.new("TextLabel")
-featurePlayerLabel.Name = "PlayerLineLabel"
-featurePlayerLabel.Size = UDim2.new(0, 80, 0, 40)
-featurePlayerLabel.Position = UDim2.fromOffset(5, 90)
-featurePlayerLabel.BackgroundTransparency = 1
-featurePlayerLabel.Text = "Line to Player"
-featurePlayerLabel.TextColor3 = Color3.new(1, 1, 1)
-featurePlayerLabel.TextSize = 12
-featurePlayerLabel.Font = Enum.Font.GothamBold
-featurePlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
-featurePlayerLabel.TextYAlignment = Enum.TextYAlignment.Center
-featurePlayerLabel.ZIndex = 512
-featurePlayerLabel.Parent = featurePanel
-
-featurePlayerInput = Instance.new("TextBox")
-featurePlayerInput.Name = "PlayerNameInput"
-featurePlayerInput.Size = UDim2.new(0, 110, 0, 40)
-featurePlayerInput.Position = UDim2.fromOffset(90, 90)
-featurePlayerInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-featurePlayerInput.BorderSizePixel = 0
-featurePlayerInput.Text = ""
-featurePlayerInput.PlaceholderText = "Player name"
-featurePlayerInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-featurePlayerInput.TextColor3 = Color3.new(1, 1, 1)
-featurePlayerInput.TextSize = 13
-featurePlayerInput.Font = Enum.Font.GothamBold
-featurePlayerInput.ClearTextOnFocus = false
-featurePlayerInput.TextXAlignment = Enum.TextXAlignment.Center
-featurePlayerInput.ZIndex = 512
-featurePlayerInput.Parent = featurePanel
-
-local playerInputCorner = Instance.new("UICorner")
-playerInputCorner.CornerRadius = UDim.new(0, 8)
-playerInputCorner.Parent = featurePlayerInput
-
-local playerInputStroke = Instance.new("UIStroke")
-playerInputStroke.Thickness = 2
-playerInputStroke.Color = Color3.fromRGB(210, 210, 210)
-playerInputStroke.Parent = featurePlayerInput
-
-playerLineToggle = Instance.new("TextButton")
-playerLineToggle.Name = "PlayerLineToggle"
-playerLineToggle.Size = UDim2.new(0, 60, 0, 40)
-playerLineToggle.AnchorPoint = Vector2.new(1, 0)
-playerLineToggle.Position = UDim2.new(1, -5, 0, 90)
-playerLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-playerLineToggle.BorderSizePixel = 0
-playerLineToggle.Text = "OFF"
-playerLineToggle.TextColor3 = Color3.new(1, 1, 1)
-playerLineToggle.TextSize = 13
-playerLineToggle.Font = Enum.Font.GothamBold
-playerLineToggle.ZIndex = 512
-playerLineToggle.Parent = featurePanel
-
-local playerToggleCorner = Instance.new("UICorner")
-playerToggleCorner.CornerRadius = UDim.new(0, 8)
-playerToggleCorner.Parent = playerLineToggle
-
 -- Jump Button Editor
 local jumpButtonSavedPosition = nil
 local jumpButtonSavedSize = nil
@@ -686,42 +622,6 @@ for _, button in ipairs({
 	corner.Parent = button
 end
 
--- ESP Player
-local playerESPEnabled = false
-local playerESPData = {}
-
-local playerESPLabel = Instance.new("TextLabel")
-playerESPLabel.Name = "PlayerESPLabel"
-playerESPLabel.Size = UDim2.new(0, 95, 0, 36)
-playerESPLabel.Position = UDim2.fromOffset(5, 190)
-playerESPLabel.BackgroundTransparency = 1
-playerESPLabel.Text = "ESP Player"
-playerESPLabel.TextColor3 = Color3.new(1, 1, 1)
-playerESPLabel.TextSize = 14
-playerESPLabel.Font = Enum.Font.GothamBold
-playerESPLabel.TextXAlignment = Enum.TextXAlignment.Left
-playerESPLabel.TextYAlignment = Enum.TextYAlignment.Center
-playerESPLabel.ZIndex = 512
-playerESPLabel.Parent = featurePanel
-
-local playerESPButton = Instance.new("TextButton")
-playerESPButton.Name = "PlayerESPButton"
-playerESPButton.Size = UDim2.fromOffset(60, 36)
-playerESPButton.AnchorPoint = Vector2.new(1, 0)
-playerESPButton.Position = UDim2.new(1, -5, 0, 190)
-playerESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-playerESPButton.BorderSizePixel = 0
-playerESPButton.Text = "ESP"
-playerESPButton.TextColor3 = Color3.new(1, 1, 1)
-playerESPButton.TextSize = 12
-playerESPButton.Font = Enum.Font.GothamBold
-playerESPButton.ZIndex = 512
-playerESPButton.Parent = featurePanel
-
-local playerESPButtonCorner = Instance.new("UICorner")
-playerESPButtonCorner.CornerRadius = UDim.new(0, 7)
-playerESPButtonCorner.Parent = playerESPButton
-
 -- ESP Proximity Prompt
 local proximityESPEnabled = false
 local proximityESPData = {}
@@ -764,6 +664,7 @@ local linkFeatures = {
 	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToDestroy = "TorchOnHeadGui" },
 	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToDestroy = "AutoProximityPromptGui" },
 	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToDestroy = "CameraSettingViewGui" },
+	{ description = "PlayerTools",           url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToDestroy = "PlayerToolsGui" },
 }
 
 local LINK_FEATURE_BASE_Y = 290
@@ -1076,162 +977,6 @@ task.spawn(function()
 	end
 	clearAllProximityESP()
 end)
-
-local function getPlayerESPRoot(other)
-	local character = other and other.Character
-	if not character then return nil end
-	return character:FindFirstChild("HumanoidRootPart")
-end
-
-local function removePlayerESP(other)
-	local data = playerESPData[other]
-	if data and data.Billboard then
-		data.Billboard:Destroy()
-	end
-	playerESPData[other] = nil
-end
-
-local function createPlayerESP(other)
-	if other == player or not playerESPEnabled then return end
-	local root = getPlayerESPRoot(other)
-	if not root then return end
-
-	local data = playerESPData[other]
-	if data and data.Billboard and data.Billboard.Parent then
-		data.Billboard.Adornee = root
-		data.Billboard.Enabled = true
-		return
-	end
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "ZxN_PlayerESP"
-	billboard.Size = UDim2.fromOffset(260, 62)
-	billboard.StudsOffset = Vector3.new(0, 3.6, 0)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = math.huge
-	billboard.Adornee = root
-	billboard.Enabled = true
-	billboard.Parent = playerGui
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0, 22)
-	nameLabel.Position = UDim2.fromOffset(0, 0)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = tostring(other.DisplayName or other.Name)
-	nameLabel.TextColor3 = Color3.new(1, 1, 1)
-	nameLabel.TextStrokeTransparency = 0
-	nameLabel.TextSize = 17
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
-	nameLabel.Parent = billboard
-
-	local usernameLabel = Instance.new("TextLabel")
-	usernameLabel.Size = UDim2.new(1, 0, 0, 18)
-	usernameLabel.Position = UDim2.fromOffset(0, 20)
-	usernameLabel.BackgroundTransparency = 1
-	usernameLabel.Text = "@" .. tostring(other.Name)
-	usernameLabel.TextColor3 = Color3.fromRGB(225, 225, 225)
-	usernameLabel.TextStrokeTransparency = 0
-	usernameLabel.TextSize = 12
-	usernameLabel.Font = Enum.Font.Gotham
-	usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
-	usernameLabel.Parent = billboard
-
-	local distanceLabel = Instance.new("TextLabel")
-	distanceLabel.Size = UDim2.new(1, 0, 0, 18)
-	distanceLabel.Position = UDim2.fromOffset(0, 37)
-	distanceLabel.BackgroundTransparency = 1
-	distanceLabel.Text = "0 stud"
-	distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	distanceLabel.TextStrokeTransparency = 0
-	distanceLabel.TextSize = 12
-	distanceLabel.Font = Enum.Font.Gotham
-	distanceLabel.TextXAlignment = Enum.TextXAlignment.Center
-	distanceLabel.Parent = billboard
-
-	playerESPData[other] = {
-		Billboard = billboard,
-		NameLabel = nameLabel,
-		UsernameLabel = usernameLabel,
-		DistanceLabel = distanceLabel,
-	}
-end
-
-local function clearPlayerESP()
-	for other, data in pairs(playerESPData) do
-		if data and data.Billboard then
-			data.Billboard:Destroy()
-		end
-		playerESPData[other] = nil
-	end
-end
-
-local function setPlayerESP(state)
-	playerESPEnabled = state
-	playerESPButton.Text = state and "UNESP" or "ESP"
-	playerESPButton.BackgroundColor3 = state
-		and Color3.fromRGB(40, 150, 70)
-		or Color3.fromRGB(180, 50, 50)
-
-	if not state then
-		clearPlayerESP()
-		return
-	end
-
-	for _, other in ipairs(Players:GetPlayers()) do
-		if other ~= player then
-			createPlayerESP(other)
-		end
-	end
-end
-
-playerESPButton.Activated:Connect(function()
-	setPlayerESP(not playerESPEnabled)
-end)
-
-Players.PlayerAdded:Connect(function(other)
-	if playerESPEnabled then
-		other.CharacterAdded:Connect(function()
-			task.wait(0.2)
-			if playerESPEnabled then
-				createPlayerESP(other)
-			end
-		end)
-	end
-end)
-
-Players.PlayerRemoving:Connect(function(other)
-	removePlayerESP(other)
-end)
-
-local function updatePlayerESP()
-	if not playerESPEnabled then return end
-	local myRoot = getPlayerESPRoot(player)
-	if not myRoot then return end
-
-	for _, other in ipairs(Players:GetPlayers()) do
-		if other ~= player then
-			local root = getPlayerESPRoot(other)
-			if root then
-				createPlayerESP(other)
-				local data = playerESPData[other]
-				if data then
-					data.Billboard.Adornee = root
-					data.Billboard.Enabled = true
-					data.NameLabel.Text = other.DisplayName
-					data.UsernameLabel.Text = "@" .. other.Name
-					local distance = (myRoot.Position - root.Position).Magnitude
-					data.DistanceLabel.Text = string.format("%d stud", math.floor(distance + 0.5))
-				end
-			else
-				local data = playerESPData[other]
-				if data and data.Billboard then
-					data.Billboard.Enabled = false
-				end
-			end
-		end
-	end
-end
 
 local function findJumpButton()
 	local touchGui = playerGui:FindFirstChild("TouchGui", true)
@@ -2136,7 +1881,6 @@ task.spawn(function()
 	while true do
 		task.wait(0.05)
 
-		updatePlayerESP()
 		updateTeleportList()
 	end
 end)
@@ -2356,214 +2100,6 @@ local function updateObjectLine()
 		clearObjectLines()
 	end
 end
-
--- PLAYER LINE
-local playerLineEnabled = false
-local playerBeams = {}
-local playerTargetParts = {}
-local currentPlayerName = nil
-
-local function clearPlayerLines()
-	for _, beam in ipairs(playerBeams) do
-		if beam and beam.Parent then
-			beam:Destroy()
-		end
-	end
-	table.clear(playerBeams)
-
-	for _, data in ipairs(playerTargetParts) do
-		if data.part and data.part.Parent then
-			data.part:Destroy()
-		end
-	end
-	table.clear(playerTargetParts)
-end
-
-local function findPlayers(targetName)
-	local results = {}
-	if not targetName then return results end
-
-	targetName = targetName:match("^%s*(.-)%s*$")
-	if targetName == "" then return results end
-
-	local wanted = string.lower(targetName)
-
-	for _, other in ipairs(Players:GetPlayers()) do
-		if other ~= player and string.find(string.lower(other.Name), wanted, 1, true) then
-			table.insert(results, other)
-		end
-	end
-
-	return results
-end
-
-local function getPlayerRoot(other)
-	local character = other and other.Character
-	if not character then return nil end
-	return character:FindFirstChild("HumanoidRootPart")
-end
-
-local function createPlayerLines(targetName)
-	clearPlayerLines()
-
-	if not playerLineEnabled then return end
-
-	local rootPart = getRootPart()
-	if not rootPart then return end
-
-	local targets = findPlayers(targetName)
-
-	for _, other in ipairs(targets) do
-		local targetRoot = getPlayerRoot(other)
-
-		if targetRoot then
-			local targetPart = Instance.new("Part")
-			targetPart.Name = "PlayerLineTarget"
-			targetPart.Anchored = true
-			targetPart.CanCollide = false
-			targetPart.CanTouch = false
-			targetPart.CanQuery = false
-			targetPart.CastShadow = false
-			targetPart.Transparency = 1
-			targetPart.Size = Vector3.new(0.1, 0.1, 0.1)
-			targetPart.Position = targetRoot.Position
-			targetPart.Parent = workspace
-
-			local startAttachment = Instance.new("Attachment")
-			startAttachment.Name = "PlayerLineStart"
-			startAttachment.Parent = rootPart
-
-			local endAttachment = Instance.new("Attachment")
-			endAttachment.Name = "PlayerLineEnd"
-			endAttachment.Parent = targetPart
-
-			local beam = Instance.new("Beam")
-			beam.Name = "PlayerLineBeam"
-			beam.Attachment0 = startAttachment
-			beam.Attachment1 = endAttachment
-			beam.Width0 = 0.35
-			beam.Width1 = 0.35
-			beam.Color = ColorSequence.new(Color3.new(1, 1, 1))
-			beam.Transparency = NumberSequence.new(0)
-			beam.FaceCamera = true
-			beam.LightEmission = 1
-			beam.Segments = 1
-			beam.Parent = targetPart
-
-			table.insert(playerBeams, beam)
-			table.insert(playerTargetParts, {
-				part = targetPart,
-				player = other
-			})
-		end
-	end
-
-	currentPlayerName = targetName
-end
-
-local function updatePlayerLine()
-	local name = featurePlayerInput.Text:match("^%s*(.-)%s*$")
-
-	if name == "" then
-		currentPlayerName = nil
-		clearPlayerLines()
-		return
-	end
-
-	currentPlayerName = name
-
-	if playerLineEnabled then
-		createPlayerLines(name)
-	else
-		clearPlayerLines()
-	end
-end
-
-local function updatePlayerLineButton()
-	if playerLineEnabled then
-		playerLineToggle.Text = "ON"
-		playerLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-	else
-		playerLineToggle.Text = "OFF"
-		playerLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
-end
-
-playerLineToggle.Activated:Connect(function()
-	playerLineEnabled = not playerLineEnabled
-	updatePlayerLineButton()
-
-	if playerLineEnabled then
-		updatePlayerLine()
-	else
-		clearPlayerLines()
-	end
-end)
-
-featurePlayerInput.FocusLost:Connect(function()
-	updatePlayerLine()
-end)
-
-featurePlayerInput:GetPropertyChangedSignal("Text"):Connect(function()
-	if playerLineEnabled then
-		updatePlayerLine()
-	else
-		clearPlayerLines()
-	end
-end)
-
-Players.PlayerRemoving:Connect(function(other)
-	if playerLineEnabled and currentPlayerName then
-		createPlayerLines(currentPlayerName)
-	end
-end)
-
-Players.PlayerAdded:Connect(function()
-	if playerLineEnabled and currentPlayerName then
-		task.defer(createPlayerLines, currentPlayerName)
-	end
-end)
-
-player.CharacterAdded:Connect(function(character)
-	character:WaitForChild("HumanoidRootPart", 5)
-	task.wait(0.2)
-
-	if playerLineEnabled and currentPlayerName then
-		createPlayerLines(currentPlayerName)
-	end
-end)
-
-task.spawn(function()
-	while featurePlayerInput and featurePlayerInput.Parent do
-		task.wait(0.1)
-
-		if playerLineEnabled and currentPlayerName then
-			local needsRefresh = false
-
-			for _, data in ipairs(playerTargetParts) do
-				local other = data.player
-				local targetRoot = getPlayerRoot(other)
-
-				if not targetRoot or not data.part or not data.part.Parent then
-					needsRefresh = true
-					break
-				end
-
-				data.part.Position = targetRoot.Position
-			end
-
-			if needsRefresh then
-				createPlayerLines(currentPlayerName)
-			elseif #playerTargetParts == 0 then
-				createPlayerLines(currentPlayerName)
-			end
-		end
-	end
-
-	clearPlayerLines()
-end)
-
-updatePlayerLineButton()
 
 local function updateObjectLineButton()
 	if objectLineEnabled then
