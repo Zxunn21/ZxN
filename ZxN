@@ -680,11 +680,7 @@ local function createLinkFeature(index, feature)
 			if feature.guiToHide and playerGui then
 				for _, descendant in ipairs(playerGui:GetDescendants()) do
 					if descendant.Name == feature.guiToHide then
-						if descendant:IsA("ScreenGui") then
-							descendant.Enabled = false
-						elseif descendant:IsA("GuiObject") then
-							descendant.Visible = false
-						end
+						descendant:Destroy()
 					end
 				end
 			end
