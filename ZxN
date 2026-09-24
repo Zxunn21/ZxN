@@ -644,20 +644,33 @@ local function createLinkFeature(index, feature)
 		updateButton()
 
 		if enabled then
-			local success, result = pcall(function()
-				if type(loadstring) ~= "function" then
-					error("loadstring tidak tersedia di lingkungan ini")
+			-- Periksa apakah GUI sudah ada sebelum membuat baru
+			local guiExists = false
+			if feature.guiToHide and playerGui then
+				for _, descendant in ipairs(playerGui:GetDescendants()) do
+					if descendant.Name == feature.guiToHide and descendant:IsA("GuiObject") then
+						descendant.Visible = true
+						guiExists = true
+					end
 				end
-				if type(game.HttpGet) ~= "function" then
-					error("game:HttpGet tidak tersedia di lingkungan ini")
-				end
-				return loadstring(game:HttpGet(feature.url, true))()
-			end)
+			end
 
-			if not success then
-				warn("[ZxN] " .. feature.description .. " gagal dimuat: " .. tostring(result))
-				enabled = false
-				updateButton()
+			if not guiExists then
+				local success, result = pcall(function()
+					if type(loadstring) ~= "function" then
+						error("loadstring tidak tersedia di lingkungan ini")
+					end
+					if type(game.HttpGet) ~= "function" then
+						error("game:HttpGet tidak tersedia di lingkungan ini")
+					end
+					return loadstring(game:HttpGet(feature.url, true))()
+				end)
+
+				if not success then
+					warn("[ZxN] " .. feature.description .. " gagal dimuat: " .. tostring(result))
+					enabled = false
+					updateButton()
+				end
 			end
 		else
 			if feature.guiToHide and playerGui then
