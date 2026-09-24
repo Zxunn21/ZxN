@@ -1,716 +1,424 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local renderedEggs = workspace:FindFirstChild("RenderedEggs")
 
-local speed = 300
-
-local speedEnabled = false
-local originalSpeed = nil
-
-local frameOpen = false
-local menuOpen = false
-local minimized = false
-local gameOpen = false
-
-local function findRenderedEggs()
-	if renderedEggs and renderedEggs.Parent then
-		return renderedEggs
-	end
-	renderedEggs = workspace:FindFirstChild("RenderedEggs")
-	return renderedEggs
-end
+-- ============================================================
+-- GUI
+-- ============================================================
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "EggESP"
+gui.Name = "PlayerToolsGui"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
 gui.DisplayOrder = 999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.Parent = playerGui
 
--- Main button
-local trigger = Instance.new("TextButton")
-trigger.Name = "ESPTrigger"
-trigger.Size = UDim2.fromOffset(40, 40)
-trigger.Position = UDim2.new(0.8, 40, 0, 10)
-trigger.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-trigger.BorderSizePixel = 0
-trigger.Text = "≡"
-trigger.TextColor3 = Color3.new(1, 1, 1)
-trigger.TextSize = 24
-trigger.Font = Enum.Font.GothamBold
-trigger.AutoButtonColor = true
-trigger.Active = true
-trigger.ZIndex = 1000
-trigger.Parent = gui
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.fromOffset(280, 190)
+mainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 500
+mainFrame.Parent = gui
 
-local triggerCorner = Instance.new("UICorner")
-triggerCorner.CornerRadius = UDim.new(1, 0)
-triggerCorner.Parent = trigger
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
 
-local triggerStroke = Instance.new("UIStroke")
-triggerStroke.Thickness = 2
-triggerStroke.Color = Color3.fromRGB(255, 255, 255)
-triggerStroke.Parent = trigger
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Thickness = 1
+mainStroke.Color = Color3.fromRGB(100, 100, 100)
+mainStroke.Parent = mainFrame
 
-local speedToggle = Instance.new("TextButton")
-speedToggle.Name = "SpeedToggle"
-speedToggle.AnchorPoint = Vector2.new (0.5, 0.5)
-speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(0.83, -20, -0.05, -10)
-speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
-speedToggle.BorderSizePixel = 0
-speedToggle.Text = "OFF"
-speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-speedToggle.TextSize = 12
-speedToggle.Font = Enum.Font.GothamBold
-speedToggle.TextXAlignment = Enum.TextXAlignment.Right
-speedToggle.TextYAlignment = Enum.TextYAlignment.Center
-speedToggle.AutoButtonColor = false
-speedToggle.Active = true
-speedToggle.ZIndex = 1000
-speedToggle.Parent = gui
+-- Draggable top bar
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 36)
+topBar.Position = UDim2.fromOffset(0, 0)
+topBar.BackgroundTransparency = 1
+topBar.Active = true
+topBar.ZIndex = 550
+topBar.Parent = mainFrame
 
-local speedCorner = Instance.new("UICorner")
-speedCorner.CornerRadius = UDim.new(1, 0)
-speedCorner.Parent = speedToggle
+local topBarTitle = Instance.new("TextLabel")
+topBarTitle.Name = "Title"
+topBarTitle.Size = UDim2.new(1, -12, 1, 0)
+topBarTitle.Position = UDim2.fromOffset(12, 0)
+topBarTitle.BackgroundTransparency = 1
+topBarTitle.Text = "Player Tools"
+topBarTitle.TextColor3 = Color3.new(1, 1, 1)
+topBarTitle.TextSize = 16
+topBarTitle.Font = Enum.Font.GothamBold
+topBarTitle.TextXAlignment = Enum.TextXAlignment.Left
+topBarTitle.ZIndex = 551
+topBarTitle.Parent = topBar
 
-local speedStroke = Instance.new("UIStroke")
-speedStroke.Thickness = 2
-speedStroke.Color = Color3.fromRGB(210, 210, 210)
-speedStroke.Parent = speedToggle
+-- Dragging logic
+local dragging = false
+local dragStart
+local dragStartPosition = nil
+local dragInputConnection
 
-local speedPadding = Instance.new("UIPadding")
-speedPadding.Parent = speedToggle
-
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Name = "SpeedLabel"
-speedLabel.Size = UDim2.fromOffset(80, 20)
-speedLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-speedLabel.Position = UDim2.new(0.5, 0, 0, -10)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed"
-speedLabel.TextColor3 = Color3.new(1, 1, 1)
-speedLabel.TextSize = 13
-speedLabel.Font = Enum.Font.GothamBold
-speedLabel.TextXAlignment = Enum.TextXAlignment.Center
-speedLabel.ZIndex = 1000
-speedLabel.Parent = speedToggle
-
--- Knob putih
-local speedKnob = Instance.new("Frame")
-speedKnob.Name = "Knob"
-speedKnob.Size = UDim2.fromOffset(32, 32)
-speedKnob.Position = UDim2.new(0, 4, 0.5, -16)
-speedKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-speedKnob.BorderSizePixel = 0
-speedKnob.Active = false
-speedKnob.Selectable = false
-speedKnob.ZIndex = 1001
-speedKnob.Parent = speedToggle
-
-local knobCorner = Instance.new("UICorner")
-knobCorner.CornerRadius = UDim.new(1, 0)
-knobCorner.Parent = speedKnob
-
-local knobStroke = Instance.new("UIStroke")
-knobStroke.Thickness = 1
-knobStroke.Color = Color3.fromRGB(200, 200, 200)
-knobStroke.Parent = speedKnob
-
-local speedBubble = Instance.new("Frame")
-speedBubble.Name = "SpeedBubble"
-speedBubble.Size = UDim2.fromOffset(155, 42)
-speedBubble.AnchorPoint = Vector2.new(0.5, 0)
-speedBubble.Position = UDim2.new(0.5, 0, 1, 10)
-speedBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-speedBubble.BorderSizePixel = 0
-speedBubble.Visible = false
-speedBubble.ZIndex = 1100
-speedBubble.Parent = speedToggle
-
-local speedBubbleCorner = Instance.new("UICorner")
-speedBubbleCorner.CornerRadius = UDim.new(0, 10)
-speedBubbleCorner.Parent = speedBubble
-
-local speedBubbleStroke = Instance.new("UIStroke")
-speedBubbleStroke.Thickness = 1
-speedBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
-speedBubbleStroke.Parent = speedBubble
-
-local speedBubbleArrow = Instance.new("Frame")
-speedBubbleArrow.Size = UDim2.fromOffset(14, 14)
-speedBubbleArrow.Position = UDim2.new(0.5, -30, 0, -7)
-speedBubbleArrow.Rotation = 135
-speedBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-speedBubbleArrow.BorderSizePixel = 0
-speedBubbleArrow.ZIndex = 1099
-speedBubbleArrow.Parent = speedBubble
-
-local speedBubbleText = Instance.new("TextLabel")
-speedBubbleText.Size = UDim2.new(1, -12, 1, -8)
-speedBubbleText.Position = UDim2.fromOffset(6, 4)
-speedBubbleText.BackgroundTransparency = 1
-speedBubbleText.Text = "Hold to Change"
-speedBubbleText.TextColor3 = Color3.new(1, 1, 1)
-speedBubbleText.TextSize = 13
-speedBubbleText.Font = Enum.Font.GothamBold
-speedBubbleText.ZIndex = 1101
-speedBubbleText.Parent = speedBubble
-
-local speedInput = Instance.new("TextBox")
-speedInput.Size = UDim2.new(1, -12, 0, 34)
-speedInput.Position = UDim2.fromOffset(6, 4)
-speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedInput.TextColor3 = Color3.new(1, 1, 1)
-speedInput.PlaceholderText = "Speed"
-speedInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-speedInput.Text = ""
-speedInput.TextSize = 15
-speedInput.Font = Enum.Font.GothamBold
-speedInput.ClearTextOnFocus = false
-speedInput.Visible = false
-speedInput.ZIndex = 1101
-speedInput.Parent = speedBubble
-
-local speedInputCorner = Instance.new("UICorner")
-speedInputCorner.CornerRadius = UDim.new(0, 7)
-speedInputCorner.Parent = speedInput
-
-local function showSpeedBubble()
-	speedInput.Text = ""
-	speedInput.Visible = false
-	speedBubbleText.Text = "Hold to Change"
-	speedBubbleText.Size = UDim2.new(1, -12, 1, -8)
-	speedBubbleText.Position = UDim2.fromOffset(6, 4)
-	speedBubble.Visible = true
-	speedBubble.ZIndex = 1100
-end
-
-local function openSpeedInput()
-	speedBubbleText.Text = "Speed"
-	speedBubbleText.Size = UDim2.new(1, -12, 0, 22)
-	speedBubbleText.Position = UDim2.fromOffset(6, 4)
-	speedInput.Visible = true
-	speedInput:CaptureFocus()
-end
-
-local function hideSpeedBubble()
-	speedBubble.Visible = false
-	if speedInput:IsFocused() then
-		speedInput:ReleaseFocus()
-	end
-end
-
-local speedHoldTime = 1
-local speedHolding = false
-local speedHoldToken = 0
-
-local function beginSpeedHold()
-	if speedHolding then
-		return
-	end
-
-	speedHolding = true
-	showSpeedBubble()
-	speedHoldToken += 1
-	local token = speedHoldToken
-	local startTime = os.clock()
-
-	task.spawn(function()
-		while speedHolding and token == speedHoldToken do
-			if os.clock() - startTime >= speedHoldTime then
-				speedHolding = false
-				openSpeedInput()
-				return
-			end
-			task.wait(0.03)
-		end
-	end)
-end
-
-local function cancelSpeedHold()
-	speedHolding = false
-	speedHoldToken += 0.3
-	hideSpeedBubble()
-end
-
--- Menu
-local menuFrame = Instance.new("Frame")
-menuFrame.Name = "GameMenu"
-menuFrame.Size = UDim2.fromScale(0.6, 0.8)
-menuFrame.AnchorPoint = Vector2.new (0.5,0.5)
-menuFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-menuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-menuFrame.BackgroundTransparency = 0.3
-menuFrame.BorderSizePixel = 0
-menuFrame.Visible = false
-menuFrame.ZIndex = 500
-menuFrame.Parent = gui
-
-local menuCorner = Instance.new("UICorner")
-menuCorner.CornerRadius = UDim.new(0, 10)
-menuCorner.Parent = menuFrame
-
-local menuStroke = Instance.new("UIStroke")
-menuStroke.Thickness = 1
-menuStroke.Color = Color3.fromRGB(100, 100, 100)
-menuStroke.Parent = menuFrame
-
-local menuUIPadding = Instance.new("UIPadding")
-menuUIPadding.PaddingLeft = UDim.new(0, 10)
-menuUIPadding.PaddingRight = UDim.new(0, 10)
-menuUIPadding.PaddingTop = UDim.new(0, 10)
-menuUIPadding.PaddingBottom = UDim.new(0, 10)
-menuUIPadding.Parent = menuFrame
-
--- Area atas MainFrame: hanya area ini yang dapat digunakan untuk drag.
--- Tidak ada TopBar terpisah; tombol Close tetap berada di pojok kanan atas.
-local dragArea = Instance.new("Frame")
-dragArea.Name = "MainDragArea"
-dragArea.AnchorPoint = Vector2.new(0, 0)
-dragArea.Size = UDim2.new(1, -42, 0, 36)
-dragArea.Position = UDim2.fromOffset(0, 0)
-dragArea.BackgroundTransparency = 1
-dragArea.Active = true
-dragArea.ZIndex = 550
-dragArea.Parent = menuFrame
-
-local dragTitle = Instance.new("TextLabel")
-dragTitle.Name = "Title"
-dragTitle.Size = UDim2.new(1, -12, 1, 0)
-dragTitle.Position = UDim2.fromOffset(12, 0)
-dragTitle.BackgroundTransparency = 1
-dragTitle.Text = "ZxN"
-dragTitle.TextColor3 = Color3.new(1, 1, 1)
-dragTitle.TextSize = 16
-dragTitle.Font = Enum.Font.GothamBold
-dragTitle.TextXAlignment = Enum.TextXAlignment.Left
-dragTitle.ZIndex = 551
-dragTitle.Parent = dragArea
-
-local mainCloseButton = Instance.new("TextButton")
-mainCloseButton.Name = "MainCloseButton"
-mainCloseButton.Size = UDim2.fromOffset(36, 36)
-mainCloseButton.Position = UDim2.new(1, -36, 0, 0)
-mainCloseButton.BackgroundTransparency = 1
-mainCloseButton.Text = "×"
-mainCloseButton.TextColor3 = Color3.new(1, 1, 1)
-mainCloseButton.TextSize = 28
-mainCloseButton.Font = Enum.Font.GothamBold
-mainCloseButton.ZIndex = 552
-mainCloseButton.Parent = menuFrame
-
-local mainFrameDragging = false
-local mainFrameDragStart
-local mainFrameStartPosition
-local mainFrameDragInputConnection
-
-local function beginMainFrameDrag(input)
+local function beginDrag(input)
 	if input.UserInputType ~= Enum.UserInputType.MouseButton1
 		and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-
-	mainFrameDragging = true
-	mainFrameDragStart = input.Position
-	mainFrameStartPosition = menuFrame.Position
+	dragging = true
+	dragStart = input.Position
+	dragStartPosition = mainFrame.Position
 end
 
-local function updateMainFrameDrag(input)
-	if not mainFrameDragging then
-		return
-	end
-
+local function updateDrag(input)
+	if not dragging then return end
 	if input.UserInputType ~= Enum.UserInputType.MouseMovement
 		and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-
-	local delta = input.Position - mainFrameDragStart
-	menuFrame.Position = UDim2.new(
-		mainFrameStartPosition.X.Scale,
-		mainFrameStartPosition.X.Offset + delta.X,
-		mainFrameStartPosition.Y.Scale,
-		mainFrameStartPosition.Y.Offset + delta.Y
+	local delta = input.Position - dragStart
+	mainFrame.Position = UDim2.new(
+		dragStartPosition.X.Scale,
+		dragStartPosition.X.Offset + delta.X,
+		dragStartPosition.Y.Scale,
+		dragStartPosition.Y.Offset + delta.Y
 	)
 end
 
-dragArea.InputBegan:Connect(beginMainFrameDrag)
-dragArea.InputChanged:Connect(function(input)
+topBar.InputBegan:Connect(beginDrag)
+topBar.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement
 		or input.UserInputType == Enum.UserInputType.Touch then
-		mainFrameDragInputConnection = input
+		dragInputConnection = input
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if input == mainFrameDragInputConnection then
-		updateMainFrameDrag(input)
+	if input == dragInputConnection then
+		updateDrag(input)
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
-		mainFrameDragging = false
+		dragging = false
 	end
 end)
 
-local mainMenu = Instance.new("Frame")
-mainMenu.Name = "MainMenu"
-mainMenu.Size = UDim2.new(0.25, -5, 1, -46)
-mainMenu.Position = UDim2.fromOffset(5, 42)
-mainMenu.BackgroundTransparency = 1
-mainMenu.Parent = menuFrame
+-- ============================================================
+-- ESP ALL PLAYERS
+-- ============================================================
 
-local subMenu = Instance.new("ScrollingFrame")
-subMenu.Name = "SubMenu"
-subMenu.Size = UDim2.new(0.75, -5, 1, -46)
-subMenu.Position = UDim2.new(0.25, 0, 0, 42)
-subMenu.BackgroundTransparency = 1
-subMenu.BorderSizePixel = 0
-subMenu.ScrollBarThickness = 5
-subMenu.ScrollBarImageTransparency = 0.15
-subMenu.ScrollingDirection = Enum.ScrollingDirection.Y
-subMenu.CanvasSize = UDim2.new(0, 0, 0, 0)
-subMenu.AutomaticCanvasSize = Enum.AutomaticSize.Y
-subMenu.Visible = false
-subMenu.Parent = menuFrame
+local playerESPEnabled = false
+local playerESPData = {}
 
-local gameButton = Instance.new("TextButton")
-gameButton.Size = UDim2.new(1, -10, 0, 40)
-gameButton.Position = UDim2.fromOffset(0, 5)
-gameButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-gameButton.TextColor3 = Color3.new(1, 1, 1)
-gameButton.Text = "Game"
-gameButton.TextSize = 18
-gameButton.TextXAlignment = Enum.TextXAlignment.Left
-gameButton.TextYAlignment = Enum.TextYAlignment.Center
-gameButton.Font = Enum.Font.GothamBold
-gameButton.ZIndex = 501
-gameButton.Parent = mainMenu
+-- Row: ESP All Players
+local espAllLabel = Instance.new("TextLabel")
+espAllLabel.Name = "ESPAllLabel"
+espAllLabel.Size = UDim2.new(0, 150, 0, 36)
+espAllLabel.Position = UDim2.fromOffset(10, 46)
+espAllLabel.BackgroundTransparency = 1
+espAllLabel.Text = "ESP All Players"
+espAllLabel.TextColor3 = Color3.new(1, 1, 1)
+espAllLabel.TextSize = 14
+espAllLabel.Font = Enum.Font.GothamBold
+espAllLabel.TextXAlignment = Enum.TextXAlignment.Left
+espAllLabel.TextYAlignment = Enum.TextYAlignment.Center
+espAllLabel.ZIndex = 512
+espAllLabel.Parent = mainFrame
 
-local gameButtonUIPadding = Instance.new("UIPadding")
-gameButtonUIPadding.PaddingLeft = UDim.new(0, 10)
-gameButtonUIPadding.Parent = gameButton
+local espAllButton = Instance.new("TextButton")
+espAllButton.Name = "ESPAllButton"
+espAllButton.Size = UDim2.fromOffset(60, 36)
+espAllButton.AnchorPoint = Vector2.new(1, 0)
+espAllButton.Position = UDim2.new(1, -10, 0, 46)
+espAllButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+espAllButton.BorderSizePixel = 0
+espAllButton.Text = "OFF"
+espAllButton.TextColor3 = Color3.new(1, 1, 1)
+espAllButton.TextSize = 13
+espAllButton.Font = Enum.Font.GothamBold
+espAllButton.ZIndex = 512
+espAllButton.Parent = mainFrame
 
-local gameButtonCorner = Instance.new("UICorner")
-gameButtonCorner.CornerRadius = UDim.new(0, 7)
-gameButtonCorner.Parent = gameButton
+local espAllButtonCorner = Instance.new("UICorner")
+espAllButtonCorner.CornerRadius = UDim.new(0, 7)
+espAllButtonCorner.Parent = espAllButton
 
-local featureButton = Instance.new("TextButton")
-featureButton.Name = "FeatureButton"
-featureButton.Size = UDim2.new(1, -10, 0, 40)
-featureButton.Position = UDim2.fromOffset(0, 55)
-featureButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-featureButton.TextColor3 = Color3.new(1, 1, 1)
-featureButton.Text = "Fitur"
-featureButton.TextSize = 18
-featureButton.TextXAlignment = Enum.TextXAlignment.Left
-featureButton.TextYAlignment = Enum.TextYAlignment.Center
-featureButton.Font = Enum.Font.GothamBold
-featureButton.ZIndex = 501
-featureButton.Parent = mainMenu
+-- ESP functions (copied from LocalScriptZxN)
 
-local featureButtonPadding = Instance.new("UIPadding")
-featureButtonPadding.PaddingLeft = UDim.new(0, 10)
-featureButtonPadding.Parent = featureButton
-
-local featureButtonCorner = Instance.new("UICorner")
-featureButtonCorner.CornerRadius = UDim.new(0, 7)
-featureButtonCorner.Parent = featureButton
-
-local RideAPetButton_
-local featurePanel
-local objectLineToggle
-local featureObjectInput
-
-gameButton.Activated:Connect(function()
-	gameOpen = true
-	subMenu.Visible = true
-	RideAPetButton_.Visible = true
-	featurePanel.Visible = false
-end)
-
-featureButton.Activated:Connect(function()
-	gameOpen = false
-	subMenu.Visible = true
-
-	-- Reset isi panel kanan lalu tampilkan kontrol Fitur.
-	RideAPetButton_.Visible = false
-	featurePanel.Visible = true
-	subMenu.CanvasPosition = Vector2.new(0, 0)
-
-	-- Matikan fitur line saat panel dibuka ulang.
-	if objectLineToggle then
-		objectLineToggle.Text = "OFF"
-		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
-end)
-
-RideAPetButton_ = Instance.new("TextButton")
-RideAPetButton_.Size = UDim2.new(1, -10, 0, 40)
-RideAPetButton_.Position = UDim2.fromOffset(5, 5)
-RideAPetButton_.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-RideAPetButton_.TextColor3 = Color3.new(1, 1, 1)
-RideAPetButton_.Text = "Ride A Pet"
-RideAPetButton_.TextSize = 18
-RideAPetButton_.Font = Enum.Font.GothamBold
-RideAPetButton_.ZIndex = 501
-RideAPetButton_.Parent = subMenu
-
-local gameButtonCorner = Instance.new("UICorner")
-gameButtonCorner.CornerRadius = UDim.new(0, 7)
-gameButtonCorner.Parent = RideAPetButton_
-
-featurePanel = Instance.new("Frame")
-featurePanel.Name = "FeaturePanel"
-featurePanel.Size = UDim2.new(1, 0, 1, 0)
-featurePanel.BackgroundTransparency = 1
-featurePanel.Visible = false
-featurePanel.ZIndex = 510
-featurePanel.Parent = subMenu
-
-local featureTitle = Instance.new("TextLabel")
-featureTitle.Size = UDim2.new(1, -10, 0, 30)
-featureTitle.Position = UDim2.fromOffset(5, 0)
-featureTitle.BackgroundTransparency = 1
-featureTitle.Text = "Fitur"
-featureTitle.TextColor3 = Color3.new(1, 1, 1)
-featureTitle.TextSize = 18
-featureTitle.Font = Enum.Font.GothamBold
-featureTitle.TextXAlignment = Enum.TextXAlignment.Left
-featureTitle.ZIndex = 511
-featureTitle.Parent = featurePanel
-
--- Control input dan tombol Line dibuat di panel Fitur.
-featureObjectInput = Instance.new("TextBox")
-featureObjectInput.Name = "ObjectCoordinateInput"
-featureObjectInput.Size = UDim2.new(0, 110, 0, 40)
-featureObjectInput.Position = UDim2.fromOffset(90, 40)
-featureObjectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-featureObjectInput.BorderSizePixel = 0
-featureObjectInput.Text = ""
-featureObjectInput.PlaceholderText = "P part / M model"
-featureObjectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-featureObjectInput.TextColor3 = Color3.new(1, 1, 1)
-featureObjectInput.TextSize = 13
-featureObjectInput.Font = Enum.Font.GothamBold
-featureObjectInput.ClearTextOnFocus = false
-featureObjectInput.TextXAlignment = Enum.TextXAlignment.Center
-featureObjectInput.ZIndex = 512
-featureObjectInput.Parent = featurePanel
-
-local featureObjectInputCorner = Instance.new("UICorner")
-featureObjectInputCorner.CornerRadius = UDim.new(0, 8)
-featureObjectInputCorner.Parent = featureObjectInput
-
-local featureObjectInputStroke = Instance.new("UIStroke")
-featureObjectInputStroke.Thickness = 2
-featureObjectInputStroke.Color = Color3.fromRGB(210, 210, 210)
-featureObjectInputStroke.Parent = featureObjectInput
-
-objectLineToggle = Instance.new("TextButton")
-objectLineToggle.Name = "ObjectLineToggle"
-objectLineToggle.Size = UDim2.new(0, 60, 0, 40)
-objectLineToggle.AnchorPoint = Vector2.new(1, 0)
-objectLineToggle.Position = UDim2.new(1, -5, 0, 40)
-objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-objectLineToggle.BorderSizePixel = 0
-objectLineToggle.Text = "OFF"
-objectLineToggle.TextColor3 = Color3.new(1, 1, 1)
-objectLineToggle.TextSize = 13
-objectLineToggle.Font = Enum.Font.GothamBold
-objectLineToggle.ZIndex = 512
-objectLineToggle.Parent = featurePanel
-
-local objectLineToggleCorner = Instance.new("UICorner")
-objectLineToggleCorner.CornerRadius = UDim.new(0, 8)
-objectLineToggleCorner.Parent = objectLineToggle
-
-local objectLineLabel = Instance.new("TextLabel")
-objectLineLabel.Name = "ObjectLineLabel"
-objectLineLabel.Size = UDim2.new(0, 80, 0, 40)
-objectLineLabel.Position = UDim2.fromOffset(5, 40)
-objectLineLabel.BackgroundTransparency = 1
-objectLineLabel.Text = "Line to Object"
-objectLineLabel.TextColor3 = Color3.new(1, 1, 1)
-objectLineLabel.TextSize = 12
-objectLineLabel.Font = Enum.Font.GothamBold
-objectLineLabel.TextXAlignment = Enum.TextXAlignment.Left
-objectLineLabel.TextYAlignment = Enum.TextYAlignment.Center
-objectLineLabel.ZIndex = 512
-objectLineLabel.Parent = featurePanel
-
--- ESP Proximity Prompt
-local proximityESPEnabled = false
-local proximityESPData = {}
-
-local proximityESPLabel = Instance.new("TextLabel")
-proximityESPLabel.Name = "ProximityESPLabel"
-proximityESPLabel.Size = UDim2.new(0, 130, 0, 36)
-proximityESPLabel.Position = UDim2.fromOffset(5, 140)
-proximityESPLabel.BackgroundTransparency = 1
-proximityESPLabel.Text = "ESP Proximity Prompt"
-proximityESPLabel.TextColor3 = Color3.new(1, 1, 1)
-proximityESPLabel.TextSize = 13
-proximityESPLabel.Font = Enum.Font.GothamBold
-proximityESPLabel.TextXAlignment = Enum.TextXAlignment.Left
-proximityESPLabel.TextYAlignment = Enum.TextYAlignment.Center
-proximityESPLabel.ZIndex = 512
-proximityESPLabel.Parent = featurePanel
-
-local proximityESPButton = Instance.new("TextButton")
-proximityESPButton.Name = "ProximityESPButton"
-proximityESPButton.Size = UDim2.fromOffset(60, 36)
-proximityESPButton.AnchorPoint = Vector2.new(1, 0)
-proximityESPButton.Position = UDim2.new(1, -5, 0, 140)
-proximityESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-proximityESPButton.BorderSizePixel = 0
-proximityESPButton.Text = "OFF"
-proximityESPButton.TextColor3 = Color3.new(1, 1, 1)
-proximityESPButton.TextSize = 12
-proximityESPButton.Font = Enum.Font.GothamBold
-proximityESPButton.ZIndex = 512
-proximityESPButton.Parent = featurePanel
-
-local proximityESPButtonCorner = Instance.new("UICorner")
-proximityESPButtonCorner.CornerRadius = UDim.new(0, 7)
-proximityESPButtonCorner.Parent = proximityESPButton
-
--- Link Features
-local linkFeatures = {
-	{ description = "Vertical Lock",         url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",     guiToHide = "VerticalLockGui" },
-	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToHide = "TorchOnHeadGui" },
-	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToHide = "AutoProximityPromptGui" },
-	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToHide = "CameraSettingViewGui" },
-	{ description = "PlayerTools",           url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToHide = "PlayerToolsGui" },
-}
-
-local LINK_FEATURE_BASE_Y = 190
-local LINK_FEATURE_STEP_Y = 50
-
-local function createLinkFeature(index, feature)
-	local yPosition = LINK_FEATURE_BASE_Y + (index - 1) * LINK_FEATURE_STEP_Y
-	local enabled = false
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 130, 0, 36)
-	label.Position = UDim2.fromOffset(5, yPosition)
-	label.BackgroundTransparency = 1
-	label.Text = feature.description
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextSize = 13
-	label.Font = Enum.Font.GothamBold
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextYAlignment = Enum.TextYAlignment.Center
-	label.ZIndex = 512
-	label.Parent = featurePanel
-
-	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(60, 36)
-	button.AnchorPoint = Vector2.new(1, 0)
-	button.Position = UDim2.new(1, -5, 0, yPosition)
-	button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	button.BorderSizePixel = 0
-	button.Text = "OFF"
-	button.TextColor3 = Color3.new(1, 1, 1)
-	button.TextSize = 12
-	button.Font = Enum.Font.GothamBold
-	button.ZIndex = 512
-	button.Parent = featurePanel
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 7)
-	corner.Parent = button
-
-	local function updateButton()
-		if enabled then
-			button.Text = "ON"
-			button.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-		else
-			button.Text = "OFF"
-			button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-		end
-	end
-
-	button.Activated:Connect(function()
-		enabled = not enabled
-		updateButton()
-
-		if enabled then
-			-- Periksa apakah GUI sudah ada sebelum membuat baru
-			local guiExists = false
-			if feature.guiToHide and playerGui then
-				for _, descendant in ipairs(playerGui:GetDescendants()) do
-					if descendant.Name == feature.guiToHide and descendant:IsA("GuiObject") then
-						descendant.Visible = true
-						guiExists = true
-					end
-				end
-			end
-
-			if not guiExists then
-				local success, result = pcall(function()
-					if type(loadstring) ~= "function" then
-						error("loadstring tidak tersedia di lingkungan ini")
-					end
-					if type(game.HttpGet) ~= "function" then
-						error("game:HttpGet tidak tersedia di lingkungan ini")
-					end
-					return loadstring(game:HttpGet(feature.url, true))()
-				end)
-
-				if not success then
-					warn("[ZxN] " .. feature.description .. " gagal dimuat: " .. tostring(result))
-					enabled = false
-					updateButton()
-				end
-			end
-		else
-			if feature.guiToHide and playerGui then
-				for _, descendant in ipairs(playerGui:GetDescendants()) do
-					if descendant.Name == feature.guiToHide and descendant:IsA("GuiObject") then
-						descendant.Visible = false
-					end
-				end
-			end
-		end
-	end)
+local function getPlayerESPRoot(other)
+	local character = other and other.Character
+	if not character then return nil end
+	return character:FindFirstChild("HumanoidRootPart")
 end
 
-for i, feature in ipairs(linkFeatures) do
-	createLinkFeature(i, feature)
+local function removePlayerESP(other)
+	local data = playerESPData[other]
+	if data and data.Billboard then
+		data.Billboard:Destroy()
+	end
+	playerESPData[other] = nil
 end
 
-local function getPromptAdornee(prompt)
-	if not prompt or not prompt.Parent then
-		return nil
-	end
+local function createPlayerESP(other)
+	if other == player or not playerESPEnabled then return end
+	local root = getPlayerESPRoot(other)
+	if not root then return end
 
-	local parent = prompt.Parent
-	if parent:IsA("BasePart") or parent:IsA("Model") or parent:IsA("Attachment") then
-		return parent
-	end
-
-	local basePart = parent:FindFirstAncestorWhichIsA("BasePart")
-	if basePart then
-		return basePart
-	end
-
-	return parent:FindFirstAncestorWhichIsA("Model")
-end
-
-local function clearProximityESP(prompt)
-	local data = proximityESPData[prompt]
-	if not data then
+	local data = playerESPData[other]
+	if data and data.Billboard and data.Billboard.Parent then
+		data.Billboard.Adornee = root
+		data.Billboard.Enabled = true
 		return
 	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "PlayerTools_PlayerESP"
+	billboard.Size = UDim2.fromOffset(260, 62)
+	billboard.StudsOffset = Vector3.new(0, 3.6, 0)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = math.huge
+	billboard.Adornee = root
+	billboard.Enabled = true
+	billboard.Parent = playerGui
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, 0, 0, 22)
+	nameLabel.Position = UDim2.fromOffset(0, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = tostring(other.DisplayName or other.Name)
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextSize = 17
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.Parent = billboard
+
+	local usernameLabel = Instance.new("TextLabel")
+	usernameLabel.Size = UDim2.new(1, 0, 0, 18)
+	usernameLabel.Position = UDim2.fromOffset(0, 20)
+	usernameLabel.BackgroundTransparency = 1
+	usernameLabel.Text = "@" .. tostring(other.Name)
+	usernameLabel.TextColor3 = Color3.fromRGB(225, 225, 225)
+	usernameLabel.TextStrokeTransparency = 0
+	usernameLabel.TextSize = 12
+	usernameLabel.Font = Enum.Font.Gotham
+	usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	usernameLabel.Parent = billboard
+
+	local distanceLabel = Instance.new("TextLabel")
+	distanceLabel.Size = UDim2.new(1, 0, 0, 18)
+	distanceLabel.Position = UDim2.fromOffset(0, 37)
+	distanceLabel.BackgroundTransparency = 1
+	distanceLabel.Text = "0 stud"
+	distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	distanceLabel.TextStrokeTransparency = 0
+	distanceLabel.TextSize = 12
+	distanceLabel.Font = Enum.Font.Gotham
+	distanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+	distanceLabel.Parent = billboard
+
+	playerESPData[other] = {
+		Billboard = billboard,
+		NameLabel = nameLabel,
+		UsernameLabel = usernameLabel,
+		DistanceLabel = distanceLabel,
+	}
+end
+
+local function clearPlayerESP()
+	for other, data in pairs(playerESPData) do
+		if data and data.Billboard then
+			data.Billboard:Destroy()
+		end
+		playerESPData[other] = nil
+	end
+end
+
+local function setPlayerESP(state)
+	playerESPEnabled = state
+	espAllButton.Text = state and "ON" or "OFF"
+	espAllButton.BackgroundColor3 = state
+		and Color3.fromRGB(40, 150, 70)
+		or Color3.fromRGB(180, 50, 50)
+
+	if not state then
+		clearPlayerESP()
+		return
+	end
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player then
+			createPlayerESP(other)
+		end
+	end
+end
+
+espAllButton.Activated:Connect(function()
+	setPlayerESP(not playerESPEnabled)
+end)
+
+Players.PlayerAdded:Connect(function(other)
+	if playerESPEnabled then
+		other.CharacterAdded:Connect(function()
+			task.wait(0.2)
+			if playerESPEnabled then
+				createPlayerESP(other)
+			end
+		end)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(other)
+	removePlayerESP(other)
+end)
+
+local function updatePlayerESP()
+	if not playerESPEnabled then return end
+	local myRoot = getPlayerESPRoot(player)
+	if not myRoot then return end
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player then
+			local root = getPlayerESPRoot(other)
+			if root then
+				createPlayerESP(other)
+				local data = playerESPData[other]
+				if data then
+					data.Billboard.Adornee = root
+					data.Billboard.Enabled = true
+					data.NameLabel.Text = other.DisplayName
+					data.UsernameLabel.Text = "@" .. other.Name
+					local distance = (myRoot.Position - root.Position).Magnitude
+					data.DistanceLabel.Text = string.format("%d stud", math.floor(distance + 0.5))
+				end
+			else
+				local data = playerESPData[other]
+				if data and data.Billboard then
+					data.Billboard.Enabled = false
+				end
+			end
+		end
+	end
+end
+
+-- ============================================================
+-- ESP SINGLE / PARTIAL PLAYER
+-- ============================================================
+
+local singleESPEnabled = false
+local singleESPData = {}
+local singleLineEnabled = false
+local singleBeams = {}
+local singleTargetParts = {}
+local currentSingleTargetName = nil
+
+-- Row: ESP Single/Partial Player
+local singleESPLabel = Instance.new("TextLabel")
+singleESPLabel.Name = "SingleESPLabel"
+singleESPLabel.Size = UDim2.new(0, 260, 0, 30)
+singleESPLabel.Position = UDim2.fromOffset(10, 88)
+singleESPLabel.BackgroundTransparency = 1
+singleESPLabel.Text = "ESP Single/Partial Player"
+singleESPLabel.TextColor3 = Color3.new(1, 1, 1)
+singleESPLabel.TextSize = 14
+singleESPLabel.Font = Enum.Font.GothamBold
+singleESPLabel.TextXAlignment = Enum.TextXAlignment.Left
+singleESPLabel.TextYAlignment = Enum.TextYAlignment.Center
+singleESPLabel.ZIndex = 512
+singleESPLabel.Parent = mainFrame
+
+local singleESPInput = Instance.new("TextBox")
+singleESPInput.Name = "SingleESPInput"
+singleESPInput.Size = UDim2.fromOffset(120, 36)
+singleESPInput.Position = UDim2.fromOffset(10, 122)
+singleESPInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+singleESPInput.BorderSizePixel = 0
+singleESPInput.Text = ""
+singleESPInput.PlaceholderText = "Partial name..."
+singleESPInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+singleESPInput.TextColor3 = Color3.new(1, 1, 1)
+singleESPInput.TextSize = 13
+singleESPInput.Font = Enum.Font.GothamBold
+singleESPInput.ClearTextOnFocus = false
+singleESPInput.TextXAlignment = Enum.TextXAlignment.Center
+singleESPInput.ZIndex = 512
+singleESPInput.Parent = mainFrame
+
+local singleInputCorner = Instance.new("UICorner")
+singleInputCorner.CornerRadius = UDim.new(0, 8)
+singleInputCorner.Parent = singleESPInput
+
+local singleInputStroke = Instance.new("UIStroke")
+singleInputStroke.Thickness = 2
+singleInputStroke.Color = Color3.fromRGB(210, 210, 210)
+singleInputStroke.Parent = singleESPInput
+
+local singleESPButton = Instance.new("TextButton")
+singleESPButton.Name = "SingleESPButton"
+singleESPButton.Size = UDim2.fromOffset(55, 36)
+singleESPButton.AnchorPoint = Vector2.new(1, 0)
+singleESPButton.Position = UDim2.new(1, -70, 0, 122)
+singleESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+singleESPButton.BorderSizePixel = 0
+singleESPButton.Text = "ESP"
+singleESPButton.TextColor3 = Color3.new(1, 1, 1)
+singleESPButton.TextSize = 12
+singleESPButton.Font = Enum.Font.GothamBold
+singleESPButton.ZIndex = 512
+singleESPButton.Parent = mainFrame
+
+local singleESPButtonCorner = Instance.new("UICorner")
+singleESPButtonCorner.CornerRadius = UDim.new(0, 7)
+singleESPButtonCorner.Parent = singleESPButton
+
+local singleLineButton = Instance.new("TextButton")
+singleLineButton.Name = "SingleLineButton"
+singleLineButton.Size = UDim2.fromOffset(55, 36)
+singleLineButton.AnchorPoint = Vector2.new(1, 0)
+singleLineButton.Position = UDim2.new(1, -10, 0, 122)
+singleLineButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+singleLineButton.BorderSizePixel = 0
+singleLineButton.Text = "Line"
+singleLineButton.TextColor3 = Color3.new(1, 1, 1)
+singleLineButton.TextSize = 12
+singleLineButton.Font = Enum.Font.GothamBold
+singleLineButton.ZIndex = 512
+singleLineButton.Parent = mainFrame
+
+local singleLineButtonCorner = Instance.new("UICorner")
+singleLineButtonCorner.CornerRadius = UDim.new(0, 7)
+singleLineButtonCorner.Parent = singleLineButton
+
+-- Single ESP functions
+
+local function findPlayersByName(targetName)
+	local results = {}
+	if not targetName then return results end
+
+	targetName = targetName:match("^%s*(.-)%s*$")
+	if targetName == "" then return results end
+
+	local wanted = string.lower(targetName)
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player and string.find(string.lower(other.Name), wanted, 1, true) then
+			table.insert(results, other)
+		end
+	end
+
+	return results
+end
+
+local function removeSingleESP(other)
+	local data = singleESPData[other]
+	if not data then return end
 
 	if data.Billboard then
 		data.Billboard:Destroy()
@@ -719,113 +427,74 @@ local function clearProximityESP(prompt)
 		data.Highlight:Destroy()
 	end
 
-	proximityESPData[prompt] = nil
+	singleESPData[other] = nil
 end
 
-local function getPromptTextInfo(prompt)
-	local objectText = tostring(prompt.ObjectText or "")
-	local actionText = tostring(prompt.ActionText or "")
-	local promptName = tostring(prompt.Name or "")
+local function createSingleESP(other)
+	if other == player or not singleESPEnabled then return end
+	local root = getPlayerESPRoot(other)
+	if not root then return end
 
-	-- ObjectText = properti teks objek utama; fallback ke Name jika kosong
-	local mainText = objectText ~= "" and objectText or promptName
-	if mainText == "" then
-		mainText = "ProximityPrompt"
-	end
-
-	return mainText, actionText, promptName, objectText
-end
-
-local function createProximityESP(prompt)
-	if not proximityESPEnabled or not prompt or not prompt:IsA("ProximityPrompt") then
-		return
-	end
-
-	if not prompt.Parent or not prompt.Enabled then
-		clearProximityESP(prompt)
-		return
-	end
-
-	local adornee = getPromptAdornee(prompt)
-	if not adornee then
-		clearProximityESP(prompt)
-		return
-	end
-
-	local mainText, actionText, promptName, objectText = getPromptTextInfo(prompt)
-
-	local data = proximityESPData[prompt]
+	local data = singleESPData[other]
 	if data and data.Billboard and data.Billboard.Parent and data.Highlight and data.Highlight.Parent then
-		data.Billboard.Adornee = adornee
-		data.Highlight.Adornee = adornee
+		data.Billboard.Adornee = root
 		data.Billboard.Enabled = true
+		data.Highlight.Adornee = other.Character
 		data.Highlight.Enabled = true
-		data.ObjectTextLabel.Text = mainText
-		data.ActionTextLabel.Text = actionText ~= "" and ("[" .. actionText .. "]") or ""
-		data.NameLabel.Text = (objectText ~= "" and promptName ~= "") and ("@" .. promptName) or ""
 		return
 	end
 
-	clearProximityESP(prompt)
+	removeSingleESP(other)
 
 	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "ZxN_ProximityESP"
+	billboard.Name = "PlayerTools_SingleESP"
 	billboard.Size = UDim2.fromOffset(260, 62)
-	billboard.StudsOffset = Vector3.new(0, 3.2, 0)
+	billboard.StudsOffset = Vector3.new(0, 3.6, 0)
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = math.huge
-	billboard.Adornee = adornee
+	billboard.Adornee = root
 	billboard.Enabled = true
 	billboard.Parent = playerGui
 
-	-- Baris 1: ObjectText (properti teks objek dari ProximityPrompt)
-	local objectTextLabel = Instance.new("TextLabel")
-	objectTextLabel.Name = "ObjectText"
-	objectTextLabel.Size = UDim2.new(1, 0, 0, 22)
-	objectTextLabel.Position = UDim2.fromOffset(0, 0)
-	objectTextLabel.BackgroundTransparency = 1
-	objectTextLabel.Text = mainText
-	objectTextLabel.TextColor3 = Color3.new(1, 1, 1)
-	objectTextLabel.TextStrokeTransparency = 0
-	objectTextLabel.TextSize = 16
-	objectTextLabel.Font = Enum.Font.GothamBold
-	objectTextLabel.TextXAlignment = Enum.TextXAlignment.Center
-	objectTextLabel.TextYAlignment = Enum.TextYAlignment.Center
-	objectTextLabel.Parent = billboard
-
-	-- Baris 2: ActionText (properti ActionText dari ProximityPrompt)
-	local actionTextLabel = Instance.new("TextLabel")
-	actionTextLabel.Name = "ActionText"
-	actionTextLabel.Size = UDim2.new(1, 0, 0, 18)
-	actionTextLabel.Position = UDim2.fromOffset(0, 20)
-	actionTextLabel.BackgroundTransparency = 1
-	actionTextLabel.Text = actionText ~= "" and ("[" .. actionText .. "]") or ""
-	actionTextLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
-	actionTextLabel.TextStrokeTransparency = 0
-	actionTextLabel.TextSize = 13
-	actionTextLabel.Font = Enum.Font.Gotham
-	actionTextLabel.TextXAlignment = Enum.TextXAlignment.Center
-	actionTextLabel.TextYAlignment = Enum.TextYAlignment.Center
-	actionTextLabel.Parent = billboard
-
-	-- Baris 3: Instance Name (jika ObjectText terisi)
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "PromptName"
-	nameLabel.Size = UDim2.new(1, 0, 0, 18)
-	nameLabel.Position = UDim2.fromOffset(0, 37)
+	nameLabel.Size = UDim2.new(1, 0, 0, 22)
+	nameLabel.Position = UDim2.fromOffset(0, 0)
 	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = (objectText ~= "" and promptName ~= "") and ("@" .. promptName) or ""
-	nameLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	nameLabel.Text = tostring(other.DisplayName or other.Name)
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.TextStrokeTransparency = 0
-	nameLabel.TextSize = 12
-	nameLabel.Font = Enum.Font.Gotham
+	nameLabel.TextSize = 17
+	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
-	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
 	nameLabel.Parent = billboard
 
+	local usernameLabel = Instance.new("TextLabel")
+	usernameLabel.Size = UDim2.new(1, 0, 0, 18)
+	usernameLabel.Position = UDim2.fromOffset(0, 20)
+	usernameLabel.BackgroundTransparency = 1
+	usernameLabel.Text = "@" .. tostring(other.Name)
+	usernameLabel.TextColor3 = Color3.fromRGB(225, 225, 225)
+	usernameLabel.TextStrokeTransparency = 0
+	usernameLabel.TextSize = 12
+	usernameLabel.Font = Enum.Font.Gotham
+	usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	usernameLabel.Parent = billboard
+
+	local distanceLabel = Instance.new("TextLabel")
+	distanceLabel.Size = UDim2.new(1, 0, 0, 18)
+	distanceLabel.Position = UDim2.fromOffset(0, 37)
+	distanceLabel.BackgroundTransparency = 1
+	distanceLabel.Text = "0 stud"
+	distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	distanceLabel.TextStrokeTransparency = 0
+	distanceLabel.TextSize = 12
+	distanceLabel.Font = Enum.Font.Gotham
+	distanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+	distanceLabel.Parent = billboard
+
 	local highlight = Instance.new("Highlight")
-	highlight.Name = "ZxN_ProximityHighlight"
-	highlight.Adornee = adornee
+	highlight.Name = "PlayerTools_SingleHighlight"
+	highlight.Adornee = other.Character
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.FillColor = Color3.fromRGB(80, 170, 255)
 	highlight.FillTransparency = 0.72
@@ -834,968 +503,133 @@ local function createProximityESP(prompt)
 	highlight.Enabled = true
 	highlight.Parent = gui
 
-	proximityESPData[prompt] = {
+	singleESPData[other] = {
 		Billboard = billboard,
 		Highlight = highlight,
-		ObjectTextLabel = objectTextLabel,
-		ActionTextLabel = actionTextLabel,
 		NameLabel = nameLabel,
+		UsernameLabel = usernameLabel,
+		DistanceLabel = distanceLabel,
 	}
 end
 
-local function clearAllProximityESP()
-	for prompt in pairs(proximityESPData) do
-		clearProximityESP(prompt)
+local function clearSingleESP()
+	for other in pairs(singleESPData) do
+		removeSingleESP(other)
 	end
 end
 
-local function scanProximityESP()
-	if not proximityESPEnabled then
-		return
+local function applySingleESP()
+	if not singleESPEnabled then return end
+
+	local name = singleESPInput.Text:match("^%s*(.-)%s*$")
+	if name == "" then return end
+
+	currentSingleTargetName = name
+
+	-- Remove ESP from players that no longer match
+	local targets = findPlayersByName(name)
+	local targetSet = {}
+	for _, other in ipairs(targets) do
+		targetSet[other] = true
 	end
 
-	local seen = {}
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("ProximityPrompt") then
-			seen[obj] = true
-			createProximityESP(obj)
+	for other in pairs(singleESPData) do
+		if not targetSet[other] then
+			removeSingleESP(other)
 		end
 	end
 
-	for prompt in pairs(proximityESPData) do
-		if not seen[prompt] or not prompt.Parent or not prompt.Enabled then
-			clearProximityESP(prompt)
-		end
+	-- Create ESP for newly matched players
+	for _, other in ipairs(targets) do
+		createSingleESP(other)
 	end
 end
 
-local function setProximityESP(state)
-	proximityESPEnabled = state
-	proximityESPButton.Text = state and "ON" or "OFF"
-	proximityESPButton.BackgroundColor3 = state
+local function setSingleESP(state)
+	singleESPEnabled = state
+	singleESPButton.Text = state and "ON" or "ESP"
+	singleESPButton.BackgroundColor3 = state
 		and Color3.fromRGB(40, 150, 70)
 		or Color3.fromRGB(180, 50, 50)
 
 	if not state then
-		clearAllProximityESP()
+		clearSingleESP()
 		return
 	end
 
-	scanProximityESP()
+	applySingleESP()
 end
 
-proximityESPButton.Activated:Connect(function()
-	setProximityESP(not proximityESPEnabled)
+singleESPButton.Activated:Connect(function()
+	setSingleESP(not singleESPEnabled)
 end)
 
-workspace.DescendantAdded:Connect(function(obj)
-	if proximityESPEnabled and obj:IsA("ProximityPrompt") then
-		task.defer(createProximityESP, obj)
-	end
-end)
-
-workspace.DescendantRemoving:Connect(function(obj)
-	if obj:IsA("ProximityPrompt") then
-		clearProximityESP(obj)
+singleESPInput.FocusLost:Connect(function()
+	if singleESPEnabled then
+		applySingleESP()
 	end
 end)
 
-proximityESPButton:GetPropertyChangedSignal("Text"):Connect(function()
-	if proximityESPEnabled then
-		scanProximityESP()
+singleESPInput:GetPropertyChangedSignal("Text"):Connect(function()
+	if singleESPEnabled then
+		applySingleESP()
 	end
 end)
 
-task.spawn(function()
-	while proximityESPButton and proximityESPButton.Parent do
-		task.wait(0.5)
-		if proximityESPEnabled then
-			scanProximityESP()
-		end
-	end
-	clearAllProximityESP()
-end)
-
--- Control frame
-local frameRideAPet = Instance.new("Frame")
-frameRideAPet.Name = "ControlFrame"
-frameRideAPet.Size = UDim2.fromOffset(190, 220)
-frameRideAPet.Position = UDim2.new(0.5, -95, 0.5, -110)
-frameRideAPet.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-frameRideAPet.BorderSizePixel = 0
-frameRideAPet.Visible = false
-frameRideAPet.ZIndex = 600
-frameRideAPet.Parent = gui
-
-local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 10)
-frameCorner.Parent = frameRideAPet
-
-local frameStroke = Instance.new("UIStroke")
-frameStroke.Thickness = 1
-frameStroke.Color = Color3.fromRGB(100, 100, 100)
-frameStroke.Parent = frameRideAPet
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -105, 0, 32)
-title.Position = UDim2.fromOffset(38, 0)
-title.BackgroundTransparency = 1
-title.Text = "Ride A Pet"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 17
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Active = true
-title.ZIndex = 601
-title.Parent = frameRideAPet
-
-
-local backButton = Instance.new("TextButton")
-backButton.Size = UDim2.fromOffset(30, 30)
-backButton.Position = UDim2.fromOffset(2, 1)
-backButton.BackgroundTransparency = 1
-backButton.Text = "‹"
-backButton.TextColor3 = Color3.new(1, 1, 1)
-backButton.TextSize = 28
-backButton.Font = Enum.Font.GothamBold
-backButton.ZIndex = 602
-backButton.Parent = frameRideAPet
-
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.fromOffset(30, 30)
-closeButton.Position = UDim2.new(1, -65, 0, 1)
-closeButton.BackgroundTransparency = 1
-closeButton.Text = "×"
-closeButton.TextColor3 = Color3.new(1, 1, 1)
-closeButton.TextSize = 25
-closeButton.Font = Enum.Font.GothamBold
-closeButton.ZIndex = 602
-closeButton.Parent = frameRideAPet
-
--- Teleport
-local teleportButton = Instance.new("TextButton")
-teleportButton.Name = "TeleportButton"
-teleportButton.Size = UDim2.new(1, -20, 0, 38)
-teleportButton.Position = UDim2.fromOffset(10, 38)
-teleportButton.BackgroundColor3 = Color3.fromRGB(60, 100, 180)
-teleportButton.TextColor3 = Color3.new(1, 1, 1)
-teleportButton.Text = "Teleport"
-teleportButton.TextSize = 16
-teleportButton.Font = Enum.Font.GothamBold
-teleportButton.ZIndex = 601
-teleportButton.Visible = false
-teleportButton.Parent = frameRideAPet
-
-local teleportCorner = Instance.new("UICorner")
-teleportCorner.CornerRadius = UDim.new(0, 7)
-teleportCorner.Parent = teleportButton
-
-local teleportFrame = Instance.new("Frame")
-teleportFrame.Name = "TeleportFrame"
-teleportFrame.Size = UDim2.fromOffset(210, 240)
-teleportFrame.Position = UDim2.new(0.5, -105, 0.5, -120)
-teleportFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-teleportFrame.BorderSizePixel = 0
-teleportFrame.Visible = false
-teleportFrame.ZIndex = 700
-teleportFrame.Parent = gui
-
-local teleportFrameCorner = Instance.new("UICorner")
-teleportFrameCorner.CornerRadius = UDim.new(0, 10)
-teleportFrameCorner.Parent = teleportFrame
-
-local teleportFrameStroke = Instance.new("UIStroke")
-teleportFrameStroke.Thickness = 1
-teleportFrameStroke.Color = Color3.fromRGB(100, 100, 100)
-teleportFrameStroke.Parent = teleportFrame
-
-local teleportTitle = Instance.new("TextLabel")
-teleportTitle.Size = UDim2.new(1, -70, 0, 34)
-teleportTitle.Position = UDim2.fromOffset(38, 0)
-teleportTitle.BackgroundTransparency = 1
-teleportTitle.Text = "Teleport Egg"
-teleportTitle.TextColor3 = Color3.new(1, 1, 1)
-teleportTitle.TextSize = 17
-teleportTitle.Font = Enum.Font.GothamBold
-teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
-teleportTitle.ZIndex = 701
-teleportTitle.Parent = teleportFrame
-
-local teleportBack = Instance.new("TextButton")
-teleportBack.Size = UDim2.fromOffset(30, 30)
-teleportBack.Position = UDim2.fromOffset(2, 1)
-teleportBack.BackgroundTransparency = 1
-teleportBack.Text = "‹"
-teleportBack.TextColor3 = Color3.new(1, 1, 1)
-teleportBack.TextSize = 28
-teleportBack.Font = Enum.Font.GothamBold
-teleportBack.ZIndex = 702
-teleportBack.Parent = teleportFrame
-
-local teleportClose = Instance.new("TextButton")
-teleportClose.Size = UDim2.fromOffset(30, 30)
-teleportClose.Position = UDim2.new(1, -35, 0, 1)
-teleportClose.BackgroundTransparency = 1
-teleportClose.Text = "×"
-teleportClose.TextColor3 = Color3.new(1, 1, 1)
-teleportClose.TextSize = 25
-teleportClose.Font = Enum.Font.GothamBold
-teleportClose.ZIndex = 702
-teleportClose.Parent = teleportFrame
-
-local teleportList = Instance.new("ScrollingFrame")
-teleportList.Name = "EggList"
-teleportList.Size = UDim2.new(1, -20, 1, -48)
-teleportList.Position = UDim2.fromOffset(10, 40)
-teleportList.BackgroundTransparency = 1
-teleportList.BorderSizePixel = 0
-teleportList.ScrollBarThickness = 4
-teleportList.CanvasSize = UDim2.new()
-teleportList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-teleportList.ZIndex = 701
-teleportList.Parent = teleportFrame
-
-local teleportLayout = Instance.new("UIListLayout")
-teleportLayout.Padding = UDim.new(0, 7)
-teleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
-teleportLayout.Parent = teleportList
-
--- Server hop button
-local serverButton = Instance.new("TextButton")
-serverButton.Name = "ServerButton"
-serverButton.AnchorPoint = Vector2.new(0.5, 0.5)
-serverButton.Size = UDim2.fromOffset(80, 40)
-serverButton.Position = UDim2.new(0.95, -20, -0.05, -10)
-serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-serverButton.BorderSizePixel = 0
-serverButton.Text = "Server"
-serverButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-serverButton.TextSize = 14
-serverButton.Font = Enum.Font.GothamBold
-serverButton.AutoButtonColor = true
-serverButton.Active = true
-serverButton.ZIndex = 1000
-serverButton.Parent = gui
-
-local serverCorner = Instance.new("UICorner")
-serverCorner.CornerRadius = UDim.new(1, 0)
-serverCorner.Parent = serverButton
-
-local serverStroke = Instance.new("UIStroke")
-serverStroke.Thickness = 2
-serverStroke.Color = Color3.fromRGB(210, 210, 210)
-serverStroke.Parent = serverButton
-
--- Server hop bubble
-local serverBubble = Instance.new("Frame")
-serverBubble.Name = "ServerBubble"
-serverBubble.Size = UDim2.fromOffset(155, 42)
-serverBubble.Position = UDim2.new(0.9, -117, -0.05, 28)
-serverBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-serverBubble.BorderSizePixel = 0
-serverBubble.Visible = false
-serverBubble.ZIndex = 1100
-serverBubble.Parent = gui
-
-local serverBubbleCorner = Instance.new("UICorner")
-serverBubbleCorner.CornerRadius = UDim.new(0, 10)
-serverBubbleCorner.Parent = serverBubble
-
-local serverBubbleStroke = Instance.new("UIStroke")
-serverBubbleStroke.Thickness = 1
-serverBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
-serverBubbleStroke.Parent = serverBubble
-
-local serverBubbleArrow = Instance.new("Frame")
-serverBubbleArrow.Size = UDim2.fromOffset(14, 14)
-serverBubbleArrow.Position = UDim2.new(1, -30, 0, -7)
-serverBubbleArrow.Rotation = 45
-serverBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-serverBubbleArrow.BorderSizePixel = 0
-serverBubbleArrow.ZIndex = 1099
-serverBubbleArrow.Parent = serverBubble
-
-local serverBubbleText = Instance.new("TextLabel")
-serverBubbleText.Size = UDim2.new(1, -12, 1, -8)
-serverBubbleText.Position = UDim2.fromOffset(6, 4)
-serverBubbleText.BackgroundTransparency = 1
-serverBubbleText.Text = "Hold to Server Hop"
-serverBubbleText.TextColor3 = Color3.new(1, 1, 1)
-serverBubbleText.TextSize = 13
-serverBubbleText.Font = Enum.Font.GothamBold
-serverBubbleText.ZIndex = 1101
-serverBubbleText.Parent = serverBubble
-
-local function getSpecialEggModel(eggName)
-	findRenderedEggs()
-	if not renderedEggs or not renderedEggs.Parent then
-		return nil
-	end
-
-	for _, model in ipairs(renderedEggs:GetChildren()) do
-		if model:IsA("Model") and model.Name == eggName then
-			return model
-		end
-	end
-
-	return nil
-end
-
-local function teleportToEgg(model)
-	if not model or not model.Parent then
-		return
-	end
-
-	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-
-	if not root then
-		return
-	end
-
-	local pivot = model:GetPivot()
-	root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 3, 0))
-
-	teleportFrame.Visible = false
-end
-
-local lastTeleportKey = nil
-
-local function updateTeleportList()
-	local found = {}
-	local keyParts = {}
-
-	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
-		local model = getSpecialEggModel(eggName)
-
-		if model then
-			found[eggName] = model
-			table.insert(keyParts, eggName .. ":" .. model:GetDebugId())
-		end
-	end
-
-	local key = table.concat(keyParts, "|")
-
-	teleportButton.Visible = not minimized and key ~= ""
-
-	if key == lastTeleportKey then
-		return
-	end
-
-	lastTeleportKey = key
-
-	for _, child in ipairs(teleportList:GetChildren()) do
-		if child:IsA("TextButton") then
-			child:Destroy()
-		end
-	end
-
-	local order = 0
-
-	for _, eggName in ipairs({"Cherub Egg", "Blackhole Egg", "Galaxy Egg"}) do
-		local model = found[eggName]
-
-		if model then
-			order += 1
-
-			local button = Instance.new("TextButton")
-			button.Name = eggName:gsub("%s+", "")
-			button.Size = UDim2.new(1, -4, 0, 42)
-			button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-			button.BorderSizePixel = 0
-			button.Text = eggName
-			button.TextColor3 = Color3.new(1, 1, 1)
-			button.TextSize = 15
-			button.Font = Enum.Font.GothamBold
-			button.LayoutOrder = order
-			button.ZIndex = 702
-			button.Parent = teleportList
-
-			local corner = Instance.new("UICorner")
-			corner.CornerRadius = UDim.new(0, 7)
-			corner.Parent = button
-
-			button.Activated:Connect(function()
-				teleportToEgg(model)
-			end)
-		end
-	end
-
-	if order == 0 then
-		teleportFrame.Visible = false
-	end
-end
-
-local function getHumanoid()
-	local character = player.Character
-
-	if not character then
-		return nil
-	end
-
-	return character:FindFirstChildOfClass("Humanoid")
-end
-
-local function readSpeed()
-	return speed
-end
-
-local function updateSpeedButton()
-	if speedEnabled then
-		-- ON
-		speedToggle.BackgroundColor3 = Color3.fromRGB(35, 200, 65)
-		speedToggle.Text = "ON"
-		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-		speedToggle.TextXAlignment = Enum.TextXAlignment.Left
-
-		speedPadding.PaddingLeft = UDim.new(0, 15)
-		speedPadding.PaddingRight = UDim.new(0, 0)
-
-		speedKnob.Position = UDim2.new(
-			1, -36,
-			0.5, -16
-		)
-	else
-		-- OFF
-		speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
-		speedToggle.Text = "OFF"
-		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-		speedToggle.TextXAlignment = Enum.TextXAlignment.Right
-
-		speedPadding.PaddingLeft = UDim.new(0, 0)
-		speedPadding.PaddingRight = UDim.new(0, 15)
-
-		speedKnob.Position = UDim2.new(
-			0, 4,
-			0.5, -16
-		)
-	end
-end
-
-local function enableSpeed()
-	local humanoid = getHumanoid()
-
-	if not humanoid then
-		return
-	end
-
-	-- Simpan speed asli tepat saat ON ditekan
-	originalSpeed = humanoid.WalkSpeed
-
-	readSpeed()
-
-	humanoid.WalkSpeed = speed
-	speedEnabled = true
-
-	updateSpeedButton()
-end
-
-local function disableSpeed()
-	local humanoid = getHumanoid()
-
-	if not humanoid then
-		return
-	end
-
-	if originalSpeed ~= nil then
-		humanoid.WalkSpeed = originalSpeed
-	end
-
-	speedEnabled = false
-	originalSpeed = nil
-
-	updateSpeedButton()
-end
-
--- Main menu
-trigger.Activated:Connect(function()
-	menuOpen = not menuOpen
-	menuFrame.Visible = menuOpen
-	frameRideAPet.Visible = false
-
-	if not menuOpen then
-		frameRideAPet.Visible = false
-		teleportFrame.Visible = false
-		frameOpen = false
+Players.PlayerRemoving:Connect(function(other)
+	removeSingleESP(other)
+	if singleLineEnabled and currentSingleTargetName then
+		createSingleLines(currentSingleTargetName)
 	end
 end)
 
-mainCloseButton.Activated:Connect(function()
-	menuFrame.Visible = false
-	menuOpen = false
-	frameRideAPet.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
-end)
-
-RideAPetButton_.Activated:Connect(function()
-	local RIDE_A_PET_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet"
-
-	local success, result = pcall(function()
-		if type(loadstring) ~= "function" then
-			error("loadstring tidak tersedia di lingkungan ini")
-		end
-		if type(game.HttpGet) ~= "function" then
-			error("game:HttpGet tidak tersedia di lingkungan ini")
-		end
-		return loadstring(game:HttpGet(RIDE_A_PET_URL, true))()
-	end)
-
-	if not success then
-		warn("[ZxN] Ride A Pet gagal dimuat: " .. tostring(result))
-	end
-
-	-- Tutup menu setelah eksekusi
-	menuFrame.Visible = false
-	menuOpen = false
-	frameRideAPet.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
-end)
-
-teleportButton.Activated:Connect(function()
-	updateTeleportList()
-	teleportFrame.Visible = true
-	frameRideAPet.Visible = false
-end)
-
-teleportBack.Activated:Connect(function()
-	teleportFrame.Visible = false
-	frameRideAPet.Visible = true
-	updateTeleportList()
-end)
-
-teleportClose.Activated:Connect(function()
-	teleportFrame.Visible = false
-end)
-
-backButton.Activated:Connect(function()
-	frameRideAPet.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
-
-	menuFrame.Visible = true
-	menuOpen = true
-end)
-
-closeButton.Activated:Connect(function()
-	frameRideAPet.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
-	menuFrame.Visible = false
-	menuOpen = false
-end)
-
-local function showServerBubble()
-	serverBubble.Visible = true
-end
-
-local function hideServerBubble()
-	serverBubble.Visible = false
-end
-
--- URL script untuk dijalankan lagi setelah teleport jika executor mendukung queue-on-teleport
-local AUTO_EXEC_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ZxN"
-local HOLD_TIME = 1
-local hopping = false
-local holdingServer = false
-local holdToken = 0
-
-local function queueScriptAfterTeleport()
-	local code = 'loadstring(game:HttpGet("' .. AUTO_EXEC_URL .. '", true))()'
-
-	local queueFunctions = {
-		function()
-			if typeof(queue_on_teleport) == "function" then
-				queue_on_teleport(code)
-				return true
+Players.PlayerAdded:Connect(function(other)
+	if singleESPEnabled and currentSingleTargetName then
+		other.CharacterAdded:Connect(function()
+			task.wait(0.2)
+			if singleESPEnabled and currentSingleTargetName then
+				applySingleESP()
 			end
-		end,
-		function()
-			if typeof(queueonteleport) == "function" then
-				queueonteleport(code)
-				return true
-			end
-		end,
-		function()
-			if typeof(syn) == "table" and typeof(syn.queue_on_teleport) == "function" then
-				syn.queue_on_teleport(code)
-				return true
-			end
-		end,
-	}
-
-	for _, tryQueue in ipairs(queueFunctions) do
-		local ok, queued = pcall(tryQueue)
-		if ok and queued then
-			return true
-		end
-	end
-
-	return false
-end
-
-local function cancelServerHold()
-	holdingServer = false
-	holdToken += 0.5
-	serverButton.Text = "Server"
-	serverButton.AutoButtonColor = true
-	hideServerBubble()
-end
-
-local function performServerHop()
-	if hopping then
-		return
-	end
-
-	hopping = true
-	hideServerBubble()
-	serverButton.Text = "Hop..."
-	serverButton.AutoButtonColor = false
-
-	local queued = queueScriptAfterTeleport()
-
-	local success, result = pcall(function()
-		local HttpService = game:GetService("HttpService")
-		local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-		local response
-
-		if typeof(request) == "function" then
-			local req = request({Url = url, Method = "GET"})
-			response = req.Body
-		elseif typeof(http_request) == "function" then
-			local req = http_request({Url = url, Method = "GET"})
-			response = req.Body
-		elseif typeof(syn) == "table" and typeof(syn.request) == "function" then
-			local req = syn.request({Url = url, Method = "GET"})
-			response = req.Body
-		else
-			response = game:HttpGet(url)
-		end
-
-		return HttpService:JSONDecode(response)
-	end)
-
-	if success and result and result.data then
-		local candidates = {}
-
-		for _, server in ipairs(result.data) do
-			if server.id ~= game.JobId and server.playing < server.maxPlayers then
-				table.insert(candidates, server.id)
-			end
-		end
-
-		if #candidates > 0 then
-			local target = candidates[math.random(1, #candidates)]
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, target, player)
-			return
-		end
-	end
-
-	serverButton.Text = queued and "No Server" or "No Queue"
-	task.wait(1)
-	serverButton.Text = "Server"
-	serverButton.AutoButtonColor = true
-	hopping = false
-end
-
-local function beginServerHold()
-	if hopping or holdingServer then
-		return
-	end
-
-	holdingServer = true
-	showServerBubble()
-	holdToken += 1
-	local token = holdToken
-	local startTime = os.clock()
-
-	task.spawn(function()
-		while holdingServer and token == holdToken do
-			local elapsed = os.clock() - startTime
-			local remaining = HOLD_TIME - elapsed
-
-			if remaining <= 0 then
-				holdingServer = false
-				performServerHop()
-				return
-			end
-
-			serverButton.Text = string.format("%.1f", remaining)
-			task.wait(0.03)
-		end
-	end)
-end
-
-serverButton.InputBegan:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		beginServerHold()
+		end)
 	end
 end)
 
-serverButton.InputEnded:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		if holdingServer then
-			cancelServerHold()
-		end
-	end
-end)
+-- ============================================================
+-- SINGLE PLAYER LINE (BEAM)
+-- ============================================================
 
--- Speed toggle: tap = ON/OFF, hold 1 second = change speed
-speedToggle.InputBegan:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		beginSpeedHold()
-	end
-end)
-
-speedToggle.InputEnded:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		if speedHolding then
-			cancelSpeedHold()
-
-			if speedEnabled then
-				disableSpeed()
-			else
-				enableSpeed()
-			end
-		end
-	end
-end)
-
-speedInput.FocusLost:Connect(function()
-	local number = tonumber(speedInput.Text)
-
-	if number and number >= 0 then
-		speed = number
-		speedInput.Text = ""
-
-		if speedEnabled then
-			local humanoid = getHumanoid()
-			if humanoid then
-				humanoid.WalkSpeed = speed
-			end
-		end
-	else
-		speedInput.Text = ""
-	end
-
-	hideSpeedBubble()
-end)
-
--- Drag helper
-local function makeDraggable(object)
-	local dragging = false
-	local dragStart
-	local startPosition
-
-	object.InputBegan:Connect(function(inputObject)
-		if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-			or inputObject.UserInputType == Enum.UserInputType.Touch then
-
-			dragging = true
-			dragStart = inputObject.Position
-			startPosition = object.Position
-		end
-	end)
-
-	object.InputChanged:Connect(function(inputObject)
-		if inputObject.UserInputType == Enum.UserInputType.MouseMovement
-			or inputObject.UserInputType == Enum.UserInputType.Touch then
-
-			if dragging then
-				local delta = inputObject.Position - dragStart
-
-				object.Position = UDim2.new(
-					startPosition.X.Scale,
-					startPosition.X.Offset + delta.X,
-					startPosition.Y.Scale,
-					startPosition.Y.Offset + delta.Y
-				)
-			end
-		end
-	end)
-
-	UserInputService.InputEnded:Connect(function(inputObject)
-		if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-			or inputObject.UserInputType == Enum.UserInputType.Touch then
-
-			dragging = false
-		end
-	end)
-end
-
-makeDraggable(trigger)
-
--- Instant ProximityPrompt
-local function makePromptInstant(prompt)
-	if prompt:IsA("ProximityPrompt") then
-		prompt.HoldDuration = 0
-	end
-end
-
-for _, obj in ipairs(workspace:GetDescendants()) do
-	makePromptInstant(obj)
-end
-
-workspace.DescendantAdded:Connect(function(obj)
-	makePromptInstant(obj)
-end)
-
--- Character respawn
-player.CharacterAdded:Connect(function(character)
-	local humanoid = character:WaitForChild("Humanoid")
-
-	originalSpeed = humanoid.WalkSpeed
-	speedEnabled = false
-
-	updateSpeedButton()
-end)
-
--- Update loop
-task.spawn(function()
-	while true do
-		task.wait(0.05)
-
-		updateTeleportList()
-	end
-end)
-
-updateSpeedButton()
-updateTeleportList()
-
--- OBJECT LINE / FITUR LINE
-local objectInput = featureObjectInput
-local objectLineEnabled = false
-
-local objectBeams = {}
-local objectTargetParts = {}
-local objectStartAttachments = {}
-local objectHighlights = {}
-local currentTargetType = nil
-local currentTargetName = nil
-
-local function getObjectPosition(object)
-	if not object or not object.Parent then
-		return nil
-	end
-
-	if object:IsA("BasePart") then
-		return object.Position
-	end
-
-	if object:IsA("Model") then
-		return object:GetPivot().Position
-	end
-
-	return nil
-end
-
-local function clearObjectLines()
-	for _, beam in ipairs(objectBeams) do
+local function clearSingleLines()
+	for _, beam in ipairs(singleBeams) do
 		if beam and beam.Parent then
 			beam:Destroy()
 		end
 	end
-	table.clear(objectBeams)
+	table.clear(singleBeams)
 
-	for _, data in ipairs(objectTargetParts) do
+	for _, data in ipairs(singleTargetParts) do
 		if data.part and data.part.Parent then
 			data.part:Destroy()
 		end
 	end
-	table.clear(objectTargetParts)
-
-	for _, attachment in ipairs(objectStartAttachments) do
-		if attachment and attachment.Parent then
-			attachment:Destroy()
-		end
-	end
-	table.clear(objectStartAttachments)
-
-	for _, highlight in ipairs(objectHighlights) do
-		if highlight and highlight.Parent then highlight:Destroy() end
-	end
-	table.clear(objectHighlights)
+	table.clear(singleTargetParts)
 end
 
--- P = BasePart, M = Model.
--- Pencarian case-insensitive dan partial/contains:
--- "m cherub" -> "Cherub Egg"
--- "p part"  -> semua BasePart yang namanya mengandung "part"
-local function findObjects(targetType, targetName)
-	local results = {}
+local function createSingleLines(targetName)
+	clearSingleLines()
 
-	if not targetType or not targetName then
-		return results
-	end
+	if not singleLineEnabled then return end
 
-	targetName = targetName:match("^%s*(.-)%s*$")
-	if targetName == "" then
-		return results
-	end
+	local rootPart = getPlayerESPRoot(player)
+	if not rootPart then return end
 
-	local wanted = string.lower(targetName)
+	local targets = findPlayersByName(targetName)
 
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		local typeMatches =
-			(targetType == "P" and obj:IsA("BasePart"))
-			or (targetType == "M" and obj:IsA("Model"))
+	for _, other in ipairs(targets) do
+		local targetRoot = getPlayerESPRoot(other)
 
-		if typeMatches and string.find(string.lower(obj.Name), wanted, 1, true) then
-			table.insert(results, obj)
-		end
-	end
-
-	return results
-end
-
-local function getRootPart()
-	local character = player.Character
-	if not character then
-		return nil
-	end
-
-	return character:FindFirstChild("HumanoidRootPart")
-end
-
-local function createObjectLines(targetType, targetName)
-	clearObjectLines()
-
-	if not objectLineEnabled then
-		return
-	end
-
-	local rootPart = getRootPart()
-	if not rootPart then
-		return
-	end
-
-	local targets = findObjects(targetType, targetName)
-	if #targets == 0 then
-		return
-	end
-
-	for _, target in ipairs(targets) do
-		local position = getObjectPosition(target)
-
-		if position then
-			local highlight = Instance.new("Highlight")
-			highlight.Name = "ZxN_ObjectLineHighlight"
-			highlight.Adornee = target
-			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-			highlight.FillColor = Color3.fromRGB(255, 220, 60)
-			highlight.FillTransparency = 0.72
-			highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-			highlight.OutlineTransparency = 0
-			highlight.Parent = gui
-			table.insert(objectHighlights, highlight)
-
+		if targetRoot then
 			local targetPart = Instance.new("Part")
-			targetPart.Name = "ObjectLineTarget"
+			targetPart.Name = "SingleLineTarget"
 			targetPart.Anchored = true
 			targetPart.CanCollide = false
 			targetPart.CanTouch = false
@@ -1803,19 +637,19 @@ local function createObjectLines(targetType, targetName)
 			targetPart.CastShadow = false
 			targetPart.Transparency = 1
 			targetPart.Size = Vector3.new(0.1, 0.1, 0.1)
-			targetPart.CFrame = CFrame.new(position)
+			targetPart.Position = targetRoot.Position
 			targetPart.Parent = workspace
 
 			local startAttachment = Instance.new("Attachment")
-			startAttachment.Name = "ObjectLineStart"
+			startAttachment.Name = "SingleLineStart"
 			startAttachment.Parent = rootPart
 
 			local endAttachment = Instance.new("Attachment")
-			endAttachment.Name = "ObjectLineEnd"
+			endAttachment.Name = "SingleLineEnd"
 			endAttachment.Parent = targetPart
 
 			local beam = Instance.new("Beam")
-			beam.Name = "ObjectLineBeam"
+			beam.Name = "SingleLineBeam"
 			beam.Attachment0 = startAttachment
 			beam.Attachment1 = endAttachment
 			beam.Width0 = 0.35
@@ -1827,90 +661,36 @@ local function createObjectLines(targetType, targetName)
 			beam.Segments = 1
 			beam.Parent = targetPart
 
-			table.insert(objectBeams, beam)
-			table.insert(objectTargetParts, {
+			table.insert(singleBeams, beam)
+			table.insert(singleTargetParts, {
 				part = targetPart,
-				target = target
+				player = other
 			})
-			table.insert(objectStartAttachments, startAttachment)
 		end
 	end
-
-	currentTargetType = targetType
-	currentTargetName = targetName
 end
 
-local function parseObjectInput()
-	local input = objectInput.Text:match("^%s*(.-)%s*$")
-
-	if input == "" then
-		return nil, nil
-	end
-
-	local targetType, targetName = input:match("^([PpMm])%s+(.+)$")
-	if not targetType or not targetName then
-		return nil, nil
-	end
-
-	targetName = targetName:match("^%s*(.-)%s*$")
-	if targetName == "" then
-		return nil, nil
-	end
-
-	return string.upper(targetType), targetName
-end
-
-local function updateObjectLine()
-	local targetType, targetName = parseObjectInput()
-
-	if not targetType or not targetName then
-		currentTargetType = nil
-		currentTargetName = nil
-		clearObjectLines()
-		return
-	end
-
-	currentTargetType = targetType
-	currentTargetName = targetName
-
-	if objectLineEnabled then
-		createObjectLines(targetType, targetName)
+local function updateSingleLineButton()
+	if singleLineEnabled then
+		singleLineButton.Text = "ON"
+		singleLineButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
-		clearObjectLines()
+		singleLineButton.Text = "Line"
+		singleLineButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 end
 
-local function updateObjectLineButton()
-	if objectLineEnabled then
-		objectLineToggle.Text = "ON"
-		objectLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+singleLineButton.Activated:Connect(function()
+	singleLineEnabled = not singleLineEnabled
+	updateSingleLineButton()
+
+	if singleLineEnabled then
+		local name = singleESPInput.Text:match("^%s*(.-)%s*$")
+		if name ~= "" then
+			createSingleLines(name)
+		end
 	else
-		objectLineToggle.Text = "OFF"
-		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
-end
-
-objectLineToggle.Activated:Connect(function()
-	objectLineEnabled = not objectLineEnabled
-	updateObjectLineButton()
-
-	if objectLineEnabled then
-		updateObjectLine()
-	else
-		clearObjectLines()
-	end
-end)
-
-objectInput.FocusLost:Connect(function()
-	updateObjectLine()
-end)
-
-objectInput:GetPropertyChangedSignal("Text"):Connect(function()
-	if objectLineEnabled then
-		updateObjectLine()
-	else
-		-- Saat OFF, jangan membuat line baru.
-		clearObjectLines()
+		clearSingleLines()
 	end
 end)
 
@@ -1918,42 +698,71 @@ player.CharacterAdded:Connect(function(character)
 	character:WaitForChild("HumanoidRootPart", 5)
 	task.wait(0.2)
 
-	if objectLineEnabled and currentTargetType and currentTargetName then
-		createObjectLines(currentTargetType, currentTargetName)
+	if singleESPEnabled and currentSingleTargetName then
+		applySingleESP()
+	end
+	if singleLineEnabled and currentSingleTargetName then
+		createSingleLines(currentSingleTargetName)
 	end
 end)
 
+-- Update loop
 task.spawn(function()
-	while objectInput and objectInput.Parent do
-		task.wait(0.1)
+	while true do
+		task.wait(0.05)
 
-		if objectLineEnabled then
+		-- Update All Players ESP
+		updatePlayerESP()
+
+		-- Update Single ESP distances
+		if singleESPEnabled then
+			local myRoot = getPlayerESPRoot(player)
+			if myRoot then
+				for _, other in ipairs(Players:GetPlayers()) do
+					if other ~= player then
+						local root = getPlayerESPRoot(other)
+						local data = singleESPData[other]
+						if root and data then
+							data.Billboard.Adornee = root
+							data.Billboard.Enabled = true
+							data.Highlight.Adornee = other.Character
+							data.Highlight.Enabled = true
+							data.NameLabel.Text = other.DisplayName
+							data.UsernameLabel.Text = "@" .. other.Name
+							local distance = (myRoot.Position - root.Position).Magnitude
+							data.DistanceLabel.Text = string.format("%d stud", math.floor(distance + 0.5))
+						elseif not root and data then
+							data.Billboard.Enabled = false
+							data.Highlight.Enabled = false
+						end
+					end
+				end
+			end
+		end
+
+		-- Update Single Lines
+		if singleLineEnabled and currentSingleTargetName then
 			local needsRefresh = false
 
-			for _, data in ipairs(objectTargetParts) do
-				local target = data.target
-				local targetPart = data.part
+			for _, data in ipairs(singleTargetParts) do
+				local other = data.player
+				local targetRoot = getPlayerESPRoot(other)
 
-				if not target or not target.Parent or not targetPart or not targetPart.Parent then
+				if not targetRoot or not data.part or not data.part.Parent then
 					needsRefresh = true
 					break
 				end
 
-				local position = getObjectPosition(target)
-				if position then
-					targetPart.Position = position
-				end
+				data.part.Position = targetRoot.Position
 			end
 
-			if needsRefresh and currentTargetType and currentTargetName then
-				createObjectLines(currentTargetType, currentTargetName)
-			elseif currentTargetType and currentTargetName and #objectTargetParts == 0 then
-				createObjectLines(currentTargetType, currentTargetName)
+			if needsRefresh then
+				createSingleLines(currentSingleTargetName)
+			elseif #singleTargetParts == 0 then
+				createSingleLines(currentSingleTargetName)
 			end
 		end
 	end
-
-	clearObjectLines()
 end)
 
-updateObjectLineButton()
+updateSingleLineButton()
