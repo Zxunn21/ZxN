@@ -15,7 +15,7 @@ local jumpButton
 
 -- GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "AditionalButtonsGui"
+gui.Name = "AdditionalButtonsGui"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
 gui.DisplayOrder = 999
