@@ -4,10 +4,6 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- ============================================================
--- GUI
--- ============================================================
-
 local gui = Instance.new("ScreenGui")
 gui.Name = "PlayerToolsGui"
 gui.ResetOnSpawn = false
@@ -16,7 +12,6 @@ gui.DisplayOrder = 999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.Parent = playerGui
 
--- Main frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.fromScale(0.4,0.6)
@@ -37,7 +32,6 @@ mainStroke.Thickness = 1
 mainStroke.Color = Color3.fromRGB(100, 100, 100)
 mainStroke.Parent = mainFrame
 
--- Draggable top bar
 local topBar = Instance.new("Frame")
 topBar.Name = "TopBar"
 topBar.Size = UDim2.new(1, 0, 0, 36)
@@ -60,7 +54,6 @@ topBarTitle.TextXAlignment = Enum.TextXAlignment.Left
 topBarTitle.ZIndex = 551
 topBarTitle.Parent = topBar
 
--- Dragging logic
 local dragging = false
 local dragStart
 local dragStartPosition = nil
@@ -112,23 +105,17 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
--- ============================================================
--- ESP ALL PLAYERS
--- ============================================================
-
 local playerESPEnabled = false
 local playerESPData = {}
 
--- Toggle jenis teks yang ditampilkan ESP
 local showName = true
 local showUsername = true
 local showDistance = true
-local refreshESPTypeVisibility -- didefinisikan setelah data ESP tersedia
-local removePlayerHighlight -- forward declaration (dipakai di event handler)
-local createPlayerHighlight -- forward declaration (dipakai di event handler)
-local createSingleLines -- forward declaration (dipakai di event handler)
+local refreshESPTypeVisibility
+local removePlayerHighlight
+local createPlayerHighlight
+local createSingleLines
 
--- Row: ESP Type (pilih apa yang ditampilkan ESP)
 local espTypeLabel = Instance.new("TextLabel")
 espTypeLabel.Name = "ESPTypeLabel"
 espTypeLabel.Size = UDim2.new(0, 90, 0, 36)
@@ -201,7 +188,6 @@ createESPTypeButton(1, "Name", function() return showName end, function(v) showN
 createESPTypeButton(2, "UserName", function() return showUsername end, function(v) showUsername = v end)
 createESPTypeButton(3, "Distance", function() return showDistance end, function(v) showDistance = v end)
 
--- Row: ESP All Players
 local espAllLabel = Instance.new("TextLabel")
 espAllLabel.Name = "ESPAllLabel"
 espAllLabel.Size = UDim2.new(0, 150, 0, 36)
@@ -234,7 +220,6 @@ local espAllButtonCorner = Instance.new("UICorner")
 espAllButtonCorner.CornerRadius = UDim.new(0, 7)
 espAllButtonCorner.Parent = espAllButton
 
--- Row: Highlight Player
 local highlightPlayerEnabled = false
 local highlightPlayerData = {}
 
@@ -270,7 +255,6 @@ local highlightPlayerButtonCorner = Instance.new("UICorner")
 highlightPlayerButtonCorner.CornerRadius = UDim.new(0, 7)
 highlightPlayerButtonCorner.Parent = highlightPlayerButton
 
--- Row: Hide Name Tag (hilangkan nama/billboard di atas player lain)
 local hideNameTagEnabled = false
 
 local hideNameTagLabel = Instance.new("TextLabel")
@@ -321,7 +305,6 @@ local function applyHideNameTag(other)
 		end
 	end
 
-	-- Sembunyikan BillboardGui custom yang menempel di kepala player lain
 	local head = character:FindFirstChild("Head")
 	if head then
 		for _, child in ipairs(head:GetChildren()) do
@@ -349,8 +332,6 @@ end
 hideNameTagButton.Activated:Connect(function()
 	setHideNameTag(not hideNameTagEnabled)
 end)
-
--- ESP functions (copied from LocalScriptZxN)
 
 local function getPlayerESPRoot(other)
 	local character = other and other.Character
@@ -511,10 +492,6 @@ local function updatePlayerESP()
 	end
 end
 
--- ============================================================
--- ESP SINGLE / PARTIAL PLAYER
--- ============================================================
-
 local singleESPEnabled = false
 local singleESPData = {}
 local singleLineEnabled = false
@@ -522,7 +499,6 @@ local singleBeams = {}
 local singleTargetParts = {}
 local currentSingleTargetName = nil
 
--- Row: ESP Single/Partial Player
 local singleESPLabel = Instance.new("TextLabel")
 singleESPLabel.Name = "SingleESPLabel"
 singleESPLabel.Size = UDim2.new(0, 260, 0, 30)
@@ -598,8 +574,6 @@ singleLineButton.Parent = mainFrame
 local singleLineButtonCorner = Instance.new("UICorner")
 singleLineButtonCorner.CornerRadius = UDim.new(0, 7)
 singleLineButtonCorner.Parent = singleLineButton
-
--- Single ESP functions
 
 local function findPlayersByName(targetName)
 	local results = {}
@@ -732,7 +706,6 @@ local function applySingleESP()
 
 	currentSingleTargetName = name
 
-	-- Remove ESP from players that no longer match
 	local targets = findPlayersByName(name)
 	local targetSet = {}
 	for _, other in ipairs(targets) do
@@ -745,7 +718,6 @@ local function applySingleESP()
 		end
 	end
 
-	-- Create ESP for newly matched players
 	for _, other in ipairs(targets) do
 		createSingleESP(other)
 	end
@@ -807,10 +779,6 @@ Players.PlayerAdded:Connect(function(other)
 		end
 	end)
 end)
-
--- ============================================================
--- HIGHLIGHT PLAYER
--- ============================================================
 
 function removePlayerHighlight(other)
 	local highlight = highlightPlayerData[other]
@@ -879,7 +847,6 @@ highlightPlayerButton.Activated:Connect(function()
 	setHighlightPlayer(not highlightPlayerEnabled)
 end)
 
--- Terapkan pilihan ESP Type ke semua ESP yang sudah aktif
 function refreshESPTypeVisibility()
 	for _, data in pairs(playerESPData) do
 		if data then
@@ -896,10 +863,6 @@ function refreshESPTypeVisibility()
 		end
 	end
 end
-
--- ============================================================
--- SINGLE PLAYER LINE (BEAM)
--- ============================================================
 
 local function clearSingleLines()
 	for _, beam in ipairs(singleBeams) do
@@ -974,35 +937,6 @@ function createSingleLines(targetName)
 end
 
 local function updateSingleLineButton()
-
--- ============================================================
--- SCROLLABLE CONTENT (hanya menambah scroll, tidak mengubah elemen lain)
--- ============================================================
-
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Name = "ContentScroll"
-scrollFrame.Size = UDim2.new(1, 0, 1, -36)
-scrollFrame.Position = UDim2.fromOffset(0, 36)
-scrollFrame.BackgroundTransparency = 1
-scrollFrame.BorderSizePixel = 0
-scrollFrame.ScrollBarThickness = 6
-scrollFrame.ScrollBarImageColor = Color3.fromRGB(180, 180, 180)
-scrollFrame.CanvasSize = UDim2.new(1, 0, 0, 0)
-scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-scrollFrame.ZIndex = 510
-scrollFrame.Parent = mainFrame
-
--- Pindahkan semua baris konten ke dalam scroll frame.
--- TopBar, UICorner, dan UIStroke tetap di mainFrame.
--- Posisi setiap elemen tidak berubah karena lebar canvas = lebar mainFrame.
-for _, child in ipairs(mainFrame:GetChildren()) do
-	if child ~= topBar
-		and child ~= scrollFrame
-		and not child:IsA("UICorner")
-		and not child:IsA("UIStroke") then
-		child.Parent = scrollFrame
-	end
-end
 	if singleLineEnabled then
 		singleLineButton.Text = "ON"
 		singleLineButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -1038,15 +972,12 @@ player.CharacterAdded:Connect(function(character)
 	end
 end)
 
--- Update loop
 task.spawn(function()
 	while true do
 		task.wait(0.05)
 
-		-- Update All Players ESP
 		updatePlayerESP()
 
-		-- Update Highlight Player
 		if highlightPlayerEnabled then
 			for _, other in ipairs(Players:GetPlayers()) do
 				if other ~= player then
@@ -1064,7 +995,6 @@ task.spawn(function()
 			end
 		end
 
-		-- Keep name tags hidden (termasuk player yang baru join/respawn)
 		if hideNameTagEnabled then
 			for _, other in ipairs(Players:GetPlayers()) do
 				if other ~= player then
@@ -1073,7 +1003,6 @@ task.spawn(function()
 			end
 		end
 
-		-- Update Single ESP distances
 		if singleESPEnabled then
 			local myRoot = getPlayerESPRoot(player)
 			if myRoot then
@@ -1099,7 +1028,6 @@ task.spawn(function()
 			end
 		end
 
-		-- Update Single Lines
 		if singleLineEnabled and currentSingleTargetName then
 			local needsRefresh = false
 
@@ -1125,3 +1053,41 @@ task.spawn(function()
 end)
 
 updateSingleLineButton()
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ContentScroll"
+scrollFrame.Size = UDim2.new(1, 0, 1, -36)
+scrollFrame.Position = UDim2.fromOffset(0, 36)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 5
+scrollFrame.ScrollBarImageTransparency = 0.15
+scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+scrollFrame.CanvasSize = UDim2.new(1, 0, 0, 0)
+scrollFrame.ZIndex = 600
+scrollFrame.Parent = mainFrame
+
+local function updateCanvasHeight()
+	local contentHeight = 0
+	for _, child in ipairs(scrollFrame:GetChildren()) do
+		if child:IsA("GuiObject") then
+			local bottom = child.Position.Y.Offset + child.Size.Y.Offset
+			if bottom > contentHeight then
+				contentHeight = bottom
+			end
+		end
+	end
+	scrollFrame.CanvasSize = UDim2.new(1, 0, 0, contentHeight + 10)
+end
+
+for _, child in ipairs(mainFrame:GetChildren()) do
+	if child ~= topBar
+		and child ~= scrollFrame
+		and not child:IsA("UICorner")
+		and not child:IsA("UIStroke") then
+		child.Parent = scrollFrame
+	end
+end
+
+updateCanvasHeight()
+scrollFrame.ChildAdded:Connect(updateCanvasHeight)
