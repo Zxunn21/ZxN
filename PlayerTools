@@ -14,7 +14,7 @@ gui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.fromScale(0.4,0.6)
+mainFrame.Size = UDim2.fromScale(0.38, 0.62)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.Position = UDim2.new(0.5,0, 0.5, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -118,12 +118,12 @@ local createSingleLines
 
 local espTypeLabel = Instance.new("TextLabel")
 espTypeLabel.Name = "ESPTypeLabel"
-espTypeLabel.Size = UDim2.new(0, 90, 0, 36)
-espTypeLabel.Position = UDim2.fromOffset(10, 46)
+espTypeLabel.Size = UDim2.new(0, 105, 0, 30)
+espTypeLabel.Position = UDim2.fromOffset(10, 0)
 espTypeLabel.BackgroundTransparency = 1
 espTypeLabel.Text = "ESP Type"
 espTypeLabel.TextColor3 = Color3.new(1, 1, 1)
-espTypeLabel.TextSize = 14
+espTypeLabel.TextSize = 12
 espTypeLabel.Font = Enum.Font.GothamBold
 espTypeLabel.TextXAlignment = Enum.TextXAlignment.Left
 espTypeLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -132,29 +132,31 @@ espTypeLabel.Parent = mainFrame
 
 local espTypeButtonsFrame = Instance.new("Frame")
 espTypeButtonsFrame.Name = "ESPTypeButtons"
-espTypeButtonsFrame.Size = UDim2.fromOffset(170, 36)
+espTypeButtonsFrame.Size = UDim2.fromOffset(165, 30)
 espTypeButtonsFrame.AnchorPoint = Vector2.new(1, 0)
-espTypeButtonsFrame.Position = UDim2.new(1, -10, 0, 46)
+espTypeButtonsFrame.Position = UDim2.new(1, -10, 0, 0)
 espTypeButtonsFrame.BackgroundTransparency = 1
 espTypeButtonsFrame.ZIndex = 512
 espTypeButtonsFrame.Parent = mainFrame
 
 local espTypeLayout = Instance.new("UIListLayout")
 espTypeLayout.FillDirection = Enum.FillDirection.Horizontal
-espTypeLayout.Padding = UDim.new(0, 5)
+espTypeLayout.Padding = UDim.new(0, 4)
 espTypeLayout.SortOrder = Enum.SortOrder.LayoutOrder
 espTypeLayout.Parent = espTypeButtonsFrame
 
 local function createESPTypeButton(order, buttonText, getEnabled, setEnabled)
 	local button = Instance.new("TextButton")
 	button.Name = buttonText .. "Button"
-	button.Size = UDim2.new(1/3, -4, 1, 0)
+	button.Size = UDim2.new(1/3, -3, 1, 0)
 	button.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	button.BorderSizePixel = 0
 	button.Text = buttonText .. ": ON"
 	button.TextColor3 = Color3.new(1, 1, 1)
-	button.TextSize = 10
+	button.TextSize = 9
 	button.Font = Enum.Font.GothamBold
+	button.TextScaled = true
+	button.TextWrapped = false
 	button.LayoutOrder = order
 	button.ZIndex = 512
 	button.Parent = espTypeButtonsFrame
@@ -190,12 +192,12 @@ createESPTypeButton(3, "Distance", function() return showDistance end, function(
 
 local espAllLabel = Instance.new("TextLabel")
 espAllLabel.Name = "ESPAllLabel"
-espAllLabel.Size = UDim2.new(0, 150, 0, 36)
-espAllLabel.Position = UDim2.fromOffset(10, 88)
+espAllLabel.Size = UDim2.new(0, 150, 0, 30)
+espAllLabel.Position = UDim2.fromOffset(10, 36)
 espAllLabel.BackgroundTransparency = 1
 espAllLabel.Text = "ESP All Players"
 espAllLabel.TextColor3 = Color3.new(1, 1, 1)
-espAllLabel.TextSize = 14
+espAllLabel.TextSize = 12
 espAllLabel.Font = Enum.Font.GothamBold
 espAllLabel.TextXAlignment = Enum.TextXAlignment.Left
 espAllLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -204,15 +206,17 @@ espAllLabel.Parent = mainFrame
 
 local espAllButton = Instance.new("TextButton")
 espAllButton.Name = "ESPAllButton"
-espAllButton.Size = UDim2.fromOffset(60, 36)
+espAllButton.Size = UDim2.fromOffset(55, 30)
 espAllButton.AnchorPoint = Vector2.new(1, 0)
-espAllButton.Position = UDim2.new(1, -10, 0, 88)
+espAllButton.Position = UDim2.new(1, -10, 0, 36)
 espAllButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 espAllButton.BorderSizePixel = 0
 espAllButton.Text = "OFF"
 espAllButton.TextColor3 = Color3.new(1, 1, 1)
-espAllButton.TextSize = 13
+espAllButton.TextSize = 11
 espAllButton.Font = Enum.Font.GothamBold
+espAllButton.TextScaled = true
+espAllButton.TextWrapped = false
 espAllButton.ZIndex = 512
 espAllButton.Parent = mainFrame
 
@@ -225,12 +229,12 @@ local highlightPlayerData = {}
 
 local highlightPlayerLabel = Instance.new("TextLabel")
 highlightPlayerLabel.Name = "HighlightPlayerLabel"
-highlightPlayerLabel.Size = UDim2.new(0, 150, 0, 36)
-highlightPlayerLabel.Position = UDim2.fromOffset(10, 124)
+highlightPlayerLabel.Size = UDim2.new(0, 150, 0, 30)
+highlightPlayerLabel.Position = UDim2.fromOffset(10, 72)
 highlightPlayerLabel.BackgroundTransparency = 1
 highlightPlayerLabel.Text = "Highlight Player"
 highlightPlayerLabel.TextColor3 = Color3.new(1, 1, 1)
-highlightPlayerLabel.TextSize = 14
+highlightPlayerLabel.TextSize = 12
 highlightPlayerLabel.Font = Enum.Font.GothamBold
 highlightPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
 highlightPlayerLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -239,15 +243,17 @@ highlightPlayerLabel.Parent = mainFrame
 
 local highlightPlayerButton = Instance.new("TextButton")
 highlightPlayerButton.Name = "HighlightPlayerButton"
-highlightPlayerButton.Size = UDim2.fromOffset(60, 36)
+highlightPlayerButton.Size = UDim2.fromOffset(55, 30)
 highlightPlayerButton.AnchorPoint = Vector2.new(1, 0)
-highlightPlayerButton.Position = UDim2.new(1, -10, 0, 124)
+highlightPlayerButton.Position = UDim2.new(1, -10, 0, 72)
 highlightPlayerButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 highlightPlayerButton.BorderSizePixel = 0
 highlightPlayerButton.Text = "OFF"
 highlightPlayerButton.TextColor3 = Color3.new(1, 1, 1)
-highlightPlayerButton.TextSize = 13
+highlightPlayerButton.TextSize = 11
 highlightPlayerButton.Font = Enum.Font.GothamBold
+highlightPlayerButton.TextScaled = true
+highlightPlayerButton.TextWrapped = false
 highlightPlayerButton.ZIndex = 512
 highlightPlayerButton.Parent = mainFrame
 
@@ -259,12 +265,12 @@ local hideNameTagEnabled = false
 
 local hideNameTagLabel = Instance.new("TextLabel")
 hideNameTagLabel.Name = "HideNameTagLabel"
-hideNameTagLabel.Size = UDim2.new(0, 150, 0, 36)
-hideNameTagLabel.Position = UDim2.fromOffset(10, 160)
+hideNameTagLabel.Size = UDim2.new(0, 150, 0, 30)
+hideNameTagLabel.Position = UDim2.fromOffset(10, 108)
 hideNameTagLabel.BackgroundTransparency = 1
 hideNameTagLabel.Text = "Hide Name Tag"
 hideNameTagLabel.TextColor3 = Color3.new(1, 1, 1)
-hideNameTagLabel.TextSize = 14
+hideNameTagLabel.TextSize = 12
 hideNameTagLabel.Font = Enum.Font.GothamBold
 hideNameTagLabel.TextXAlignment = Enum.TextXAlignment.Left
 hideNameTagLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -273,15 +279,17 @@ hideNameTagLabel.Parent = mainFrame
 
 local hideNameTagButton = Instance.new("TextButton")
 hideNameTagButton.Name = "HideNameTagButton"
-hideNameTagButton.Size = UDim2.fromOffset(60, 36)
+hideNameTagButton.Size = UDim2.fromOffset(55, 30)
 hideNameTagButton.AnchorPoint = Vector2.new(1, 0)
-hideNameTagButton.Position = UDim2.new(1, -10, 0, 160)
+hideNameTagButton.Position = UDim2.new(1, -10, 0, 108)
 hideNameTagButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 hideNameTagButton.BorderSizePixel = 0
 hideNameTagButton.Text = "OFF"
 hideNameTagButton.TextColor3 = Color3.new(1, 1, 1)
-hideNameTagButton.TextSize = 13
+hideNameTagButton.TextSize = 11
 hideNameTagButton.Font = Enum.Font.GothamBold
+hideNameTagButton.TextScaled = true
+hideNameTagButton.TextWrapped = false
 hideNameTagButton.ZIndex = 512
 hideNameTagButton.Parent = mainFrame
 
@@ -501,12 +509,12 @@ local currentSingleTargetName = nil
 
 local singleESPLabel = Instance.new("TextLabel")
 singleESPLabel.Name = "SingleESPLabel"
-singleESPLabel.Size = UDim2.new(0, 260, 0, 30)
-singleESPLabel.Position = UDim2.fromOffset(10, 202)
+singleESPLabel.Size = UDim2.new(0, 260, 0, 28)
+singleESPLabel.Position = UDim2.fromOffset(10, 146)
 singleESPLabel.BackgroundTransparency = 1
 singleESPLabel.Text = "ESP Single/Partial Player"
 singleESPLabel.TextColor3 = Color3.new(1, 1, 1)
-singleESPLabel.TextSize = 14
+singleESPLabel.TextSize = 12
 singleESPLabel.Font = Enum.Font.GothamBold
 singleESPLabel.TextXAlignment = Enum.TextXAlignment.Left
 singleESPLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -515,15 +523,15 @@ singleESPLabel.Parent = mainFrame
 
 local singleESPInput = Instance.new("TextBox")
 singleESPInput.Name = "SingleESPInput"
-singleESPInput.Size = UDim2.fromOffset(120, 36)
-singleESPInput.Position = UDim2.fromOffset(10, 236)
+singleESPInput.Size = UDim2.fromOffset(115, 30)
+singleESPInput.Position = UDim2.fromOffset(10, 174)
 singleESPInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 singleESPInput.BorderSizePixel = 0
 singleESPInput.Text = ""
 singleESPInput.PlaceholderText = "Partial name..."
 singleESPInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 singleESPInput.TextColor3 = Color3.new(1, 1, 1)
-singleESPInput.TextSize = 13
+singleESPInput.TextSize = 11
 singleESPInput.Font = Enum.Font.GothamBold
 singleESPInput.ClearTextOnFocus = false
 singleESPInput.TextXAlignment = Enum.TextXAlignment.Center
@@ -541,15 +549,17 @@ singleInputStroke.Parent = singleESPInput
 
 local singleESPButton = Instance.new("TextButton")
 singleESPButton.Name = "SingleESPButton"
-singleESPButton.Size = UDim2.fromOffset(55, 36)
+singleESPButton.Size = UDim2.fromOffset(50, 30)
 singleESPButton.AnchorPoint = Vector2.new(1, 0)
-singleESPButton.Position = UDim2.new(1, -70, 0, 236)
+singleESPButton.Position = UDim2.new(1, -65, 0, 174)
 singleESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 singleESPButton.BorderSizePixel = 0
 singleESPButton.Text = "ESP"
 singleESPButton.TextColor3 = Color3.new(1, 1, 1)
-singleESPButton.TextSize = 12
+singleESPButton.TextSize = 10
 singleESPButton.Font = Enum.Font.GothamBold
+singleESPButton.TextScaled = true
+singleESPButton.TextWrapped = false
 singleESPButton.ZIndex = 512
 singleESPButton.Parent = mainFrame
 
@@ -559,15 +569,17 @@ singleESPButtonCorner.Parent = singleESPButton
 
 local singleLineButton = Instance.new("TextButton")
 singleLineButton.Name = "SingleLineButton"
-singleLineButton.Size = UDim2.fromOffset(55, 36)
+singleLineButton.Size = UDim2.fromOffset(50, 30)
 singleLineButton.AnchorPoint = Vector2.new(1, 0)
-singleLineButton.Position = UDim2.new(1, -10, 0, 236)
+singleLineButton.Position = UDim2.new(1, -10, 0, 174)
 singleLineButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 singleLineButton.BorderSizePixel = 0
 singleLineButton.Text = "Line"
 singleLineButton.TextColor3 = Color3.new(1, 1, 1)
-singleLineButton.TextSize = 12
+singleLineButton.TextSize = 10
 singleLineButton.Font = Enum.Font.GothamBold
+singleLineButton.TextScaled = true
+singleLineButton.TextWrapped = false
 singleLineButton.ZIndex = 512
 singleLineButton.Parent = mainFrame
 
@@ -780,7 +792,7 @@ Players.PlayerAdded:Connect(function(other)
 	end)
 end)
 
-function removePlayerHighlight(other)
+removePlayerHighlight = function(other)
 	local highlight = highlightPlayerData[other]
 	if highlight then
 		highlight:Destroy()
@@ -788,7 +800,7 @@ function removePlayerHighlight(other)
 	highlightPlayerData[other] = nil
 end
 
-function createPlayerHighlight(other)
+createPlayerHighlight = function(other)
 	if other == player or not highlightPlayerEnabled then return end
 	local character = other.Character
 	if not character then return end
@@ -880,7 +892,7 @@ local function clearSingleLines()
 	table.clear(singleTargetParts)
 end
 
-function createSingleLines(targetName)
+createSingleLines = function(targetName)
 	clearSingleLines()
 
 	if not singleLineEnabled then return end
@@ -1064,7 +1076,7 @@ scrollFrame.ScrollBarThickness = 5
 scrollFrame.ScrollBarImageTransparency = 0.15
 scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
 scrollFrame.CanvasSize = UDim2.new(1, 0, 0, 0)
-scrollFrame.ZIndex = 600
+scrollFrame.ZIndex = 501
 scrollFrame.Parent = mainFrame
 
 local function updateCanvasHeight()
@@ -1086,6 +1098,10 @@ for _, child in ipairs(mainFrame:GetChildren()) do
 		and not child:IsA("UICorner")
 		and not child:IsA("UIStroke") then
 		child.Parent = scrollFrame
+		-- Pastikan semua kontrol berada di atas ScrollingFrame agar tombol tetap menerima input.
+		if child:IsA("GuiButton") or child:IsA("TextBox") or child:IsA("TextLabel") then
+			child.ZIndex = 510
+		end
 	end
 end
 
