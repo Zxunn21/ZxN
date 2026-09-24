@@ -589,7 +589,7 @@ local linkFeatures = {
 	{ description = "Light System",          url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",            guiToHide = "TorchOnHeadGui" },
 	{ description = "Auto Proximity Prompt", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",      guiToHide = "AutoProximityPromptGui" },
 	{ description = "Camera Setting View",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",   guiToHide = "CameraSettingViewGui" },
-	{ description = "PlayerTools",           url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToHide = "PlayerToolsGui" },
+	{ description = "PlayerTools",           url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",         guiToHide = "PlayerToolsGui", preserve = true },
 }
 
 local LINK_FEATURE_BASE_Y = 190
@@ -680,7 +680,16 @@ local function createLinkFeature(index, feature)
 			if feature.guiToHide and playerGui then
 				for _, descendant in ipairs(playerGui:GetDescendants()) do
 					if descendant.Name == feature.guiToHide then
-						descendant:Destroy()
+						if feature.preserve then
+							-- Sembunyikan GUI tanpa menghancurkan, agar state (ESP/line) tetap terjaga
+							if descendant:IsA("ScreenGui") then
+								descendant.Enabled = false
+							elseif descendant:IsA("GuiObject") then
+								descendant.Visible = false
+							end
+						else
+							descendant:Destroy()
+						end
 					end
 				end
 			end
