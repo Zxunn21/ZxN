@@ -494,9 +494,8 @@ local linkFeatures = {
 	{ description = "Camera Setting View",       url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/CameraSettingView",       guiToHide = "CameraSettingViewGui" },
 	{ description = "Player Tools",              url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",             guiToHide = "PlayerToolsGui", preserve = true },
 	{ description = "Objects Tools",             url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ObjectsTools",            guiToHide = "ObjectsToolsGui" },
-	{ description = "Additional Buutons",        url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AdditionalButtons",       guiToHide = "AdditionalButtonsGui" },
-	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",	guiToHide = "ProximityPromptsToolsGui" },
-	{ description = "Remote Spy",     			 url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RemoteSpy", 				guiToHide = "ProximityPromptsToolsGui" },
+	{ description = "Additional Buttons",        url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AdditionalButtons",       guiToHide = "AdditionalButtonsGui" },
+	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",   guiToHide = "ProximityPromptsToolsGui" },
 }
 
 local function createLinkFeature(index, feature)
@@ -606,6 +605,38 @@ end
 for i, feature in ipairs(linkFeatures) do
 	createLinkFeature(i, feature)
 end
+
+-- === HELPER: EKSEKUSI LANGSUNG TANPA PEMICU ===
+-- Daftar link yang dijalankan otomatis saat script dimuat (tanpa perlu tombol).
+local autoExecuteLinks = {
+	{ description = "RunButton", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RunButton" },
+}
+
+local function executeLinkDirectly(url, description)
+	local success, result = pcall(function()
+		if type(loadstring) ~= "function" then
+			error("loadstring tidak tersedia di lingkungan ini")
+		end
+		if type(game.HttpGet) ~= "function" then
+			error("game:HttpGet tidak tersedia di lingkungan ini")
+		end
+		return loadstring(game:HttpGet(url, true))()
+	end)
+
+	if not success then
+		warn("[ZxN] " .. description .. " gagal dimuat: " .. tostring(result))
+	end
+
+	return success
+end
+
+-- Jalankan semua link otomatis saat script dimuat
+task.spawn(function()
+	for _, link in ipairs(autoExecuteLinks) do
+		executeLinkDirectly(link.url, link.description)
+		task.wait(0.1)
+	end
+end)
 
 -- Control frame
 local frameRideAPet = Instance.new("Frame")
