@@ -14,7 +14,7 @@ gui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.fromScale(0.38, 0.62)
+mainFrame.Size = UDim2.fromScale(0.58, 0.62)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.Position = UDim2.new(0.5,0, 0.5, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -167,10 +167,10 @@ local function createESPTypeButton(order, buttonText, getEnabled, setEnabled)
 
 	local function updateButton()
 		if getEnabled() then
-			button.Text = buttonText .. ": ON"
+			button.Text = buttonText .. ""
 			button.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 		else
-			button.Text = buttonText .. ": OFF"
+			button.Text = "OFF"
 			button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 		end
 	end
@@ -507,24 +507,24 @@ local singleBeams = {}
 local singleTargetParts = {}
 local currentSingleTargetName = nil
 
-local singleESPLabel = Instance.new("TextLabel")
-singleESPLabel.Name = "SingleESPLabel"
-singleESPLabel.Size = UDim2.new(0, 260, 0, 28)
-singleESPLabel.Position = UDim2.fromOffset(10, 146)
-singleESPLabel.BackgroundTransparency = 1
-singleESPLabel.Text = "ESP Single/Partial Player"
-singleESPLabel.TextColor3 = Color3.new(1, 1, 1)
-singleESPLabel.TextSize = 12
-singleESPLabel.Font = Enum.Font.GothamBold
-singleESPLabel.TextXAlignment = Enum.TextXAlignment.Left
-singleESPLabel.TextYAlignment = Enum.TextYAlignment.Center
-singleESPLabel.ZIndex = 512
-singleESPLabel.Parent = mainFrame
+local espPlayerLabel = Instance.new("TextLabel")
+espPlayerLabel.Name = "SingleESPLabel"
+espPlayerLabel.Size = UDim2.new(0, 90, 0, 30)
+espPlayerLabel.Position = UDim2.fromOffset(10, 146)
+espPlayerLabel.BackgroundTransparency = 1
+espPlayerLabel.Text = "ESP Player"
+espPlayerLabel.TextColor3 = Color3.new(1, 1, 1)
+espPlayerLabel.TextSize = 12
+espPlayerLabel.Font = Enum.Font.GothamBold
+espPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
+espPlayerLabel.TextYAlignment = Enum.TextYAlignment.Center
+espPlayerLabel.ZIndex = 512
+espPlayerLabel.Parent = mainFrame
 
 local singleESPInput = Instance.new("TextBox")
 singleESPInput.Name = "SingleESPInput"
 singleESPInput.Size = UDim2.fromOffset(115, 30)
-singleESPInput.Position = UDim2.fromOffset(10, 174)
+singleESPInput.Position = UDim2.fromOffset(105, 146)
 singleESPInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 singleESPInput.BorderSizePixel = 0
 singleESPInput.Text = ""
@@ -551,7 +551,7 @@ local singleESPButton = Instance.new("TextButton")
 singleESPButton.Name = "SingleESPButton"
 singleESPButton.Size = UDim2.fromOffset(50, 30)
 singleESPButton.AnchorPoint = Vector2.new(1, 0)
-singleESPButton.Position = UDim2.new(1, -65, 0, 174)
+singleESPButton.Position = UDim2.new(1, -65, 0, 146)
 singleESPButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 singleESPButton.BorderSizePixel = 0
 singleESPButton.Text = "ESP"
@@ -571,7 +571,7 @@ local singleLineButton = Instance.new("TextButton")
 singleLineButton.Name = "SingleLineButton"
 singleLineButton.Size = UDim2.fromOffset(50, 30)
 singleLineButton.AnchorPoint = Vector2.new(1, 0)
-singleLineButton.Position = UDim2.new(1, -10, 0, 174)
+singleLineButton.Position = UDim2.new(1, -10, 0, 146)
 singleLineButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 singleLineButton.BorderSizePixel = 0
 singleLineButton.Text = "Line"
