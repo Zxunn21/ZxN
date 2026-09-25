@@ -1,0 +1,77 @@
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local NORMAL_SPEED = 16
+local RUN_MULTIPLIER = 1.5
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "RunButtonGui"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+-- Tombol
+local button = Instance.new("TextButton")
+button.Name = "RunButton"
+button.Size = UDim2.new(0, 60, 0, 60)
+button.Position = UDim2.new(1, -80, 1, -150)
+button.AnchorPoint = Vector2.new(0, 0)
+button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+button.BackgroundTransparency = 0.15
+button.Text = "🏃🏻‍♂️"
+button.TextSize = 30
+button.Font = Enum.Font.SourceSansBold
+button.TextColor3 = Color3.new(1, 1, 1)
+button.AutoButtonColor = false
+button.Parent = gui
+
+-- Membuat lingkaran
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = button
+
+-- Garis lingkaran
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Transparency = 0.2
+stroke.Parent = button
+
+-- Fungsi ubah speed
+local function setRun(enabled)
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+
+	if enabled then
+		humanoid.WalkSpeed = NORMAL_SPEED * RUN_MULTIPLIER
+		button.BackgroundColor3 = Color3.fromRGB(60, 170, 80)
+	else
+		humanoid.WalkSpeed = NORMAL_SPEED
+		button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	end
+end
+
+-- Saat tombol ditekan
+button.MouseButton1Down:Connect(function()
+	setRun(true)
+end)
+
+-- Saat tombol dilepas
+button.MouseButton1Up:Connect(function()
+	setRun(false)
+end)
+
+-- Jika jari/mouse keluar tombol lalu dilepas
+button.MouseLeave:Connect(function()
+	setRun(false)
+end)
+
+-- Reset speed saat karakter respawn
+player.CharacterAdded:Connect(function(character)
+	character:WaitForChild("Humanoid").WalkSpeed = NORMAL_SPEED
+end)
