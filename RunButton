@@ -3,8 +3,10 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local NORMAL_SPEED = 16
 local RUN_MULTIPLIER = 1.5
+
+-- Menyimpan kecepatan karakter saat tombol mulai ditekan
+local savedWalkSpeed = nil
 
 -- GUI
 local gui = Instance.new("ScreenGui")
@@ -16,8 +18,8 @@ gui.Parent = playerGui
 local button = Instance.new("TextButton")
 button.Name = "RunButton"
 button.Size = UDim2.new(0, 60, 0, 60)
-button.Position = UDim2.new(1, -80, 1, -150)
-button.AnchorPoint = Vector2.new(0, 0)
+button.Position = UDim2.new(0.92, 0, 0.5, 0)
+button.AnchorPoint = Vector2.new(0.5, 0.5)
 button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 button.BackgroundTransparency = 0.15
 button.Text = "🏃🏻‍♂️"
@@ -39,39 +41,46 @@ stroke.Color = Color3.fromRGB(255, 255, 255)
 stroke.Transparency = 0.2
 stroke.Parent = button
 
--- Fungsi ubah speed
-local function setRun(enabled)
+-- Aktifkan mode lari: simpan kecepatan saat ini, lalu kalikan
+local function startRun()
 	local character = player.Character
 	if not character then return end
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return end
 
-	if enabled then
-		humanoid.WalkSpeed = NORMAL_SPEED * RUN_MULTIPLIER
-		button.BackgroundColor3 = Color3.fromRGB(60, 170, 80)
-	else
-		humanoid.WalkSpeed = NORMAL_SPEED
-		button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	end
+	-- Simpan kecepatan saat ini sebelum diubah
+	savedWalkSpeed = humanoid.WalkSpeed
+	humanoid.WalkSpeed = savedWalkSpeed * RUN_MULTIPLIER
+	button.BackgroundColor3 = Color3.fromRGB(60, 170, 80)
 end
 
--- Saat tombol ditekan
-button.MouseButton1Down:Connect(function()
-	setRun(true)
-end)
+-- Kembalikan kecepatan ke nilai yang tersimpan
+local function stopRun()
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+
+	if savedWalkSpeed then
+		humanoid.WalkSpeed = savedWalkSpeed
+		savedWalkSpeed = nil
+	end
+	button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+end
+
+-- Saat tombol ditekan: simpan & kalkulasi kecepatan
+button.MouseButton1Down:Connect(startRun)
 
 -- Saat tombol dilepas
-button.MouseButton1Up:Connect(function()
-	setRun(false)
-end)
+button.MouseButton1Up:Connect(stopRun)
 
 -- Jika jari/mouse keluar tombol lalu dilepas
-button.MouseLeave:Connect(function()
-	setRun(false)
-end)
+button.MouseLeave:Connect(stopRun)
 
 -- Reset speed saat karakter respawn
 player.CharacterAdded:Connect(function(character)
-	character:WaitForChild("Humanoid").WalkSpeed = NORMAL_SPEED
+	character:WaitForChild("Humanoid").WalkSpeed = 16
+	savedWalkSpeed = nil
 end)
