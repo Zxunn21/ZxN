@@ -495,7 +495,8 @@ local linkFeatures = {
 	{ description = "Player Tools",              url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",             guiToHide = "PlayerToolsGui", preserve = true },
 	{ description = "Objects Tools",             url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ObjectsTools",            guiToHide = "ObjectsToolsGui" },
 	{ description = "Additional Buutons",        url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AdditionalButtons",       guiToHide = "AdditionalButtonsGui" },
-	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",   guiToHide = "ProximityPromptsToolsGui" },
+	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",	guiToHide = "ProximityPromptsToolsGui" },
+	{ description = "Remote Spy",     			 url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RemoteSpy", 				guiToHide = "ProximityPromptsToolsGui" },
 }
 
 local function createLinkFeature(index, feature)
