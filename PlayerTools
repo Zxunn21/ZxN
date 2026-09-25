@@ -262,6 +262,7 @@ highlightPlayerButtonCorner.CornerRadius = UDim.new(0, 7)
 highlightPlayerButtonCorner.Parent = highlightPlayerButton
 
 local hideNameTagEnabled = false
+local originalNameTagData = {}
 
 local hideNameTagLabel = Instance.new("TextLabel")
 hideNameTagLabel.Name = "HideNameTagLabel"
@@ -305,11 +306,25 @@ local function applyHideNameTag(other)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		if hideNameTagEnabled then
+			-- Simpan nilai asli hanya sekali sebelum mengubah
+			if not originalNameTagData[other] then
+				originalNameTagData[other] = {
+					DisplayDistanceType = humanoid.DisplayDistanceType,
+					HealthDisplayType = humanoid.HealthDisplayType,
+				}
+			end
 			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 			humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 		else
-			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Player
-			humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.Player
+			-- Kembalikan ke nilai asli yang tersimpan
+			local saved = originalNameTagData[other]
+			if saved then
+				humanoid.DisplayDistanceType = saved.DisplayDistanceType
+				humanoid.HealthDisplayType = saved.HealthDisplayType
+			else
+				humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+				humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
+			end
 		end
 	end
 
@@ -317,7 +332,24 @@ local function applyHideNameTag(other)
 	if head then
 		for _, child in ipairs(head:GetChildren()) do
 			if child:IsA("BillboardGui") then
-				child.Enabled = not hideNameTagEnabled
+				if hideNameTagEnabled then
+					-- Simpan nilai Enabled asli hanya sekali sebelum menonaktifkan
+					if not originalNameTagData[other] then
+						originalNameTagData[other] = {}
+					end
+					if originalNameTagData[other][child] == nil then
+						originalNameTagData[other][child] = child.Enabled
+					end
+					child.Enabled = false
+				else
+					-- Kembalikan ke nilai Enabled asli
+					local saved = originalNameTagData[other]
+					if saved and saved[child] ~= nil then
+						child.Enabled = saved[child]
+					else
+						child.Enabled = true
+					end
+				end
 			end
 		end
 	end
@@ -334,6 +366,11 @@ local function setHideNameTag(state)
 		if other ~= player then
 			applyHideNameTag(other)
 		end
+	end
+
+	-- Bersihkan data tersimpan saat dimatikan
+	if not state then
+		originalNameTagData = {}
 	end
 end
 
@@ -587,6 +624,67 @@ local singleLineButtonCorner = Instance.new("UICorner")
 singleLineButtonCorner.CornerRadius = UDim.new(0, 7)
 singleLineButtonCorner.Parent = singleLineButton
 
+-- View Player UI
+local viewPlayerLabel = Instance.new("TextLabel")
+viewPlayerLabel.Name = "ViewPlayerLabel"
+viewPlayerLabel.Size = UDim2.new(0, 90, 0, 30)
+viewPlayerLabel.Position = UDim2.fromOffset(10, 182)
+viewPlayerLabel.BackgroundTransparency = 1
+viewPlayerLabel.Text = "View Player"
+viewPlayerLabel.TextColor3 = Color3.new(1, 1, 1)
+viewPlayerLabel.TextSize = 12
+viewPlayerLabel.Font = Enum.Font.GothamBold
+viewPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
+viewPlayerLabel.TextYAlignment = Enum.TextYAlignment.Center
+viewPlayerLabel.ZIndex = 512
+viewPlayerLabel.Parent = mainFrame
+
+local viewPlayerInput = Instance.new("TextBox")
+viewPlayerInput.Name = "ViewPlayerInput"
+viewPlayerInput.Size = UDim2.fromOffset(115, 30)
+viewPlayerInput.Position = UDim2.fromOffset(105, 182)
+viewPlayerInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+viewPlayerInput.BorderSizePixel = 0
+viewPlayerInput.Text = ""
+viewPlayerInput.PlaceholderText = "Partial name..."
+viewPlayerInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+viewPlayerInput.TextColor3 = Color3.new(1, 1, 1)
+viewPlayerInput.TextSize = 11
+viewPlayerInput.Font = Enum.Font.GothamBold
+viewPlayerInput.ClearTextOnFocus = false
+viewPlayerInput.TextXAlignment = Enum.TextXAlignment.Center
+viewPlayerInput.ZIndex = 512
+viewPlayerInput.Parent = mainFrame
+
+local viewPlayerInputCorner = Instance.new("UICorner")
+viewPlayerInputCorner.CornerRadius = UDim.new(0, 8)
+viewPlayerInputCorner.Parent = viewPlayerInput
+
+local viewPlayerInputStroke = Instance.new("UIStroke")
+viewPlayerInputStroke.Thickness = 2
+viewPlayerInputStroke.Color = Color3.fromRGB(210, 210, 210)
+viewPlayerInputStroke.Parent = viewPlayerInput
+
+local viewPlayerButton = Instance.new("TextButton")
+viewPlayerButton.Name = "ViewPlayerButton"
+viewPlayerButton.Size = UDim2.fromOffset(55, 30)
+viewPlayerButton.AnchorPoint = Vector2.new(1, 0)
+viewPlayerButton.Position = UDim2.new(1, -10, 0, 182)
+viewPlayerButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+viewPlayerButton.BorderSizePixel = 0
+viewPlayerButton.Text = "OFF"
+viewPlayerButton.TextColor3 = Color3.new(1, 1, 1)
+viewPlayerButton.TextSize = 11
+viewPlayerButton.Font = Enum.Font.GothamBold
+viewPlayerButton.TextScaled = true
+viewPlayerButton.TextWrapped = false
+viewPlayerButton.ZIndex = 512
+viewPlayerButton.Parent = mainFrame
+
+local viewPlayerButtonCorner = Instance.new("UICorner")
+viewPlayerButtonCorner.CornerRadius = UDim.new(0, 7)
+viewPlayerButtonCorner.Parent = viewPlayerButton
+
 local function findPlayersByName(targetName)
 	local results = {}
 	if not targetName then return results end
@@ -604,6 +702,63 @@ local function findPlayersByName(targetName)
 
 	return results
 end
+
+-- View Player state and logic
+local viewPlayerEnabled = false
+local viewPlayerTarget = nil
+local originalCameraSubject = nil
+local originalCameraType = nil
+local camera = workspace.CurrentCamera
+
+local function updateViewPlayerTarget()
+	local name = viewPlayerInput.Text:match("^%s*(.-)%s*$")
+	if name == "" then
+		viewPlayerTarget = nil
+		return
+	end
+	local targets = findPlayersByName(name)
+	viewPlayerTarget = (#targets > 0) and targets[1] or nil
+end
+
+local function setViewPlayer(state)
+	viewPlayerEnabled = state
+	viewPlayerButton.Text = state and "ON" or "OFF"
+	viewPlayerButton.BackgroundColor3 = state
+		and Color3.fromRGB(40, 150, 70)
+		or Color3.fromRGB(180, 50, 50)
+
+	if state then
+		originalCameraSubject = camera.CameraSubject
+		originalCameraType = camera.CameraType
+		updateViewPlayerTarget()
+	else
+		if originalCameraSubject then
+			camera.CameraSubject = originalCameraSubject
+		end
+		if originalCameraType then
+			camera.CameraType = originalCameraType
+		end
+		viewPlayerTarget = nil
+		originalCameraSubject = nil
+		originalCameraType = nil
+	end
+end
+
+viewPlayerButton.Activated:Connect(function()
+	setViewPlayer(not viewPlayerEnabled)
+end)
+
+viewPlayerInput.FocusLost:Connect(function()
+	if viewPlayerEnabled then
+		updateViewPlayerTarget()
+	end
+end)
+
+viewPlayerInput:GetPropertyChangedSignal("Text"):Connect(function()
+	if viewPlayerEnabled then
+		updateViewPlayerTarget()
+	end
+end)
 
 local function removeSingleESP(other)
 	local data = singleESPData[other]
@@ -769,6 +924,12 @@ end)
 Players.PlayerRemoving:Connect(function(other)
 	removeSingleESP(other)
 	removePlayerHighlight(other)
+	if viewPlayerTarget == other then
+		viewPlayerTarget = nil
+		if viewPlayerEnabled then
+			updateViewPlayerTarget()
+		end
+	end
 	if singleLineEnabled and currentSingleTargetName then
 		createSingleLines(currentSingleTargetName)
 	end
@@ -1060,6 +1221,19 @@ task.spawn(function()
 			elseif #singleTargetParts == 0 then
 				createSingleLines(currentSingleTargetName)
 			end
+		end
+
+		if viewPlayerEnabled and viewPlayerTarget then
+			local targetChar = viewPlayerTarget.Character
+			local targetHumanoid = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+			if targetHumanoid then
+				camera.CameraSubject = targetHumanoid
+				camera.CameraType = Enum.CameraType.Custom
+			else
+				updateViewPlayerTarget()
+			end
+		elseif viewPlayerEnabled and not viewPlayerTarget then
+			updateViewPlayerTarget()
 		end
 	end
 end)
