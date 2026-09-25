@@ -22,7 +22,7 @@ screenGui.Parent = playerGui
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.Size = UDim2.new(0.4, 0, 0.5, 0)
+mainFrame.Size = UDim2.new(0.6, 0, 0.7, 0)
 mainFrame.Position = UDim2.new(0.5, 0, 0.4, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.5
@@ -119,7 +119,7 @@ lineLabel.Parent = contentFrame
 
 local objectInput = Instance.new("TextBox")
 objectInput.Name = "ObjectCoordinateInput"
-objectInput.Size = UDim2.new(0, 200, 0, 40)
+objectInput.Size = UDim2.new(0, 100, 0, 40)
 objectInput.Position = UDim2.fromOffset(130, 5)
 objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 objectInput.BorderSizePixel = 0
@@ -441,4 +441,302 @@ task.spawn(function()
 	clearObjectLines()
 end)
 
-updateObjectLineButton()print("Hello world!")
+updateObjectLineButton()
+
+-- === TOUCHINTEREST ESP ===
+local touchInterestLabel = Instance.new("TextLabel")
+touchInterestLabel.Name = "TouchInterestLabel"
+touchInterestLabel.Size = UDim2.new(0, 120, 0, 40)
+touchInterestLabel.Position = UDim2.fromOffset(5, 50)
+touchInterestLabel.BackgroundTransparency = 1
+touchInterestLabel.Text = "TouchInterest ESP"
+touchInterestLabel.TextColor3 = Color3.new(1, 1, 1)
+touchInterestLabel.TextSize = 14
+touchInterestLabel.Font = Enum.Font.GothamBold
+touchInterestLabel.TextXAlignment = Enum.TextXAlignment.Left
+touchInterestLabel.TextYAlignment = Enum.TextYAlignment.Center
+touchInterestLabel.Parent = contentFrame
+
+local touchInterestToggle = Instance.new("TextButton")
+touchInterestToggle.Name = "TouchInterestToggle"
+touchInterestToggle.Size = UDim2.new(0, 60, 0, 40)
+touchInterestToggle.AnchorPoint = Vector2.new(1, 0)
+touchInterestToggle.Position = UDim2.new(1, -5, 0, 50)
+touchInterestToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+touchInterestToggle.BorderSizePixel = 0
+touchInterestToggle.Text = "OFF"
+touchInterestToggle.TextColor3 = Color3.new(1, 1, 1)
+touchInterestToggle.TextSize = 13
+touchInterestToggle.Font = Enum.Font.GothamBold
+touchInterestToggle.Parent = contentFrame
+
+local touchInterestToggleCorner = Instance.new("UICorner")
+touchInterestToggleCorner.CornerRadius = UDim.new(0, 8)
+touchInterestToggleCorner.Parent = touchInterestToggle
+
+-- LOGIKA TOUCHINTEREST ESP
+local touchInterestEnabled = false
+local touchInterestHighlights = {}
+
+local function hasTouchInterest(part)
+	if not part or not part.Parent then return false end
+	if not part:IsA("BasePart") then return false end
+	return part:FindFirstChild("TouchInterest") ~= nil
+end
+
+local function addTouchInterestHighlight(part)
+	if not hasTouchInterest(part) then return end
+	if touchInterestHighlights[part] then
+		local h = touchInterestHighlights[part]
+		if h and h.Parent then
+			h.Adornee = part
+			h.Enabled = true
+			return
+		end
+	end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ObjekTools_TouchInterestHighlight"
+	highlight.Adornee = part
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(255, 100, 255)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Parent = screenGui
+	touchInterestHighlights[part] = highlight
+end
+
+local function removeTouchInterestHighlight(part)
+	local highlight = touchInterestHighlights[part]
+	if highlight then
+		highlight:Destroy()
+	end
+	touchInterestHighlights[part] = nil
+end
+
+local function clearTouchInterestHighlights()
+	for part, highlight in pairs(touchInterestHighlights) do
+		if highlight then
+			highlight:Destroy()
+		end
+	end
+	table.clear(touchInterestHighlights)
+end
+
+local function applyTouchInterestESP()
+	if not touchInterestEnabled then return end
+
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if hasTouchInterest(descendant) then
+			addTouchInterestHighlight(descendant)
+		end
+	end
+end
+
+local function setTouchInterestESP(state)
+	touchInterestEnabled = state
+
+	if state then
+		touchInterestToggle.Text = "ON"
+		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		applyTouchInterestESP()
+	else
+		touchInterestToggle.Text = "OFF"
+		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		clearTouchInterestHighlights()
+	end
+end
+
+touchInterestToggle.Activated:Connect(function()
+	setTouchInterestESP(not touchInterestEnabled)
+end)
+
+-- Deteksi part baru yang mendapatkan TouchInterest
+workspace.DescendantAdded:Connect(function(descendant)
+	if not touchInterestEnabled then return end
+	if descendant:IsA("TouchInterest") then
+		local part = descendant.Parent
+		if part and part:IsA("BasePart") then
+			addTouchInterestHighlight(part)
+		end
+	elseif hasTouchInterest(descendant) then
+		addTouchInterestHighlight(descendant)
+	end
+end)
+
+-- Deteksi part yang hilang atau TouchInterest dihapus
+workspace.DescendantRemoving:Connect(function(descendant)
+	if descendant:IsA("TouchInterest") then
+		local part = descendant.Parent
+		if part and touchInterestHighlights[part] then
+			local highlight = touchInterestHighlights[part]
+			if not part:FindFirstChild("TouchInterest") then
+				removeTouchInterestHighlight(part)
+			else
+				if highlight then highlight.Enabled = false end
+			end
+		end
+	elseif touchInterestHighlights[descendant] then
+		removeTouchInterestHighlight(descendant)
+	end
+end)
+
+-- Loop untuk refresh highlight secara berkala
+task.spawn(function()
+	while touchInterestToggle and touchInterestToggle.Parent do
+		task.wait(0.5)
+		if touchInterestEnabled then
+			applyTouchInterestESP()
+		end
+	end
+end)
+
+-- === CLICKDETECTOR ESP ===
+local clickDetectorLabel = Instance.new("TextLabel")
+clickDetectorLabel.Name = "ClickDetectorLabel"
+clickDetectorLabel.Size = UDim2.new(0, 120, 0, 40)
+clickDetectorLabel.Position = UDim2.fromOffset(5, 95)
+clickDetectorLabel.BackgroundTransparency = 1
+clickDetectorLabel.Text = "Click Detector ESP"
+clickDetectorLabel.TextColor3 = Color3.new(1, 1, 1)
+clickDetectorLabel.TextSize = 14
+clickDetectorLabel.Font = Enum.Font.GothamBold
+clickDetectorLabel.TextXAlignment = Enum.TextXAlignment.Left
+clickDetectorLabel.TextYAlignment = Enum.TextYAlignment.Center
+clickDetectorLabel.Parent = contentFrame
+
+local clickDetectorToggle = Instance.new("TextButton")
+clickDetectorToggle.Name = "ClickDetectorToggle"
+clickDetectorToggle.Size = UDim2.new(0, 60, 0, 40)
+clickDetectorToggle.AnchorPoint = Vector2.new(1, 0)
+clickDetectorToggle.Position = UDim2.new(1, -5, 0, 95)
+clickDetectorToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+clickDetectorToggle.BorderSizePixel = 0
+clickDetectorToggle.Text = "OFF"
+clickDetectorToggle.TextColor3 = Color3.new(1, 1, 1)
+clickDetectorToggle.TextSize = 13
+clickDetectorToggle.Font = Enum.Font.GothamBold
+clickDetectorToggle.Parent = contentFrame
+
+local clickDetectorToggleCorner = Instance.new("UICorner")
+clickDetectorToggleCorner.CornerRadius = UDim.new(0, 8)
+clickDetectorToggleCorner.Parent = clickDetectorToggle
+
+-- LOGIKA CLICKDETECTOR ESP
+local clickDetectorEnabled = false
+local clickDetectorHighlights = {}
+
+local function hasClickDetector(part)
+	if not part or not part.Parent then return false end
+	if not part:IsA("BasePart") then return false end
+	return part:FindFirstChildOfClass("ClickDetector") ~= nil
+end
+
+local function addClickDetectorHighlight(part)
+	if not hasClickDetector(part) then return end
+	if clickDetectorHighlights[part] then
+		local h = clickDetectorHighlights[part]
+		if h and h.Parent then
+			h.Adornee = part
+			h.Enabled = true
+			return
+		end
+	end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ObjekTools_ClickDetectorHighlight"
+	highlight.Adornee = part
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(100, 200, 100)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Parent = screenGui
+	clickDetectorHighlights[part] = highlight
+end
+
+local function removeClickDetectorHighlight(part)
+	local highlight = clickDetectorHighlights[part]
+	if highlight then
+		highlight:Destroy()
+	end
+	clickDetectorHighlights[part] = nil
+end
+
+local function clearClickDetectorHighlights()
+	for part, highlight in pairs(clickDetectorHighlights) do
+		if highlight then
+			highlight:Destroy()
+		end
+	end
+	table.clear(clickDetectorHighlights)
+end
+
+local function applyClickDetectorESP()
+	if not clickDetectorEnabled then return end
+
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if hasClickDetector(descendant) then
+			addClickDetectorHighlight(descendant)
+		end
+	end
+end
+
+local function setClickDetectorESP(state)
+	clickDetectorEnabled = state
+
+	if state then
+		clickDetectorToggle.Text = "ON"
+		clickDetectorToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		applyClickDetectorESP()
+	else
+		clickDetectorToggle.Text = "OFF"
+		clickDetectorToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		clearClickDetectorHighlights()
+	end
+end
+
+clickDetectorToggle.Activated:Connect(function()
+	setClickDetectorESP(not clickDetectorEnabled)
+end)
+
+-- Deteksi part baru yang mendapatkan ClickDetector
+workspace.DescendantAdded:Connect(function(descendant)
+	if not clickDetectorEnabled then return end
+	if descendant:IsA("ClickDetector") then
+		local part = descendant.Parent
+		if part and part:IsA("BasePart") then
+			addClickDetectorHighlight(part)
+		end
+	elseif hasClickDetector(descendant) then
+		addClickDetectorHighlight(descendant)
+	end
+end)
+
+-- Deteksi part yang hilang atau ClickDetector dihapus
+workspace.DescendantRemoving:Connect(function(descendant)
+	if descendant:IsA("ClickDetector") then
+		local part = descendant.Parent
+		if part and clickDetectorHighlights[part] then
+			if not part:FindFirstChildOfClass("ClickDetector") then
+				removeClickDetectorHighlight(part)
+			else
+				local highlight = clickDetectorHighlights[part]
+				if highlight then highlight.Enabled = false end
+			end
+		end
+	elseif clickDetectorHighlights[descendant] then
+		removeClickDetectorHighlight(descendant)
+	end
+end)
+
+-- Loop untuk refresh highlight ClickDetector secara berkala
+task.spawn(function()
+	while clickDetectorToggle and clickDetectorToggle.Parent do
+		task.wait(0.5)
+		if clickDetectorEnabled then
+			applyClickDetectorESP()
+		end
+	end
+end)
