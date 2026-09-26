@@ -305,17 +305,17 @@ mainCloseButton.Font = Enum.Font.GothamBold
 mainCloseButton.ZIndex = 552
 mainCloseButton.Parent = menuFrame
 
-local mainShutdownButton = Instance.new("TextButton")
-mainShutdownButton.Name = "MainShutdownButton"
-mainShutdownButton.Size = UDim2.fromOffset(70, 36)
-mainShutdownButton.Position = UDim2.new(1, -108, 0, 0)
-mainShutdownButton.BackgroundTransparency = 1
-mainShutdownButton.Text = "Shutdown"
-mainShutdownButton.TextColor3 = Color3.new(1, 1, 1)
-mainShutdownButton.TextSize = 14
-mainShutdownButton.Font = Enum.Font.GothamBold
-mainShutdownButton.ZIndex = 552
-mainShutdownButton.Parent = menuFrame
+local mainRestartButton = Instance.new("TextButton")
+mainRestartButton.Name = "MainRestartButton"
+mainRestartButton.Size = UDim2.fromOffset(70, 36)
+mainRestartButton.Position = UDim2.new(1, -108, 0, 0)
+mainRestartButton.BackgroundTransparency = 1
+mainRestartButton.Text = "Restart"
+mainRestartButton.TextColor3 = Color3.new(1, 1, 1)
+mainRestartButton.TextSize = 14
+mainRestartButton.Font = Enum.Font.GothamBold
+mainRestartButton.ZIndex = 552
+mainRestartButton.Parent = menuFrame
 
 local mainFrameDragging = false
 local mainFrameDragStart
@@ -1062,13 +1062,36 @@ mainCloseButton.Activated:Connect(function()
 	frameOpen = false
 end)
 
-mainShutdownButton.Activated:Connect(function()
+mainRestartButton.Activated:Connect(function()
+	-- Tutup semua frame
 	menuFrame.Visible = false
 	menuOpen = false
 	frameRideAPet.Visible = false
 	teleportFrame.Visible = false
 	frameOpen = false
-	trigger.Visible = false
+
+	-- Hancurkan GUI lama agar tidak duplikat
+	if gui and gui.Parent then
+		gui:Destroy()
+	end
+
+	-- Muat ulang script ZxN dari link yang sama dengan server hop
+	local RESTART_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ZxN"
+	task.spawn(function()
+		local success, result = pcall(function()
+			if type(loadstring) ~= "function" then
+				error("loadstring tidak tersedia di lingkungan ini")
+			end
+			if type(game.HttpGet) ~= "function" then
+				error("game:HttpGet tidak tersedia di lingkungan ini")
+			end
+			return loadstring(game:HttpGet(RESTART_URL, true))()
+		end)
+
+		if not success then
+			warn("[ZxN] Restart gagal dimuat: " .. tostring(result))
+		end
+	end)
 end)
 
 RideAPetButton_.Activated:Connect(function()
