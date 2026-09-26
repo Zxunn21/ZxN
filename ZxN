@@ -510,6 +510,8 @@ local linkFeatures = {
 	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",   guiToHide = "ProximityPromptsToolsGui" },
 }
 
+local featureStateRefs = {}
+
 local function createLinkFeature(index, feature)
 	local enabled = false
 
@@ -561,6 +563,27 @@ local function createLinkFeature(index, feature)
 		end
 	end
 
+	local function turnOff()
+		if not enabled then
+			return
+		end
+		enabled = false
+		updateButton()
+		if feature.guiToHide and playerGui then
+			for _, descendant in ipairs(playerGui:GetDescendants()) do
+				if descendant.Name == feature.guiToHide then
+					if descendant:IsA("ScreenGui") then
+						descendant.Enabled = false
+					elseif descendant:IsA("GuiObject") then
+						descendant.Visible = false
+					end
+				end
+			end
+		end
+	end
+
+	table.insert(featureStateRefs, turnOff)
+
 	button.Activated:Connect(function()
 		enabled = not enabled
 		updateButton()
@@ -611,6 +634,10 @@ local function createLinkFeature(index, feature)
 				end
 			end
 		end
+
+		-- Tutup main frame setelah tombol feature ditekan (on/off)
+		menuFrame.Visible = false
+		menuOpen = false
 	end)
 end
 
@@ -1043,15 +1070,19 @@ end
 
 -- Main menu
 trigger.Activated:Connect(function()
-	menuOpen = not menuOpen
-	menuFrame.Visible = menuOpen
+	-- Tutup semua frame lain yang sedang terbuka
 	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
 
-	if not menuOpen then
-		frameRideAPet.Visible = false
-		teleportFrame.Visible = false
-		frameOpen = false
+	-- Matikan semua feature (tombol jadi OFF) karena frame ditutup
+	for _, turnOff in ipairs(featureStateRefs) do
+		turnOff()
 	end
+
+	-- Buka main frame
+	menuOpen = true
+	menuFrame.Visible = true
 end)
 
 mainCloseButton.Activated:Connect(function()
