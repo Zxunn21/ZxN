@@ -477,9 +477,47 @@ local touchInterestToggleCorner = Instance.new("UICorner")
 touchInterestToggleCorner.CornerRadius = UDim.new(0, 8)
 touchInterestToggleCorner.Parent = touchInterestToggle
 
+-- Tombol Model (ESP nama model)
+local touchModelToggle = Instance.new("TextButton")
+touchModelToggle.Name = "TouchModelToggle"
+touchModelToggle.Size = UDim2.new(0, 60, 0, 40)
+touchModelToggle.Position = UDim2.fromOffset(130, 50)
+touchModelToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+touchModelToggle.BorderSizePixel = 0
+touchModelToggle.Text = "Model"
+touchModelToggle.TextColor3 = Color3.new(1, 1, 1)
+touchModelToggle.TextSize = 13
+touchModelToggle.Font = Enum.Font.GothamBold
+touchModelToggle.Parent = contentFrame
+
+local touchModelToggleCorner = Instance.new("UICorner")
+touchModelToggleCorner.CornerRadius = UDim.new(0, 8)
+touchModelToggleCorner.Parent = touchModelToggle
+
+-- Tombol Highlight
+local touchHighlightToggle = Instance.new("TextButton")
+touchHighlightToggle.Name = "TouchHighlightToggle"
+touchHighlightToggle.Size = UDim2.new(0, 70, 0, 40)
+touchHighlightToggle.Position = UDim2.fromOffset(195, 50)
+touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+touchHighlightToggle.BorderSizePixel = 0
+touchHighlightToggle.Text = "Highlight"
+touchHighlightToggle.TextColor3 = Color3.new(1, 1, 1)
+touchHighlightToggle.TextSize = 13
+touchHighlightToggle.Font = Enum.Font.GothamBold
+touchHighlightToggle.Parent = contentFrame
+
+local touchHighlightToggleCorner = Instance.new("UICorner")
+touchHighlightToggleCorner.CornerRadius = UDim.new(0, 8)
+touchHighlightToggleCorner.Parent = touchHighlightToggle
+
 -- LOGIKA TOUCHINTEREST ESP
 local touchInterestEnabled = false
+local touchModelEnabled = false
+local touchHighlightModelEnabled = false
 local touchInterestHighlights = {}
+local touchInterestModelHighlights = {}
+local touchInterestModelBillboards = {}
 
 local function hasTouchInterest(part)
 	if not part or not part.Parent then return false end
@@ -487,6 +525,31 @@ local function hasTouchInterest(part)
 	return part:FindFirstChild("TouchInterest") ~= nil
 end
 
+local function findModelFromPart(part)
+	local current = part.Parent
+	while current do
+		if current:IsA("Model") then
+			return current
+		end
+		current = current.Parent
+	end
+	return nil
+end
+
+local function getModelsFromTouchInterest()
+	local models = {}
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if hasTouchInterest(descendant) then
+			local model = findModelFromPart(descendant)
+			if model then
+				models[model] = true
+			end
+		end
+	end
+	return models
+end
+
+-- Highlight untuk individual parts
 local function addTouchInterestHighlight(part)
 	if not hasTouchInterest(part) then return end
 	if touchInterestHighlights[part] then
@@ -527,12 +590,137 @@ local function clearTouchInterestHighlights()
 	table.clear(touchInterestHighlights)
 end
 
+-- Highlight untuk models
+local function addTouchInterestModelHighlight(model)
+	if touchInterestModelHighlights[model] then
+		local h = touchInterestModelHighlights[model]
+		if h and h.Parent then
+			h.Adornee = model
+			h.Enabled = true
+			return
+		end
+	end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ObjekTools_TouchInterestModelHighlight"
+	highlight.Adornee = model
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(255, 150, 50)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Parent = screenGui
+	touchInterestModelHighlights[model] = highlight
+end
+
+local function removeTouchInterestModelHighlight(model)
+	local highlight = touchInterestModelHighlights[model]
+	if highlight then
+		highlight:Destroy()
+	end
+	touchInterestModelHighlights[model] = nil
+end
+
+local function clearTouchInterestModelHighlights()
+	for model, highlight in pairs(touchInterestModelHighlights) do
+		if highlight then
+			highlight:Destroy()
+		end
+	end
+	table.clear(touchInterestModelHighlights)
+end
+
+-- Billboard untuk models
+local function addTouchInterestModelBillboard(model)
+	if touchInterestModelBillboards[model] then
+		local b = touchInterestModelBillboards[model]
+		if b and b.Parent then
+			b.Adornee = model
+			b.Enabled = true
+			return
+		end
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ObjekTools_TouchInterestModelESP"
+	billboard.Adornee = model
+	billboard.Size = UDim2.new(0, 200, 0, 50)
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.Parent = screenGui
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = model.Name
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	label.TextStrokeTransparency = 0
+	label.TextSize = 18
+	label.Font = Enum.Font.GothamBold
+	label.Parent = billboard
+
+	touchInterestModelBillboards[model] = billboard
+end
+
+local function removeTouchInterestModelBillboard(model)
+	local billboard = touchInterestModelBillboards[model]
+	if billboard then
+		billboard:Destroy()
+	end
+	touchInterestModelBillboards[model] = nil
+end
+
+local function clearTouchInterestModelBillboards()
+	for model, billboard in pairs(touchInterestModelBillboards) do
+		if billboard then
+			billboard:Destroy()
+		end
+	end
+	table.clear(touchInterestModelBillboards)
+end
+
+local function updateTouchInterestButtons()
+	if touchModelEnabled then
+		touchModelToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		touchModelToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+
+	if touchHighlightModelEnabled then
+		touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+
+	if touchInterestEnabled then
+		touchInterestToggle.Text = "ON"
+		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		touchInterestToggle.Text = "OFF"
+		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end
+
 local function applyTouchInterestESP()
 	if not touchInterestEnabled then return end
 
+	-- Highlight individual parts
 	for _, descendant in ipairs(workspace:GetDescendants()) do
 		if hasTouchInterest(descendant) then
 			addTouchInterestHighlight(descendant)
+		end
+	end
+
+	-- Highlight dan billboard untuk models
+	local models = getModelsFromTouchInterest()
+	for model in pairs(models) do
+		if touchHighlightModelEnabled then
+			addTouchInterestModelHighlight(model)
+		end
+		if touchModelEnabled then
+			addTouchInterestModelBillboard(model)
 		end
 	end
 end
@@ -541,18 +729,50 @@ local function setTouchInterestESP(state)
 	touchInterestEnabled = state
 
 	if state then
-		touchInterestToggle.Text = "ON"
-		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 		applyTouchInterestESP()
 	else
-		touchInterestToggle.Text = "OFF"
-		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 		clearTouchInterestHighlights()
+		clearTouchInterestModelHighlights()
+		clearTouchInterestModelBillboards()
 	end
+
+	updateTouchInterestButtons()
 end
 
+local function refreshTouchInterestESP()
+	if not touchInterestEnabled then return end
+	clearTouchInterestModelHighlights()
+	clearTouchInterestModelBillboards()
+	applyTouchInterestESP()
+end
+
+-- Master toggle
 touchInterestToggle.Activated:Connect(function()
 	setTouchInterestESP(not touchInterestEnabled)
+end)
+
+-- Model sub-toggle
+touchModelToggle.Activated:Connect(function()
+	touchModelEnabled = not touchModelEnabled
+	if not touchModelEnabled then
+		clearTouchInterestModelBillboards()
+	end
+	if touchInterestEnabled and touchModelEnabled then
+		applyTouchInterestESP()
+	end
+	updateTouchInterestButtons()
+end)
+
+-- Highlight model sub-toggle
+touchHighlightToggle.Activated:Connect(function()
+	touchHighlightModelEnabled = not touchHighlightModelEnabled
+	if not touchHighlightModelEnabled then
+		clearTouchInterestModelHighlights()
+	end
+	if touchInterestEnabled and touchHighlightModelEnabled then
+		applyTouchInterestESP()
+	end
+	updateTouchInterestButtons()
 end)
 
 -- Deteksi part baru yang mendapatkan TouchInterest
@@ -562,9 +782,27 @@ workspace.DescendantAdded:Connect(function(descendant)
 		local part = descendant.Parent
 		if part and part:IsA("BasePart") then
 			addTouchInterestHighlight(part)
+			local model = findModelFromPart(part)
+			if model then
+				if touchHighlightModelEnabled then
+					addTouchInterestModelHighlight(model)
+				end
+				if touchModelEnabled then
+					addTouchInterestModelBillboard(model)
+				end
+			end
 		end
 	elseif hasTouchInterest(descendant) then
 		addTouchInterestHighlight(descendant)
+		local model = findModelFromPart(descendant)
+		if model then
+			if touchHighlightModelEnabled then
+				addTouchInterestModelHighlight(model)
+			end
+			if touchModelEnabled then
+				addTouchInterestModelBillboard(model)
+			end
+		end
 	end
 end)
 
@@ -572,16 +810,44 @@ end)
 workspace.DescendantRemoving:Connect(function(descendant)
 	if descendant:IsA("TouchInterest") then
 		local part = descendant.Parent
-		if part and touchInterestHighlights[part] then
-			local highlight = touchInterestHighlights[part]
+		if part then
+			removeTouchInterestHighlight(part)
 			if not part:FindFirstChild("TouchInterest") then
-				removeTouchInterestHighlight(part)
-			else
-				if highlight then highlight.Enabled = false end
+				local model = findModelFromPart(part)
+				if model then
+					local stillHas = false
+					for _, d in ipairs(model:GetDescendants()) do
+						if hasTouchInterest(d) then
+							stillHas = true
+							break
+						end
+					end
+					if not stillHas then
+						removeTouchInterestModelHighlight(model)
+						removeTouchInterestModelBillboard(model)
+					end
+				end
 			end
 		end
 	elseif touchInterestHighlights[descendant] then
 		removeTouchInterestHighlight(descendant)
+		local model = findModelFromPart(descendant)
+		if model then
+			local stillHas = false
+			for _, d in ipairs(model:GetDescendants()) do
+				if hasTouchInterest(d) then
+					stillHas = true
+					break
+				end
+			end
+			if not stillHas then
+				removeTouchInterestModelHighlight(model)
+				removeTouchInterestModelBillboard(model)
+			end
+		end
+	elseif descendant:IsA("Model") then
+		removeTouchInterestModelHighlight(descendant)
+		removeTouchInterestModelBillboard(descendant)
 	end
 end)
 
@@ -594,6 +860,8 @@ task.spawn(function()
 		end
 	end
 end)
+
+updateTouchInterestButtons()
 
 -- === CLICKDETECTOR ESP ===
 local clickDetectorLabel = Instance.new("TextLabel")
