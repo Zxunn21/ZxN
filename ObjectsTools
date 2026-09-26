@@ -740,3 +740,325 @@ task.spawn(function()
 		end
 	end
 end)
+
+-- === DRAG DETECTOR ESP ===
+local dragDetectorLabel = Instance.new("TextLabel")
+dragDetectorLabel.Name = "DragDetectorLabel"
+dragDetectorLabel.Size = UDim2.new(0, 120, 0, 40)
+dragDetectorLabel.Position = UDim2.fromOffset(5, 140)
+dragDetectorLabel.BackgroundTransparency = 1
+dragDetectorLabel.Text = "Drag Detector ESP"
+dragDetectorLabel.TextColor3 = Color3.new(1, 1, 1)
+dragDetectorLabel.TextSize = 14
+dragDetectorLabel.Font = Enum.Font.GothamBold
+dragDetectorLabel.TextXAlignment = Enum.TextXAlignment.Left
+dragDetectorLabel.TextYAlignment = Enum.TextYAlignment.Center
+dragDetectorLabel.Parent = contentFrame
+
+-- Tombol Model (ESP nama model)
+local dragModelToggle = Instance.new("TextButton")
+dragModelToggle.Name = "DragModelToggle"
+dragModelToggle.Size = UDim2.new(0, 60, 0, 40)
+dragModelToggle.Position = UDim2.fromOffset(130, 140)
+dragModelToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+dragModelToggle.BorderSizePixel = 0
+dragModelToggle.Text = "Model"
+dragModelToggle.TextColor3 = Color3.new(1, 1, 1)
+dragModelToggle.TextSize = 13
+dragModelToggle.Font = Enum.Font.GothamBold
+dragModelToggle.Parent = contentFrame
+
+local dragModelToggleCorner = Instance.new("UICorner")
+dragModelToggleCorner.CornerRadius = UDim.new(0, 8)
+dragModelToggleCorner.Parent = dragModelToggle
+
+-- Tombol Highlight
+local dragHighlightToggle = Instance.new("TextButton")
+dragHighlightToggle.Name = "DragHighlightToggle"
+dragHighlightToggle.Size = UDim2.new(0, 70, 0, 40)
+dragHighlightToggle.Position = UDim2.fromOffset(195, 140)
+dragHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+dragHighlightToggle.BorderSizePixel = 0
+dragHighlightToggle.Text = "Highlight"
+dragHighlightToggle.TextColor3 = Color3.new(1, 1, 1)
+dragHighlightToggle.TextSize = 13
+dragHighlightToggle.Font = Enum.Font.GothamBold
+dragHighlightToggle.Parent = contentFrame
+
+local dragHighlightToggleCorner = Instance.new("UICorner")
+dragHighlightToggleCorner.CornerRadius = UDim.new(0, 8)
+dragHighlightToggleCorner.Parent = dragHighlightToggle
+
+-- Tombol On/Off (master toggle)
+local dragDetectorToggle = Instance.new("TextButton")
+dragDetectorToggle.Name = "DragDetectorToggle"
+dragDetectorToggle.Size = UDim2.new(0, 60, 0, 40)
+dragDetectorToggle.AnchorPoint = Vector2.new(1, 0)
+dragDetectorToggle.Position = UDim2.new(1, -5, 0, 140)
+dragDetectorToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+dragDetectorToggle.BorderSizePixel = 0
+dragDetectorToggle.Text = "OFF"
+dragDetectorToggle.TextColor3 = Color3.new(1, 1, 1)
+dragDetectorToggle.TextSize = 13
+dragDetectorToggle.Font = Enum.Font.GothamBold
+dragDetectorToggle.Parent = contentFrame
+
+local dragDetectorToggleCorner = Instance.new("UICorner")
+dragDetectorToggleCorner.CornerRadius = UDim.new(0, 8)
+dragDetectorToggleCorner.Parent = dragDetectorToggle
+
+-- LOGIKA DRAG DETECTOR ESP
+local dragDetectorEnabled = false
+local dragModelEnabled = false
+local dragHighlightEnabled = false
+local dragDetectorHighlights = {}
+local dragDetectorBillboards = {}
+
+local function findModelFromDragDetector(dragDetector)
+	local current = dragDetector.Parent
+	while current do
+		if current:IsA("Model") then
+			return current
+		end
+		current = current.Parent
+	end
+	return nil
+end
+
+local function getModelsFromDragDetectors()
+	local models = {}
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if descendant:IsA("DragDetector") then
+			local model = findModelFromDragDetector(descendant)
+			if model then
+				models[model] = true
+			end
+		end
+	end
+	return models
+end
+
+local function addDragDetectorHighlight(model)
+	if dragDetectorHighlights[model] then
+		local h = dragDetectorHighlights[model]
+		if h and h.Parent then
+			h.Adornee = model
+			h.Enabled = true
+			return
+		end
+	end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "ObjekTools_DragDetectorHighlight"
+	highlight.Adornee = model
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(100, 150, 255)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Parent = screenGui
+	dragDetectorHighlights[model] = highlight
+end
+
+local function removeDragDetectorHighlight(model)
+	local highlight = dragDetectorHighlights[model]
+	if highlight then
+		highlight:Destroy()
+	end
+	dragDetectorHighlights[model] = nil
+end
+
+local function clearDragDetectorHighlights()
+	for model, highlight in pairs(dragDetectorHighlights) do
+		if highlight then
+			highlight:Destroy()
+		end
+	end
+	table.clear(dragDetectorHighlights)
+end
+
+local function addDragDetectorBillboard(model)
+	if dragDetectorBillboards[model] then
+		local b = dragDetectorBillboards[model]
+		if b and b.Parent then
+			b.Adornee = model
+			b.Enabled = true
+			return
+		end
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ObjekTools_DragDetectorESP"
+	billboard.Adornee = model
+	billboard.Size = UDim2.new(0, 200, 0, 50)
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.Parent = screenGui
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = model.Name
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	label.TextStrokeTransparency = 0
+	label.TextSize = 18
+	label.Font = Enum.Font.GothamBold
+	label.Parent = billboard
+
+	dragDetectorBillboards[model] = billboard
+end
+
+local function removeDragDetectorBillboard(model)
+	local billboard = dragDetectorBillboards[model]
+	if billboard then
+		billboard:Destroy()
+	end
+	dragDetectorBillboards[model] = nil
+end
+
+local function clearDragDetectorBillboards()
+	for model, billboard in pairs(dragDetectorBillboards) do
+		if billboard then
+			billboard:Destroy()
+		end
+	end
+	table.clear(dragDetectorBillboards)
+end
+
+local function updateDragDetectorButtons()
+	if dragModelEnabled then
+		dragModelToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		dragModelToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+
+	if dragHighlightEnabled then
+		dragHighlightToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		dragHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+
+	if dragDetectorEnabled then
+		dragDetectorToggle.Text = "ON"
+		dragDetectorToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		dragDetectorToggle.Text = "OFF"
+		dragDetectorToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end
+
+local function applyDragDetectorESP()
+	if not dragDetectorEnabled then return end
+
+	local models = getModelsFromDragDetectors()
+	for model in pairs(models) do
+		if dragHighlightEnabled then
+			addDragDetectorHighlight(model)
+		end
+		if dragModelEnabled then
+			addDragDetectorBillboard(model)
+		end
+	end
+end
+
+local function setDragDetectorESP(state)
+	dragDetectorEnabled = state
+
+	if state then
+		applyDragDetectorESP()
+	else
+		clearDragDetectorHighlights()
+		clearDragDetectorBillboards()
+	end
+
+	updateDragDetectorButtons()
+end
+
+local function refreshDragDetectorESP()
+	if not dragDetectorEnabled then return end
+	clearDragDetectorHighlights()
+	clearDragDetectorBillboards()
+	applyDragDetectorESP()
+end
+
+-- Master toggle
+dragDetectorToggle.Activated:Connect(function()
+	setDragDetectorESP(not dragDetectorEnabled)
+end)
+
+-- Model sub-toggle
+dragModelToggle.Activated:Connect(function()
+	dragModelEnabled = not dragModelEnabled
+	if not dragModelEnabled then
+		clearDragDetectorBillboards()
+	end
+	if dragDetectorEnabled and dragModelEnabled then
+		applyDragDetectorESP()
+	end
+	updateDragDetectorButtons()
+end)
+
+-- Highlight sub-toggle
+dragHighlightToggle.Activated:Connect(function()
+	dragHighlightEnabled = not dragHighlightEnabled
+	if not dragHighlightEnabled then
+		clearDragDetectorHighlights()
+	end
+	if dragDetectorEnabled and dragHighlightEnabled then
+		applyDragDetectorESP()
+	end
+	updateDragDetectorButtons()
+end)
+
+-- Deteksi DragDetector baru ditambahkan
+workspace.DescendantAdded:Connect(function(descendant)
+	if not dragDetectorEnabled then return end
+	if descendant:IsA("DragDetector") then
+		local model = findModelFromDragDetector(descendant)
+		if model then
+			if dragHighlightEnabled then
+				addDragDetectorHighlight(model)
+			end
+			if dragModelEnabled then
+				addDragDetectorBillboard(model)
+			end
+		end
+	end
+end)
+
+-- Deteksi DragDetector atau Model dihapus
+workspace.DescendantRemoving:Connect(function(descendant)
+	if descendant:IsA("DragDetector") then
+		local model = findModelFromDragDetector(descendant)
+		if model then
+			local stillHasDrag = false
+			for _, d in ipairs(model:GetDescendants()) do
+				if d:IsA("DragDetector") and d ~= descendant then
+					stillHasDrag = true
+					break
+				end
+			end
+			if not stillHasDrag then
+				removeDragDetectorHighlight(model)
+				removeDragDetectorBillboard(model)
+			end
+		end
+	elseif descendant:IsA("Model") then
+		removeDragDetectorHighlight(descendant)
+		removeDragDetectorBillboard(descendant)
+	end
+end)
+
+-- Loop untuk refresh DragDetector ESP secara berkala
+task.spawn(function()
+	while dragDetectorToggle and dragDetectorToggle.Parent do
+		task.wait(0.5)
+		if dragDetectorEnabled then
+			applyDragDetectorESP()
+		end
+	end
+end)
+
+updateDragDetectorButtons()
