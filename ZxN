@@ -273,7 +273,7 @@ menuUIPadding.Parent = menuFrame
 local dragArea = Instance.new("Frame")
 dragArea.Name = "MainDragArea"
 dragArea.AnchorPoint = Vector2.new(0, 0)
-dragArea.Size = UDim2.new(1, -42, 0, 36)
+dragArea.Size = UDim2.new(1, -112, 0, 36)
 dragArea.Position = UDim2.fromOffset(0, 0)
 dragArea.BackgroundTransparency = 1
 dragArea.Active = true
@@ -304,6 +304,18 @@ mainCloseButton.TextSize = 28
 mainCloseButton.Font = Enum.Font.GothamBold
 mainCloseButton.ZIndex = 552
 mainCloseButton.Parent = menuFrame
+
+local mainShutdownButton = Instance.new("TextButton")
+mainShutdownButton.Name = "MainShutdownButton"
+mainShutdownButton.Size = UDim2.fromOffset(70, 36)
+mainShutdownButton.Position = UDim2.new(1, -108, 0, 0)
+mainShutdownButton.BackgroundTransparency = 1
+mainShutdownButton.Text = "Shutdown"
+mainShutdownButton.TextColor3 = Color3.new(1, 1, 1)
+mainShutdownButton.TextSize = 14
+mainShutdownButton.Font = Enum.Font.GothamBold
+mainShutdownButton.ZIndex = 552
+mainShutdownButton.Parent = menuFrame
 
 local mainFrameDragging = false
 local mainFrameDragStart
@@ -1048,6 +1060,15 @@ mainCloseButton.Activated:Connect(function()
 	frameRideAPet.Visible = false
 	teleportFrame.Visible = false
 	frameOpen = false
+end)
+
+mainShutdownButton.Activated:Connect(function()
+	menuFrame.Visible = false
+	menuOpen = false
+	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+	trigger.Visible = false
 end)
 
 RideAPetButton_.Activated:Connect(function()
