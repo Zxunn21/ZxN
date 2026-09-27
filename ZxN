@@ -537,7 +537,7 @@ local function setGuiVisible(guiName, visible)
 end
 
 local gameLinkFeatures = {
-	{ description = "Ride A Pet", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet", guiToHide = "RideAPetGui", universeId = 0 },
+	{ description = "Ride A Pet", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet", guiToHide = "RideAPetGui", universeId = 10035204815 },
 }
 
 local gameFeatureEnableFns = {}
