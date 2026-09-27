@@ -183,6 +183,55 @@ local listEggToggleCorner = Instance.new("UICorner")
 listEggToggleCorner.CornerRadius = UDim.new(0, 7)
 listEggToggleCorner.Parent = listEggToggle
 
+-- Menu: Volcano Egg
+local volcanoEggTitle = Instance.new("TextLabel")
+volcanoEggTitle.Name = "VolcanoEggTitle"
+volcanoEggTitle.Size = UDim2.fromOffset(100, 38)
+volcanoEggTitle.Position = UDim2.fromOffset(10, 140)
+volcanoEggTitle.TextYAlignment = Enum.TextYAlignment.Center
+volcanoEggTitle.BackgroundTransparency = 1
+volcanoEggTitle.Text = "Volcano Egg"
+volcanoEggTitle.TextColor3 = Color3.fromRGB(255, 100, 50)
+volcanoEggTitle.TextSize = 16
+volcanoEggTitle.Font = Enum.Font.GothamBold
+volcanoEggTitle.TextXAlignment = Enum.TextXAlignment.Left
+volcanoEggTitle.ZIndex = 601
+volcanoEggTitle.Parent = mainFrame
+
+local volcanoInButton = Instance.new("TextButton")
+volcanoInButton.Name = "VolcanoInButton"
+volcanoInButton.Size = UDim2.fromOffset(75, 38)
+volcanoInButton.Position = UDim2.new(1, -165, 0, 140)
+volcanoInButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+volcanoInButton.BorderSizePixel = 0
+volcanoInButton.Text = "In"
+volcanoInButton.TextColor3 = Color3.new(1, 1, 1)
+volcanoInButton.TextSize = 15
+volcanoInButton.Font = Enum.Font.GothamBold
+volcanoInButton.ZIndex = 601
+volcanoInButton.Parent = mainFrame
+
+local volcanoInButtonCorner = Instance.new("UICorner")
+volcanoInButtonCorner.CornerRadius = UDim.new(0, 7)
+volcanoInButtonCorner.Parent = volcanoInButton
+
+local volcanoOutButton = Instance.new("TextButton")
+volcanoOutButton.Name = "VolcanoOutButton"
+volcanoOutButton.Size = UDim2.fromOffset(75, 38)
+volcanoOutButton.Position = UDim2.new(1, -85, 0, 140)
+volcanoOutButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+volcanoOutButton.BorderSizePixel = 0
+volcanoOutButton.Text = "Out"
+volcanoOutButton.TextColor3 = Color3.new(1, 1, 1)
+volcanoOutButton.TextSize = 15
+volcanoOutButton.Font = Enum.Font.GothamBold
+volcanoOutButton.ZIndex = 601
+volcanoOutButton.Parent = mainFrame
+
+local volcanoOutButtonCorner = Instance.new("UICorner")
+volcanoOutButtonCorner.CornerRadius = UDim.new(0, 7)
+volcanoOutButtonCorner.Parent = volcanoOutButton
+
 -- ===================== FRAME LIST EGG =====================
 local eggListFrame = Instance.new("Frame")
 eggListFrame.Name = "EggListFrame"
@@ -956,6 +1005,8 @@ local function refreshEggList()
 		end
 	end
 
+	local order = 0
+
 	findRenderedEggs()
 	if not renderedEggs or not renderedEggs.Parent then
 		return
@@ -983,8 +1034,6 @@ local function refreshEggList()
 		end)
 	end
 
-	local order = 0
-	createVolcanoEggRow(order)
 	for _, model in ipairs(models) do
 		order += 1
 		createEggRow(model, order)
@@ -1020,6 +1069,31 @@ listEggToggle.Activated:Connect(function()
 		end
 	end
 	updateListEggToggle()
+end)
+
+-- ===================== VOLCANO EGG BUTTONS =====================
+volcanoInButton.Activated:Connect(function()
+	if not volcanoMoving then
+		volcanoInButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		task.spawn(function()
+			tweenThroughPositions(volcanoPositions, 300)
+			volcanoInButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		end)
+	end
+end)
+
+volcanoOutButton.Activated:Connect(function()
+	if not volcanoMoving then
+		volcanoOutButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		task.spawn(function()
+			local reversed = {}
+			for i = #volcanoPositions, 1, -1 do
+				table.insert(reversed, volcanoPositions[i])
+			end
+			tweenThroughPositions(reversed, 300)
+			volcanoOutButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		end)
+	end
 end)
 
 -- Tombol close List Egg: tutup list, kembalikan MainFrame RideAPetGui
