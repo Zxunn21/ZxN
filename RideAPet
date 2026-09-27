@@ -48,9 +48,11 @@ gui.Parent = playerGui
 -- Main window
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.fromOffset(230, 170)
-mainFrame.Position = UDim2.new(0.5, -115, 0.5, -85)
+mainFrame.Size = UDim2.new(0.6, 0, 0.8, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BackgroundTransparency = 0.2
 mainFrame.BorderSizePixel = 0
 mainFrame.ZIndex = 600
 mainFrame.Parent = gui
@@ -64,7 +66,7 @@ mainFrameStroke.Thickness = 1
 mainFrameStroke.Color = Color3.fromRGB(100, 100, 100)
 mainFrameStroke.Parent = mainFrame
 
--- Top bar: judul + tombol close, sekaligus area drag
+-- Top bar: judul, sekaligus area drag
 local topBar = Instance.new("Frame")
 topBar.Name = "TopBar"
 topBar.Size = UDim2.new(1, 0, 0, 36)
@@ -75,7 +77,7 @@ topBar.Parent = mainFrame
 
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "Title"
-titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.Size = UDim2.new(1, -12, 1, 0)
 titleLabel.Position = UDim2.fromOffset(12, 0)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "Ride A Pet"
@@ -86,23 +88,12 @@ titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.ZIndex = 602
 titleLabel.Parent = topBar
 
-local closeButton = Instance.new("TextButton")
-closeButton.Name = "CloseButton"
-closeButton.Size = UDim2.fromOffset(30, 30)
-closeButton.Position = UDim2.new(1, -32, 0, 3)
-closeButton.BackgroundTransparency = 1
-closeButton.Text = "×"
-closeButton.TextColor3 = Color3.new(1, 1, 1)
-closeButton.TextSize = 25
-closeButton.Font = Enum.Font.GothamBold
-closeButton.ZIndex = 602
-closeButton.Parent = topBar
-
 -- Menu: ESP Egg
 local espTitle = Instance.new("TextLabel")
 espTitle.Name = "EspEggTitle"
-espTitle.Size = UDim2.new(1, -20, 0, 28)
+espTitle.Size = UDim2.fromOffset(100, 38)
 espTitle.Position = UDim2.fromOffset(10, 40)
+espTitle.TextYAlignment = Enum.TextYAlignment.Center
 espTitle.BackgroundTransparency = 1
 espTitle.Text = "ESP Egg"
 espTitle.TextColor3 = Color3.new(1, 1, 1)
@@ -115,8 +106,8 @@ espTitle.Parent = mainFrame
 -- Input minimum size egg
 local minSizeInput = Instance.new("TextBox")
 minSizeInput.Name = "MinSizeInput"
-minSizeInput.Size = UDim2.new(1, -95, 0, 38)
-minSizeInput.Position = UDim2.fromOffset(10, 76)
+minSizeInput.Size = UDim2.new(0.5, 0, 0, 38)
+minSizeInput.Position = UDim2.fromOffset(115, 40)
 minSizeInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 minSizeInput.BorderSizePixel = 0
 minSizeInput.TextColor3 = Color3.new(1, 1, 1)
@@ -138,7 +129,7 @@ minSizeInputCorner.Parent = minSizeInput
 local espToggle = Instance.new("TextButton")
 espToggle.Name = "EspToggle"
 espToggle.Size = UDim2.fromOffset(75, 38)
-espToggle.Position = UDim2.new(1, -85, 0, 76)
+espToggle.Position = UDim2.new(1, -85, 0, 40)
 espToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 espToggle.BorderSizePixel = 0
 espToggle.Text = "ON"
@@ -151,6 +142,101 @@ espToggle.Parent = mainFrame
 local espToggleCorner = Instance.new("UICorner")
 espToggleCorner.CornerRadius = UDim.new(0, 7)
 espToggleCorner.Parent = espToggle
+
+-- Menu: List Egg
+local listEggTitle = Instance.new("TextLabel")
+listEggTitle.Name = "ListEggTitle"
+listEggTitle.Size = UDim2.fromOffset(100, 38)
+listEggTitle.Position = UDim2.fromOffset(10, 90)
+listEggTitle.TextYAlignment = Enum.TextYAlignment.Center
+listEggTitle.BackgroundTransparency = 1
+listEggTitle.Text = "List Egg"
+listEggTitle.TextColor3 = Color3.new(1, 1, 1)
+listEggTitle.TextSize = 16
+listEggTitle.Font = Enum.Font.GothamBold
+listEggTitle.TextXAlignment = Enum.TextXAlignment.Left
+listEggTitle.ZIndex = 601
+listEggTitle.Parent = mainFrame
+
+-- Toggle ON/OFF untuk membuka frame List Egg
+local listEggToggle = Instance.new("TextButton")
+listEggToggle.Name = "ListEggToggle"
+listEggToggle.Size = UDim2.fromOffset(75, 38)
+listEggToggle.Position = UDim2.new(1, -85, 0, 90)
+listEggToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+listEggToggle.BorderSizePixel = 0
+listEggToggle.Text = "OFF"
+listEggToggle.TextColor3 = Color3.new(1, 1, 1)
+listEggToggle.TextSize = 15
+listEggToggle.Font = Enum.Font.GothamBold
+listEggToggle.ZIndex = 601
+listEggToggle.Parent = mainFrame
+
+local listEggToggleCorner = Instance.new("UICorner")
+listEggToggleCorner.CornerRadius = UDim.new(0, 7)
+listEggToggleCorner.Parent = listEggToggle
+
+-- ===================== FRAME LIST EGG =====================
+local eggListFrame = Instance.new("Frame")
+eggListFrame.Name = "EggListFrame"
+eggListFrame.Size = UDim2.new(0.6, 0, 0.6, 0)
+eggListFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+eggListFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+eggListFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+eggListFrame.BackgroundTransparency = 0.2
+eggListFrame.BorderSizePixel = 0
+eggListFrame.ZIndex = 700
+eggListFrame.Visible = false
+eggListFrame.Parent = gui
+
+local eggListFrameCorner = Instance.new("UICorner")
+eggListFrameCorner.CornerRadius = UDim.new(0, 10)
+eggListFrameCorner.Parent = eggListFrame
+
+local eggListFrameStroke = Instance.new("UIStroke")
+eggListFrameStroke.Thickness = 1
+eggListFrameStroke.Color = Color3.fromRGB(100, 100, 100)
+eggListFrameStroke.Parent = eggListFrame
+
+-- Top bar List Egg (dragable)
+local eggListTopBar = Instance.new("Frame")
+eggListTopBar.Name = "TopBar"
+eggListTopBar.Size = UDim2.new(1, 0, 0, 36)
+eggListTopBar.BackgroundTransparency = 1
+eggListTopBar.Active = true
+eggListTopBar.ZIndex = 701
+eggListTopBar.Parent = eggListFrame
+
+local eggListTitleLabel = Instance.new("TextLabel")
+eggListTitleLabel.Name = "Title"
+eggListTitleLabel.Size = UDim2.new(1, -12, 1, 0)
+eggListTitleLabel.Position = UDim2.fromOffset(12, 0)
+eggListTitleLabel.BackgroundTransparency = 1
+eggListTitleLabel.Text = "List Egg"
+eggListTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+eggListTitleLabel.TextSize = 17
+eggListTitleLabel.Font = Enum.Font.GothamBold
+eggListTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+eggListTitleLabel.ZIndex = 702
+eggListTitleLabel.Parent = eggListTopBar
+
+-- Scrolling frame berisi daftar egg
+local eggScroll = Instance.new("ScrollingFrame")
+eggScroll.Name = "EggScroll"
+eggScroll.Size = UDim2.new(1, -16, 1, -48)
+eggScroll.Position = UDim2.fromOffset(8, 40)
+eggScroll.BackgroundTransparency = 1
+eggScroll.BorderSizePixel = 0
+eggScroll.ScrollBarThickness = 6
+eggScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+eggScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+eggScroll.ZIndex = 701
+eggScroll.Parent = eggListFrame
+
+local eggScrollLayout = Instance.new("UIListLayout")
+eggScrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+eggScrollLayout.Padding = UDim.new(0, 4)
+eggScrollLayout.Parent = eggScroll
 
 -- ===================== FUNGSI ESP EGG =====================
 local function setESPVisible(state)
@@ -307,10 +393,6 @@ minSizeInput.FocusLost:Connect(function()
 	end
 end)
 
-closeButton.Activated:Connect(function()
-	gui:Destroy()
-end)
-
 -- Drag window via top bar
 local dragging = false
 local dragStart
@@ -340,10 +422,279 @@ topBar.InputChanged:Connect(function(inputObject)
 	end
 end)
 
+-- Drag window List Egg via top bar
+local draggingList = false
+local dragStartList
+local startPosList
+
 UserInputService.InputEnded:Connect(function(inputObject)
 	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
 		or inputObject.UserInputType == Enum.UserInputType.Touch then
 		dragging = false
+		draggingList = false
+	end
+end)
+
+eggListTopBar.InputBegan:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		draggingList = true
+		dragStartList = inputObject.Position
+		startPosList = eggListFrame.Position
+	end
+end)
+
+eggListTopBar.InputChanged:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseMovement
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		if draggingList then
+			local delta = inputObject.Position - dragStartList
+			eggListFrame.Position = UDim2.new(
+				startPosList.X.Scale,
+				startPosList.X.Offset + delta.X,
+				startPosList.Y.Scale,
+				startPosList.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+-- ===================== LIST EGG =====================
+local lineStates = {} -- [model] = {Beam, Att0, Att1, HRP}
+local listRefreshTimer = 0
+
+local function getEggPart(model)
+	return model.PrimaryPart
+		or model:FindFirstChildWhichIsA("BasePart", true)
+end
+
+-- Ambil nilai luck dari: model -> Handle -> EggLuck -> luck (TextLabel)
+local function getLuckText(model)
+	local handle = model:FindFirstChild("Handle")
+	if not handle then
+		return "-"
+	end
+
+	local eggLuck = handle:FindFirstChild("EggLuck")
+	if not eggLuck then
+		return "-"
+	end
+
+	local luckLabel = eggLuck:FindFirstChild("luck")
+	if luckLabel and luckLabel:IsA("TextLabel") then
+		return luckLabel.Text
+	end
+
+	return "-"
+end
+
+local function removeLine(model)
+	local data = lineStates[model]
+	if data then
+		if data.Beam then data.Beam:Destroy() end
+		if data.Att0 then data.Att0:Destroy() end
+		if data.Att1 then data.Att1:Destroy() end
+		lineStates[model] = nil
+	end
+end
+
+-- Buat line (Beam) dari pemain ke model egg
+local function createLine(model)
+	local part = getEggPart(model)
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	if not part or not hrp then
+		return false
+	end
+
+	local att0 = Instance.new("Attachment")
+	att0.Name = "EggLineAttachment"
+	att0.Parent = hrp
+
+	local att1 = Instance.new("Attachment")
+	att1.Name = "EggLineAttachment"
+	att1.Parent = part
+
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = att0
+	beam.Attachment1 = att1
+	beam.Width0 = 0.3
+	beam.Width1 = 0.3
+	beam.Color = ColorSequence.new(Color3.fromRGB(0, 255, 127))
+	beam.FaceCamera = true
+	beam.LightEmission = 1
+	beam.Transparency = NumberSequence.new(0.2)
+	beam.Parent = part
+
+	lineStates[model] = {
+		Beam = beam,
+		Att0 = att0,
+		Att1 = att1,
+		HRP = hrp
+	}
+
+	return true
+end
+
+local function createEggRow(model, order)
+	local row = Instance.new("Frame")
+	row.Name = model.Name
+	row.Size = UDim2.new(1, 0, 0, 40)
+	row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = order
+	row.ZIndex = 701
+	row.Parent = eggScroll
+
+	local rowCorner = Instance.new("UICorner")
+	rowCorner.CornerRadius = UDim.new(0, 7)
+	rowCorner.Parent = row
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "EggName"
+	nameLabel.Size = UDim2.new(0.45, -10, 1, 0)
+	nameLabel.Position = UDim2.fromOffset(10, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = model.Name
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextSize = 14
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLabel.ZIndex = 702
+	nameLabel.Parent = row
+
+	local luckLabel = Instance.new("TextLabel")
+	luckLabel.Name = "Luck"
+	luckLabel.Size = UDim2.new(0.3, 0, 1, 0)
+	luckLabel.Position = UDim2.new(0.45, 0, 0, 0)
+	luckLabel.BackgroundTransparency = 1
+	luckLabel.Text = "luck: " .. getLuckText(model)
+	luckLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+	luckLabel.TextSize = 14
+	luckLabel.Font = Enum.Font.GothamBold
+	luckLabel.TextXAlignment = Enum.TextXAlignment.Left
+	luckLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	luckLabel.ZIndex = 702
+	luckLabel.Parent = row
+
+	local lineButton = Instance.new("TextButton")
+	lineButton.Name = "LineButton"
+	lineButton.Size = UDim2.fromOffset(70, 30)
+	lineButton.Position = UDim2.new(1, -78, 0.5, -15)
+	lineButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	lineButton.BorderSizePixel = 0
+	lineButton.Text = "Line"
+	lineButton.TextColor3 = Color3.new(1, 1, 1)
+	lineButton.TextSize = 14
+	lineButton.Font = Enum.Font.GothamBold
+	lineButton.ZIndex = 702
+	lineButton.Parent = row
+
+	local lineButtonCorner = Instance.new("UICorner")
+	lineButtonCorner.CornerRadius = UDim.new(0, 7)
+	lineButtonCorner.Parent = lineButton
+
+	if lineStates[model] then
+		lineButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	end
+
+	lineButton.Activated:Connect(function()
+		if lineStates[model] then
+			removeLine(model)
+			lineButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		else
+			if createLine(model) then
+				lineButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+			end
+		end
+	end)
+
+	return row
+end
+
+local function refreshEggList()
+	-- Simpan posisi scroll agar tidak lompat saat refresh
+	local savedScrollY = eggScroll.CanvasPosition.Y
+
+	-- Bersihkan baris lama
+	for _, child in ipairs(eggScroll:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	-- Bersihkan line dari model yang sudah tidak ada
+	for model in pairs(lineStates) do
+		if not model.Parent then
+			lineStates[model] = nil
+		end
+	end
+
+	findRenderedEggs()
+	if not renderedEggs or not renderedEggs.Parent then
+		return
+	end
+
+	local order = 0
+	for _, model in ipairs(renderedEggs:GetChildren()) do
+		if model:IsA("Model") then
+			order += 1
+			createEggRow(model, order)
+		end
+	end
+
+	-- Kembalikan posisi scroll
+	eggScroll.CanvasPosition = Vector2.new(0, savedScrollY)
+end
+
+local function updateListEggToggle()
+	if eggListFrame.Visible then
+		listEggToggle.Text = "ON"
+		listEggToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		listEggToggle.Text = "OFF"
+		listEggToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	end
+end
+
+listEggToggle.Activated:Connect(function()
+	eggListFrame.Visible = not eggListFrame.Visible
+	if eggListFrame.Visible then
+		refreshEggList()
+	end
+	updateListEggToggle()
+end)
+
+-- Saat karakter respawn, pindahkan attachment line ke HRP baru
+player.CharacterAdded:Connect(function(character)
+	local hrp = character:WaitForChild("HumanoidRootPart", 5)
+	if not hrp then
+		return
+	end
+
+	for model, data in pairs(lineStates) do
+		if data.HRP ~= hrp then
+			local part = getEggPart(model)
+			if part then
+				local att0 = Instance.new("Attachment")
+				att0.Name = "EggLineAttachment"
+				att0.Parent = hrp
+
+				if data.Att0 then
+					data.Att0:Destroy()
+				end
+
+				data.Att0 = att0
+				data.HRP = hrp
+
+				if data.Beam then
+					data.Beam.Attachment0 = att0
+				end
+			else
+				removeLine(model)
+			end
+		end
 	end
 end)
 
@@ -355,8 +706,18 @@ task.spawn(function()
 		if espEnabled then
 			updateESP()
 		end
+
+		-- Refresh daftar egg secara berkala saat frame terbuka
+		if eggListFrame.Visible then
+			listRefreshTimer += 0.05
+			if listRefreshTimer >= 2 then
+				listRefreshTimer = 0
+				refreshEggList()
+			end
+		end
 	end
 end)
 
 updateEspToggle()
+updateListEggToggle()
 updateESP()
