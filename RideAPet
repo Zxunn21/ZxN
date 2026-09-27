@@ -3,6 +3,7 @@
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -25,7 +26,13 @@ local espList = {}
 local specialEggs = {
 	["Blackhole Egg"] = true,
 	["Galaxy Egg"] = true,
-	["Cherub Egg"] = true
+	["Cherub Egg"] = true,
+	["Volcanic Egg"] = true,
+	["Dragon Egg"] = true,
+	["Devil Fruit Egg"] = true,
+	["Admin Egg"] = true,
+	["Asteroid Egg"] = true,
+	["Giant Egg"] = true
 }
 
 local function findRenderedEggs()
@@ -705,6 +712,52 @@ local function getSizeValue(model)
 	return -1
 end
 
+-- ===================== VOLCANO EGG =====================
+local volcanoPositions = {
+	Vector3.new(-4953, 41291, -3671),  -- 1
+	Vector3.new(-5104, 41261, -3509),  -- 2
+	Vector3.new(-5106, 41170, -3505),  -- 3
+	Vector3.new(-5271, 41151, -3590),  -- 4
+	Vector3.new(-5268, 41054, -3590),  -- 5
+	Vector3.new(-5177, 41040, -3642),  -- 6
+	Vector3.new(-5001, 41053, -3416),  -- 7
+	Vector3.new(-4863, 40982, -3499),  -- 8
+	Vector3.new(-5056, 40930, -3701),  -- 9
+}
+
+local volcanoMoving = false
+
+local function tweenThroughPositions(positions, speed)
+	if volcanoMoving then return end
+	local character = player.Character
+	if not character then return end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not hrp then return end
+
+	volcanoMoving = true
+	if humanoid then
+		humanoid.PlatformStand = true
+	end
+
+	for i = 1, #positions do
+		if not volcanoMoving then break end
+		local targetPos = positions[i]
+		local distance = (hrp.Position - targetPos).Magnitude
+		local time = distance / speed
+		if time < 0.01 then time = 0.01 end
+		local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+		local tween = TweenService:Create(hrp, tweenInfo, { CFrame = CFrame.new(targetPos) })
+		tween:Play()
+		tween.Completed:Wait()
+	end
+
+	if humanoid then
+		humanoid.PlatformStand = false
+	end
+	volcanoMoving = false
+end
+
 local function createEggRow(model, order)
 	local row = Instance.new("Frame")
 	row.Name = model.Name
@@ -796,6 +849,95 @@ local function createEggRow(model, order)
 	return row
 end
 
+local function createVolcanoEggRow(order)
+	local row = Instance.new("Frame")
+	row.Name = "VolcanoEgg"
+	row.Size = UDim2.new(1, 0, 0, 40)
+	row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = order
+	row.ZIndex = 701
+	row.Parent = eggScroll
+
+	local rowCorner = Instance.new("UICorner")
+	rowCorner.CornerRadius = UDim.new(0, 7)
+	rowCorner.Parent = row
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "EggName"
+	nameLabel.Size = UDim2.new(0.32, -10, 1, 0)
+	nameLabel.Position = UDim2.fromOffset(10, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = "Volcano Egg"
+	nameLabel.TextColor3 = Color3.fromRGB(255, 100, 50)
+	nameLabel.TextSize = 14
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLabel.ZIndex = 702
+	nameLabel.Parent = row
+
+	local inButton = Instance.new("TextButton")
+	inButton.Name = "InButton"
+	inButton.Size = UDim2.fromOffset(60, 30)
+	inButton.Position = UDim2.new(1, -140, 0.5, -15)
+	inButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	inButton.BorderSizePixel = 0
+	inButton.Text = "In"
+	inButton.TextColor3 = Color3.new(1, 1, 1)
+	inButton.TextSize = 14
+	inButton.Font = Enum.Font.GothamBold
+	inButton.ZIndex = 702
+	inButton.Parent = row
+
+	local inButtonCorner = Instance.new("UICorner")
+	inButtonCorner.CornerRadius = UDim.new(0, 7)
+	inButtonCorner.Parent = inButton
+
+	local outButton = Instance.new("TextButton")
+	outButton.Name = "OutButton"
+	outButton.Size = UDim2.fromOffset(60, 30)
+	outButton.Position = UDim2.new(1, -70, 0.5, -15)
+	outButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	outButton.BorderSizePixel = 0
+	outButton.Text = "Out"
+	outButton.TextColor3 = Color3.new(1, 1, 1)
+	outButton.TextSize = 14
+	outButton.Font = Enum.Font.GothamBold
+	outButton.ZIndex = 702
+	outButton.Parent = row
+
+	local outButtonCorner = Instance.new("UICorner")
+	outButtonCorner.CornerRadius = UDim.new(0, 7)
+	outButtonCorner.Parent = outButton
+
+	inButton.Activated:Connect(function()
+		if not volcanoMoving then
+			inButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+			task.spawn(function()
+				tweenThroughPositions(volcanoPositions, 300)
+				inButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			end)
+		end
+	end)
+
+	outButton.Activated:Connect(function()
+		if not volcanoMoving then
+			outButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+			task.spawn(function()
+				local reversed = {}
+				for i = #volcanoPositions, 1, -1 do
+					table.insert(reversed, volcanoPositions[i])
+				end
+				tweenThroughPositions(reversed, 300)
+				outButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			end)
+		end
+	end)
+
+	return row
+end
+
 local function refreshEggList()
 	-- Simpan posisi scroll agar tidak lompat saat refresh
 	local savedScrollY = eggScroll.CanvasPosition.Y
@@ -842,6 +984,7 @@ local function refreshEggList()
 	end
 
 	local order = 0
+	createVolcanoEggRow(order)
 	for _, model in ipairs(models) do
 		order += 1
 		createEggRow(model, order)
