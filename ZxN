@@ -437,13 +437,16 @@ local featureButtonCorner = Instance.new("UICorner")
 featureButtonCorner.CornerRadius = UDim.new(0, 7)
 featureButtonCorner.Parent = featureButton
 
-local RideAPetButton_
+-- featureStateRefs dideklarasikan di awal agar bisa dipakai oleh Game panel dan Fitur panel.
+local featureStateRefs = {}
+
+local gamePanel
 local featurePanel
 
 gameButton.Activated:Connect(function()
 	gameOpen = true
 	subMenu.Visible = true
-	RideAPetButton_.Visible = true
+	gamePanel.Visible = true
 	featurePanel.Visible = false
 end)
 
@@ -451,27 +454,38 @@ featureButton.Activated:Connect(function()
 	gameOpen = false
 	subMenu.Visible = true
 
-	-- Reset isi panel kanan lalu tampilkan kontrol Fitur.
-	RideAPetButton_.Visible = false
+	gamePanel.Visible = false
 	featurePanel.Visible = true
 	subMenu.CanvasPosition = Vector2.new(0, 0)
 end)
 
-RideAPetButton_ = Instance.new("TextButton")
-RideAPetButton_.Size = UDim2.new(1, -10, 0, 40)
-RideAPetButton_.Position = UDim2.fromOffset(5, 5)
-RideAPetButton_.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-RideAPetButton_.TextColor3 = Color3.new(1, 1, 1)
-RideAPetButton_.Text = "Ride A Pet"
-RideAPetButton_.TextSize = 18
-RideAPetButton_.Font = Enum.Font.GothamBold
-RideAPetButton_.ZIndex = 501
-RideAPetButton_.Parent = subMenu
+-- === GAME PANEL ===
+gamePanel = Instance.new("Frame")
+gamePanel.Name = "GamePanel"
+gamePanel.Size = UDim2.new(1, 0, 1, 0)
+gamePanel.BackgroundTransparency = 1
+gamePanel.Visible = false
+gamePanel.ZIndex = 510
+gamePanel.Parent = subMenu
 
-local gameButtonCorner = Instance.new("UICorner")
-gameButtonCorner.CornerRadius = UDim.new(0, 7)
-gameButtonCorner.Parent = RideAPetButton_
+local gameTitle = Instance.new("TextLabel")
+gameTitle.Size = UDim2.new(1, -10, 0, 30)
+gameTitle.BackgroundTransparency = 1
+gameTitle.Text = "Game"
+gameTitle.TextColor3 = Color3.new(1, 1, 1)
+gameTitle.TextSize = 18
+gameTitle.Font = Enum.Font.GothamBold
+gameTitle.TextXAlignment = Enum.TextXAlignment.Left
+gameTitle.ZIndex = 511
+gameTitle.LayoutOrder = 1
+gameTitle.Parent = gamePanel
 
+local gameListLayout = Instance.new("UIListLayout")
+gameListLayout.Padding = UDim.new(0, 8)
+gameListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+gameListLayout.Parent = gamePanel
+
+-- === FITUR PANEL ===
 featurePanel = Instance.new("Frame")
 featurePanel.Name = "FeaturePanel"
 featurePanel.Size = UDim2.new(1, 0, 1, 0)
@@ -492,13 +506,137 @@ featureTitle.ZIndex = 511
 featureTitle.LayoutOrder = 1
 featureTitle.Parent = featurePanel
 
--- Susunan item di panel Fitur diatur otomatis oleh UIListLayout.
 local featureListLayout = Instance.new("UIListLayout")
 featureListLayout.Padding = UDim.new(0, 8)
 featureListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 featureListLayout.Parent = featurePanel
 
 -- Link Features
+-- === RIDE A PET (Game Panel - baris pertama) ===
+-- Konsep sama seperti fitur: tombol ON/OFF, bukan destroy.
+-- Saat ON: load script RideAPet (jika belum ada) atau tampilkan kembali GUI-nya.
+-- Saat OFF: sembunyikan GUI, program tetap berjalan di background.
+local rideAPetEnabled = false
+local rideAPetGuiName = "RideAPetGui"
+local RIDE_A_PET_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet"
+
+local rideAPetRow = Instance.new("Frame")
+rideAPetRow.Name = "RideAPetRow"
+rideAPetRow.Size = UDim2.new(1, 0, 0, 36)
+rideAPetRow.BackgroundTransparency = 1
+rideAPetRow.LayoutOrder = 2
+rideAPetRow.ZIndex = 512
+rideAPetRow.Parent = gamePanel
+
+local rideAPetLabel = Instance.new("TextLabel")
+rideAPetLabel.Size = UDim2.new(0, 130, 0, 36)
+rideAPetLabel.Position = UDim2.fromOffset(5, 0)
+rideAPetLabel.BackgroundTransparency = 1
+rideAPetLabel.Text = "Ride A Pet"
+rideAPetLabel.TextColor3 = Color3.new(1, 1, 1)
+rideAPetLabel.TextSize = 13
+rideAPetLabel.Font = Enum.Font.GothamBold
+rideAPetLabel.TextXAlignment = Enum.TextXAlignment.Left
+rideAPetLabel.TextYAlignment = Enum.TextYAlignment.Center
+rideAPetLabel.ZIndex = 512
+rideAPetLabel.Parent = rideAPetRow
+
+local rideAPetButton = Instance.new("TextButton")
+rideAPetButton.Size = UDim2.fromOffset(60, 36)
+rideAPetButton.AnchorPoint = Vector2.new(1, 0.5)
+rideAPetButton.Position = UDim2.new(1, -5, 0.5, 0)
+rideAPetButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+rideAPetButton.BorderSizePixel = 0
+rideAPetButton.Text = "OFF"
+rideAPetButton.TextColor3 = Color3.new(1, 1, 1)
+rideAPetButton.TextSize = 12
+rideAPetButton.Font = Enum.Font.GothamBold
+rideAPetButton.ZIndex = 512
+rideAPetButton.Parent = rideAPetRow
+
+local rideAPetCorner = Instance.new("UICorner")
+rideAPetCorner.CornerRadius = UDim.new(0, 7)
+rideAPetCorner.Parent = rideAPetButton
+
+local function updateRideAPetButton()
+	if rideAPetEnabled then
+		rideAPetButton.Text = "ON"
+		rideAPetButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		rideAPetButton.Text = "OFF"
+		rideAPetButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
+end
+
+local function setGuiVisible(guiName, visible)
+	if not guiName or not playerGui then return end
+	for _, descendant in ipairs(playerGui:GetDescendants()) do
+		if descendant.Name == guiName then
+			if descendant:IsA("ScreenGui") then
+				descendant.Enabled = visible
+			elseif descendant:IsA("GuiObject") then
+				descendant.Visible = visible
+			end
+		end
+	end
+end
+
+local function turnOffRideAPet()
+	if not rideAPetEnabled then return end
+	rideAPetEnabled = false
+	updateRideAPetButton()
+	setGuiVisible(rideAPetGuiName, false)
+end
+
+table.insert(featureStateRefs, turnOffRideAPet)
+
+rideAPetButton.Activated:Connect(function()
+	rideAPetEnabled = not rideAPetEnabled
+	updateRideAPetButton()
+
+	if rideAPetEnabled then
+		-- Cek apakah GUI sudah pernah dibuat
+		local guiExists = false
+		if rideAPetGuiName and playerGui then
+			for _, descendant in ipairs(playerGui:GetDescendants()) do
+				if descendant.Name == rideAPetGuiName then
+					guiExists = true
+					break
+				end
+			end
+		end
+
+		if guiExists then
+			-- GUI sudah ada, tinggal tampilkan kembali
+			setGuiVisible(rideAPetGuiName, true)
+		else
+			-- GUI belum ada, load script untuk pertama kali
+			local success, result = pcall(function()
+				if type(loadstring) ~= "function" then
+					error("loadstring tidak tersedia di lingkungan ini")
+				end
+				if type(game.HttpGet) ~= "function" then
+					error("game:HttpGet tidak tersedia di lingkungan ini")
+				end
+				return loadstring(game:HttpGet(RIDE_A_PET_URL, true))()
+			end)
+
+			if not success then
+				warn("[ZxN] Ride A Pet gagal dimuat: " .. tostring(result))
+				rideAPetEnabled = false
+				updateRideAPetButton()
+			end
+		end
+	else
+		-- OFF: sembunyikan GUI, program tetap berjalan
+		setGuiVisible(rideAPetGuiName, false)
+	end
+
+	menuFrame.Visible = false
+	menuOpen = false
+end)
+
+-- === FITUR LINKS ===
 local linkFeatures = {
 	{ description = "Vertical Lock",             url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",         guiToHide = "VerticalLockGui" },
 	{ description = "Light System",              url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",                guiToHide = "TorchOnHeadGui" },
@@ -507,9 +645,8 @@ local linkFeatures = {
 	{ description = "Player Tools",              url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/PlayerTools",             guiToHide = "PlayerToolsGui", preserve = true },
 	{ description = "Objects Tools",             url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ObjectsTools",            guiToHide = "ObjectsToolsGui" },
 	{ description = "Additional Buttons",        url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AdditionalButtons",       guiToHide = "AdditionalButtonsGui" },
+	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",   guiToHide = "ProximityPromptsToolsGui" },
 }
-
-local featureStateRefs = {}
 
 local function createLinkFeature(index, feature)
 	local enabled = false
@@ -1122,31 +1259,6 @@ mainRestartButton.Activated:Connect(function()
 			warn("[ZxN] Restart gagal dimuat: " .. tostring(result))
 		end
 	end)
-end)
-
-RideAPetButton_.Activated:Connect(function()
-	local RIDE_A_PET_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet"
-
-	local success, result = pcall(function()
-		if type(loadstring) ~= "function" then
-			error("loadstring tidak tersedia di lingkungan ini")
-		end
-		if type(game.HttpGet) ~= "function" then
-			error("game:HttpGet tidak tersedia di lingkungan ini")
-		end
-		return loadstring(game:HttpGet(RIDE_A_PET_URL, true))()
-	end)
-
-	if not success then
-		warn("[ZxN] Ride A Pet gagal dimuat: " .. tostring(result))
-	end
-
-	-- Tutup menu setelah eksekusi
-	menuFrame.Visible = false
-	menuOpen = false
-	frameRideAPet.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
 end)
 
 teleportButton.Activated:Connect(function()
