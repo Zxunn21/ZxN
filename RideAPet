@@ -864,20 +864,29 @@ end
 listEggToggle.Activated:Connect(function()
 	eggListFrame.Visible = not eggListFrame.Visible
 	if eggListFrame.Visible then
-		-- Sembunyikan frame Ride A Pet saat list dibuka
-		mainFrame.Visible = false
+		-- Sembunyikan MainFrame di dalam RideAPetGui saat list dibuka
+		local rideFrame = gui:FindFirstChild("MainFrame")
+		if rideFrame then
+			rideFrame.Visible = false
+		end
 		refreshEggList()
 	else
-		mainFrame.Visible = true
+		local rideFrame = gui:FindFirstChild("MainFrame")
+		if rideFrame then
+			rideFrame.Visible = true
+		end
 	end
 	updateListEggToggle()
 end)
 
--- Tombol close List Egg: tutup list, kembalikan frame Ride A Pet
+-- Tombol close List Egg: tutup list, kembalikan MainFrame RideAPetGui
 eggListCloseButton.Activated:Connect(function()
 	eggListFrame.Visible = false
 	sortDropdown.Visible = false
-	mainFrame.Visible = true
+	local rideFrame = gui:FindFirstChild("MainFrame")
+	if rideFrame then
+		rideFrame.Visible = true
+	end
 	updateListEggToggle()
 end)
 
