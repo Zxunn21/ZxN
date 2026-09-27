@@ -220,6 +220,74 @@ eggListTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 eggListTitleLabel.ZIndex = 702
 eggListTitleLabel.Parent = eggListTopBar
 
+-- Dropdown sort di topbar (kanan)
+local sortButton = Instance.new("TextButton")
+sortButton.Name = "SortButton"
+sortButton.Size = UDim2.fromOffset(110, 26)
+sortButton.Position = UDim2.new(1, -12, 0, 5)
+sortButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+sortButton.BorderSizePixel = 0
+sortButton.Text = "Sort: Luck"
+sortButton.TextColor3 = Color3.new(1, 1, 1)
+sortButton.TextSize = 13
+sortButton.Font = Enum.Font.GothamBold
+sortButton.ZIndex = 703
+sortButton.Parent = eggListTopBar
+
+local sortButtonCorner = Instance.new("UICorner")
+sortButtonCorner.CornerRadius = UDim.new(0, 6)
+sortButtonCorner.Parent = sortButton
+
+local sortDropdown = Instance.new("Frame")
+sortDropdown.Name = "SortDropdown"
+sortDropdown.Size = UDim2.fromOffset(110, 98)
+sortDropdown.Position = UDim2.new(1, -12, 0, 36)
+sortDropdown.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+sortDropdown.BorderSizePixel = 0
+sortDropdown.Visible = false
+sortDropdown.ZIndex = 705
+sortDropdown.Parent = eggListTopBar
+
+local sortDropdownCorner = Instance.new("UICorner")
+sortDropdownCorner.CornerRadius = UDim.new(0, 6)
+sortDropdownCorner.Parent = sortDropdown
+
+local sortDropdownStroke = Instance.new("UIStroke")
+sortDropdownStroke.Thickness = 1
+sortDropdownStroke.Color = Color3.fromRGB(100, 100, 100)
+sortDropdownStroke.Parent = sortDropdown
+
+local sortDropdownLayout = Instance.new("UIListLayout")
+sortDropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+sortDropdownLayout.Padding = UDim.new(0, 4)
+sortDropdownLayout.Parent = sortDropdown
+
+local sortDropdownPadding = Instance.new("UIPadding")
+sortDropdownPadding.PaddingTop = UDim.new(0, 4)
+sortDropdownPadding.PaddingLeft = UDim.new(0, 4)
+sortDropdownPadding.PaddingRight = UDim.new(0, 4)
+sortDropdownPadding.Parent = sortDropdown
+
+local sortOptions = { "Luck", "Size", "Name" }
+for index, optionName in ipairs(sortOptions) do
+	local optionButton = Instance.new("TextButton")
+	optionButton.Name = optionName
+	optionButton.Size = UDim2.new(1, 0, 0, 26)
+	optionButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	optionButton.BorderSizePixel = 0
+	optionButton.Text = optionName
+	optionButton.TextColor3 = Color3.new(1, 1, 1)
+	optionButton.TextSize = 13
+	optionButton.Font = Enum.Font.GothamBold
+	optionButton.LayoutOrder = index
+	optionButton.ZIndex = 706
+	optionButton.Parent = sortDropdown
+
+	local optionCorner = Instance.new("UICorner")
+	optionCorner.CornerRadius = UDim.new(0, 6)
+	optionCorner.Parent = optionButton
+end
+
 -- Scrolling frame berisi daftar egg
 local eggScroll = Instance.new("ScrollingFrame")
 eggScroll.Name = "EggScroll"
@@ -556,6 +624,74 @@ local function getSizeText(model)
 	return "-"
 end
 
+-- ===================== SORT =====================
+local sortMode = "Luck" -- default: Luck
+
+-- Ubah teks luck seperti "20B", "1.5M", "500K" menjadi angka
+-- (B = Milyar, M = Juta, K = Ribu, dst)
+local luckSuffixes = {
+	K = 1e3,
+	M = 1e6,
+	B = 1e9,
+	T = 1e12,
+	Qa = 1e15,
+	Qi = 1e18,
+	Sx = 1e21,
+	Sp = 1e24,
+	Oc = 1e27,
+	No = 1e30,
+	Dc = 1e33,
+}
+
+local function parseLuckValue(text)
+	if type(text) ~= "string" then
+		return -1
+	end
+
+	local cleaned = text:gsub(",", ""):gsub("%s+", "")
+	local numberPart = cleaned:match("^%-?%d+%.?%d*")
+	if not numberPart then
+		return -1
+	end
+
+	local number = tonumber(numberPart)
+	if not number then
+		return -1
+	end
+
+	local suffix = cleaned:sub(#numberPart + 1)
+	if suffix == "" then
+		return number
+	end
+
+	-- Normalisasi suffix: "b" -> "B", "QA" -> "Qa"
+	local normalized
+	if #suffix == 1 then
+		normalized = string.upper(suffix)
+	else
+		normalized = string.upper(suffix:sub(1, 1)) .. string.lower(suffix:sub(2))
+	end
+
+	local multiplier = luckSuffixes[normalized]
+	if multiplier then
+		return number * multiplier
+	end
+
+	return number
+end
+
+local function getLuckValue(model)
+	return parseLuckValue(getLuckText(model))
+end
+
+local function getSizeValue(model)
+	local eggBase = model:FindFirstChild("EggBase", true)
+	if eggBase and eggBase:IsA("BasePart") then
+		return eggBase.Size.X
+	end
+	return -1
+end
+
 local function createEggRow(model, order)
 	local row = Instance.new("Frame")
 	row.Name = model.Name
@@ -670,12 +806,32 @@ local function refreshEggList()
 		return
 	end
 
-	local order = 0
+	local models = {}
 	for _, model in ipairs(renderedEggs:GetChildren()) do
 		if model:IsA("Model") then
-			order += 1
-			createEggRow(model, order)
+			table.insert(models, model)
 		end
+	end
+
+	-- Urutkan sesuai mode sort
+	if sortMode == "Luck" then
+		table.sort(models, function(a, b)
+			return getLuckValue(a) > getLuckValue(b)
+		end)
+	elseif sortMode == "Size" then
+		table.sort(models, function(a, b)
+			return getSizeValue(a) > getSizeValue(b)
+		end)
+	else -- Name
+		table.sort(models, function(a, b)
+			return string.lower(a.Name) < string.lower(b.Name)
+		end)
+	end
+
+	local order = 0
+	for _, model in ipairs(models) do
+		order += 1
+		createEggRow(model, order)
 	end
 
 	-- Kembalikan posisi scroll
@@ -699,6 +855,45 @@ listEggToggle.Activated:Connect(function()
 	end
 	updateListEggToggle()
 end)
+
+-- Interaksi dropdown sort
+local function updateSortOptionHighlight()
+	for _, child in ipairs(sortDropdown:GetChildren()) do
+		if child:IsA("TextButton") then
+			if child.Name == sortMode then
+				child.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+			else
+				child.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			end
+		end
+	end
+end
+
+local function selectSort(mode)
+	sortMode = mode
+	sortButton.Text = "Sort: " .. mode
+	sortDropdown.Visible = false
+	updateSortOptionHighlight()
+
+	if eggListFrame.Visible then
+		refreshEggList()
+	end
+end
+
+sortButton.Activated:Connect(function()
+	sortDropdown.Visible = not sortDropdown.Visible
+	if sortDropdown.Visible then
+		updateSortOptionHighlight()
+	end
+end)
+
+for _, child in ipairs(sortDropdown:GetChildren()) do
+	if child:IsA("TextButton") then
+		child.Activated:Connect(function()
+			selectSort(child.Name)
+		end)
+	end
+end
 
 -- Saat karakter respawn, pindahkan attachment line ke HRP baru
 player.CharacterAdded:Connect(function(character)
