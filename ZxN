@@ -1240,6 +1240,13 @@ end
 
 -- Main menu
 trigger.Activated:Connect(function()
+	-- Jika main frame sedang terbuka, tutup saja (toggle)
+	if menuOpen and menuFrame.Visible then
+		menuFrame.Visible = false
+		menuOpen = false
+		return
+	end
+
 	-- Tutup semua frame lain yang sedang terbuka
 	frameRideAPet.Visible = false
 	teleportFrame.Visible = false
