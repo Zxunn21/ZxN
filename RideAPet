@@ -772,6 +772,7 @@ local volcanoPositions = {
 	Vector3.new(-5001, 41053, -3416),  -- 7
 	Vector3.new(-4863, 40982, -3499),  -- 8
 	Vector3.new(-5056, 40930, -3701),  -- 9
+	Vector3.new(-5344, 40925, -3581),  -- 10
 }
 
 local volcanoMoving = false
