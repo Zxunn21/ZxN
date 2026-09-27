@@ -448,6 +448,8 @@ gameButton.Activated:Connect(function()
 	subMenu.Visible = true
 	gamePanel.Visible = true
 	featurePanel.Visible = false
+	subMenu.CanvasPosition = Vector2.new(0, 0)
+	gamePanel.CanvasPosition = Vector2.new(0, 0)
 end)
 
 featureButton.Activated:Connect(function()
@@ -460,10 +462,16 @@ featureButton.Activated:Connect(function()
 end)
 
 -- === GAME PANEL ===
-gamePanel = Instance.new("Frame")
+gamePanel = Instance.new("ScrollingFrame")
 gamePanel.Name = "GamePanel"
 gamePanel.Size = UDim2.new(1, 0, 1, 0)
 gamePanel.BackgroundTransparency = 1
+gamePanel.BorderSizePixel = 0
+gamePanel.ScrollBarThickness = 5
+gamePanel.ScrollBarImageTransparency = 0.15
+gamePanel.ScrollingDirection = Enum.ScrollingDirection.Y
+gamePanel.CanvasSize = UDim2.new(0, 0, 0, 0)
+gamePanel.AutomaticCanvasSize = Enum.AutomaticSize.Y
 gamePanel.Visible = false
 gamePanel.ZIndex = 510
 gamePanel.Parent = subMenu
@@ -511,63 +519,10 @@ featureListLayout.Padding = UDim.new(0, 8)
 featureListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 featureListLayout.Parent = featurePanel
 
--- Link Features
--- === RIDE A PET (Game Panel - baris pertama) ===
--- Konsep sama seperti fitur: tombol ON/OFF, bukan destroy.
--- Saat ON: load script RideAPet (jika belum ada) atau tampilkan kembali GUI-nya.
--- Saat OFF: sembunyikan GUI, program tetap berjalan di background.
-local rideAPetEnabled = false
-local rideAPetGuiName = "RideAPetGui"
-local RIDE_A_PET_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet"
-
-local rideAPetRow = Instance.new("Frame")
-rideAPetRow.Name = "RideAPetRow"
-rideAPetRow.Size = UDim2.new(1, 0, 0, 36)
-rideAPetRow.BackgroundTransparency = 1
-rideAPetRow.LayoutOrder = 2
-rideAPetRow.ZIndex = 512
-rideAPetRow.Parent = gamePanel
-
-local rideAPetLabel = Instance.new("TextLabel")
-rideAPetLabel.Size = UDim2.new(0, 130, 0, 36)
-rideAPetLabel.Position = UDim2.fromOffset(5, 0)
-rideAPetLabel.BackgroundTransparency = 1
-rideAPetLabel.Text = "Ride A Pet"
-rideAPetLabel.TextColor3 = Color3.new(1, 1, 1)
-rideAPetLabel.TextSize = 13
-rideAPetLabel.Font = Enum.Font.GothamBold
-rideAPetLabel.TextXAlignment = Enum.TextXAlignment.Left
-rideAPetLabel.TextYAlignment = Enum.TextYAlignment.Center
-rideAPetLabel.ZIndex = 512
-rideAPetLabel.Parent = rideAPetRow
-
-local rideAPetButton = Instance.new("TextButton")
-rideAPetButton.Size = UDim2.fromOffset(60, 36)
-rideAPetButton.AnchorPoint = Vector2.new(1, 0.5)
-rideAPetButton.Position = UDim2.new(1, -5, 0.5, 0)
-rideAPetButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-rideAPetButton.BorderSizePixel = 0
-rideAPetButton.Text = "OFF"
-rideAPetButton.TextColor3 = Color3.new(1, 1, 1)
-rideAPetButton.TextSize = 12
-rideAPetButton.Font = Enum.Font.GothamBold
-rideAPetButton.ZIndex = 512
-rideAPetButton.Parent = rideAPetRow
-
-local rideAPetCorner = Instance.new("UICorner")
-rideAPetCorner.CornerRadius = UDim.new(0, 7)
-rideAPetCorner.Parent = rideAPetButton
-
-local function updateRideAPetButton()
-	if rideAPetEnabled then
-		rideAPetButton.Text = "ON"
-		rideAPetButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-	else
-		rideAPetButton.Text = "OFF"
-		rideAPetButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
-end
-
+-- === GAME LINK FEATURES ===
+-- Helper untuk tiap baris di Game panel, konsep sama seperti Fitur panel.
+-- Field: description, url, guiToHide, universeId
+-- Jika universeId cocok dengan game.GameId, baris tsb otomatis ON.
 local function setGuiVisible(guiName, visible)
 	if not guiName or not playerGui then return end
 	for _, descendant in ipairs(playerGui:GetDescendants()) do
@@ -581,25 +536,72 @@ local function setGuiVisible(guiName, visible)
 	end
 end
 
-local function turnOffRideAPet()
-	if not rideAPetEnabled then return end
-	rideAPetEnabled = false
-	updateRideAPetButton()
-	setGuiVisible(rideAPetGuiName, false)
-end
+local gameLinkFeatures = {
+	{ description = "Ride A Pet", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet", guiToHide = "RideAPetGui", universeId = 0 },
+}
 
-table.insert(featureStateRefs, turnOffRideAPet)
+local gameFeatureEnableFns = {}
 
-rideAPetButton.Activated:Connect(function()
-	rideAPetEnabled = not rideAPetEnabled
-	updateRideAPetButton()
+local function createGameLinkFeature(index, feature)
+	local enabled = false
 
-	if rideAPetEnabled then
-		-- Cek apakah GUI sudah pernah dibuat
+	local row = Instance.new("Frame")
+	row.Name = feature.description .. "Row"
+	row.Size = UDim2.new(1, 0, 0, 36)
+	row.BackgroundTransparency = 1
+	row.LayoutOrder = 2 + index
+	row.ZIndex = 512
+	row.Parent = gamePanel
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 130, 0, 36)
+	label.Position = UDim2.fromOffset(5, 0)
+	label.BackgroundTransparency = 1
+	label.Text = feature.description
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextSize = 13
+	label.Font = Enum.Font.GothamBold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.ZIndex = 512
+	label.Parent = row
+
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(60, 36)
+	button.AnchorPoint = Vector2.new(1, 0.5)
+	button.Position = UDim2.new(1, -5, 0.5, 0)
+	button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	button.BorderSizePixel = 0
+	button.Text = "OFF"
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextSize = 12
+	button.Font = Enum.Font.GothamBold
+	button.ZIndex = 512
+	button.Parent = row
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = button
+
+	local function updateButton()
+		if enabled then
+			button.Text = "ON"
+			button.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+		else
+			button.Text = "OFF"
+			button.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		end
+	end
+
+	local function doEnable()
+		if enabled then return end
+		enabled = true
+		updateButton()
+
 		local guiExists = false
-		if rideAPetGuiName and playerGui then
+		if feature.guiToHide and playerGui then
 			for _, descendant in ipairs(playerGui:GetDescendants()) do
-				if descendant.Name == rideAPetGuiName then
+				if descendant.Name == feature.guiToHide then
 					guiExists = true
 					break
 				end
@@ -607,10 +609,8 @@ rideAPetButton.Activated:Connect(function()
 		end
 
 		if guiExists then
-			-- GUI sudah ada, tinggal tampilkan kembali
-			setGuiVisible(rideAPetGuiName, true)
+			setGuiVisible(feature.guiToHide, true)
 		else
-			-- GUI belum ada, load script untuk pertama kali
 			local success, result = pcall(function()
 				if type(loadstring) ~= "function" then
 					error("loadstring tidak tersedia di lingkungan ini")
@@ -618,22 +618,56 @@ rideAPetButton.Activated:Connect(function()
 				if type(game.HttpGet) ~= "function" then
 					error("game:HttpGet tidak tersedia di lingkungan ini")
 				end
-				return loadstring(game:HttpGet(RIDE_A_PET_URL, true))()
+				return loadstring(game:HttpGet(feature.url, true))()
 			end)
 
 			if not success then
-				warn("[ZxN] Ride A Pet gagal dimuat: " .. tostring(result))
-				rideAPetEnabled = false
-				updateRideAPetButton()
+				warn("[ZxN] " .. feature.description .. " gagal dimuat: " .. tostring(result))
+				enabled = false
+				updateButton()
 			end
 		end
-	else
-		-- OFF: sembunyikan GUI, program tetap berjalan
-		setGuiVisible(rideAPetGuiName, false)
 	end
 
-	menuFrame.Visible = false
-	menuOpen = false
+	local function doDisable()
+		if not enabled then return end
+		enabled = false
+		updateButton()
+		setGuiVisible(feature.guiToHide, false)
+	end
+
+	table.insert(featureStateRefs, doDisable)
+	table.insert(gameFeatureEnableFns, doEnable)
+
+	button.Activated:Connect(function()
+		if enabled then
+			doDisable()
+		else
+			doEnable()
+		end
+
+		menuFrame.Visible = false
+		menuOpen = false
+	end)
+end
+
+for i, feature in ipairs(gameLinkFeatures) do
+	createGameLinkFeature(i, feature)
+end
+
+-- Auto-ON berdasarkan kesesuaian UniverseId
+-- Memeriksa setiap baris: jika game.GameId sama dengan universeId baris tersebut,
+-- maka otomatis ON. Ada jeda 1 detik antar baris agar tidak konflik.
+task.spawn(function()
+	local currentUniverseId = game.GameId
+	for i, feature in ipairs(gameLinkFeatures) do
+		if feature.universeId and feature.universeId ~= 0 and feature.universeId == currentUniverseId then
+			task.wait(1)
+			if gameFeatureEnableFns[i] then
+				gameFeatureEnableFns[i]()
+			end
+		end
+	end
 end)
 
 -- === FITUR LINKS ===
