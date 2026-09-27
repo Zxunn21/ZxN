@@ -468,20 +468,30 @@ local function getEggPart(model)
 		or model:FindFirstChildWhichIsA("BasePart", true)
 end
 
--- Ambil nilai luck dari: model -> Handle -> EggLuck -> luck (TextLabel)
+-- Ambil nilai luck dari: model -> Handle (part) -> EggLuck (BillboardGui) -> Luck (TextLabel) -> Text
 local function getLuckText(model)
 	local handle = model:FindFirstChild("Handle")
-	if not handle then
+	if not handle or not handle:IsA("BasePart") then
 		return "-"
 	end
 
 	local eggLuck = handle:FindFirstChild("EggLuck")
-	if not eggLuck then
+	if not eggLuck or not eggLuck:IsA("BillboardGui") then
 		return "-"
 	end
 
-	local luckLabel = eggLuck:FindFirstChild("luck")
-	if luckLabel and luckLabel:IsA("TextLabel") then
+	-- Cari TextLabel "Luck" (toleran terhadap variasi huruf besar/kecil)
+	local luckLabel = eggLuck:FindFirstChild("Luck")
+	if not luckLabel then
+		for _, child in ipairs(eggLuck:GetChildren()) do
+			if child:IsA("TextLabel") and string.lower(child.Name) == "luck" then
+				luckLabel = child
+				break
+			end
+		end
+	end
+
+	if luckLabel and luckLabel:IsA("TextLabel") and luckLabel.Text ~= "" then
 		return luckLabel.Text
 	end
 
