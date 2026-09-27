@@ -546,6 +546,16 @@ local function createLine(model)
 	return true
 end
 
+-- Ambil nilai size X dari: model -> EggBase (part) -> Size.X
+local function getSizeText(model)
+	local eggBase = model:FindFirstChild("EggBase", true)
+	if eggBase and eggBase:IsA("BasePart") then
+		return string.format("%.2f", eggBase.Size.X)
+	end
+
+	return "-"
+end
+
 local function createEggRow(model, order)
 	local row = Instance.new("Frame")
 	row.Name = model.Name
@@ -562,7 +572,7 @@ local function createEggRow(model, order)
 
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "EggName"
-	nameLabel.Size = UDim2.new(0.45, -10, 1, 0)
+	nameLabel.Size = UDim2.new(0.32, -10, 1, 0)
 	nameLabel.Position = UDim2.fromOffset(10, 0)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = model.Name
@@ -576,8 +586,8 @@ local function createEggRow(model, order)
 
 	local luckLabel = Instance.new("TextLabel")
 	luckLabel.Name = "Luck"
-	luckLabel.Size = UDim2.new(0.3, 0, 1, 0)
-	luckLabel.Position = UDim2.new(0.45, 0, 0, 0)
+	luckLabel.Size = UDim2.new(0.24, 0, 1, 0)
+	luckLabel.Position = UDim2.new(0.32, 0, 0, 0)
 	luckLabel.BackgroundTransparency = 1
 	luckLabel.Text = "luck: " .. getLuckText(model)
 	luckLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
@@ -587,6 +597,20 @@ local function createEggRow(model, order)
 	luckLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	luckLabel.ZIndex = 702
 	luckLabel.Parent = row
+
+	local sizeLabel = Instance.new("TextLabel")
+	sizeLabel.Name = "Size"
+	sizeLabel.Size = UDim2.new(0.18, 0, 1, 0)
+	sizeLabel.Position = UDim2.new(0.56, 0, 0, 0)
+	sizeLabel.BackgroundTransparency = 1
+	sizeLabel.Text = "size: " .. getSizeText(model)
+	sizeLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
+	sizeLabel.TextSize = 14
+	sizeLabel.Font = Enum.Font.GothamBold
+	sizeLabel.TextXAlignment = Enum.TextXAlignment.Left
+	sizeLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	sizeLabel.ZIndex = 702
+	sizeLabel.Parent = row
 
 	local lineButton = Instance.new("TextButton")
 	lineButton.Name = "LineButton"
