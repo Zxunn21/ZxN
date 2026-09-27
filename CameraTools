@@ -40,17 +40,24 @@ local function makeButton(text, onClick)
 	return btn
 end
 
+local existingGui = playerGui:FindFirstChild("CameraToolsGui")
+if existingGui then
+	existingGui:Destroy()
+end
+
 local screenGui = create("ScreenGui", {
 	Name = "CameraToolsGui",
 	ResetOnSpawn = false,
 	IgnoreGuiInset = false,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
+screenGui.Parent = playerGui
 
 local mainFrame = create("Frame", {
 	Name = "MainFrame",
 	Size = UDim2.new(0, 320, 0, 260),
-	Position = UDim2.new(0, 20, 0, 80),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
 	BackgroundColor3 = Color3.fromRGB(30, 30, 35),
 	BackgroundTransparency = 0.3,
 	BorderSizePixel = 0,
@@ -160,8 +167,24 @@ local layoutRow = makeRow(1, "Layout", {
 	makeButton("Horizontal", function()
 		playerGui.ScreenOrientation = Enum.ScreenOrientation.LandscapeLeft
 	end),
+	makeButton("Auto", function()
+		playerGui.ScreenOrientation = Enum.ScreenOrientation.Sensor
+	end),
 })
 layoutRow.Parent = scrollFrame
+
+local cameraRow = makeRow(2, "Camera View", {
+	makeButton("TPP", function()
+		player.CameraMode = Enum.CameraMode.Classic
+		player.CameraMinZoomDistance = 0.5
+		player.CameraMaxZoomDistance = 400
+		player.CameraZoomDistance = math.max(player.CameraZoomDistance, 10)
+	end),
+	makeButton("FPP", function()
+		player.CameraMode = Enum.CameraMode.LockFirstPerson
+	end),
+})
+cameraRow.Parent = scrollFrame
 
 do
 	local dragging = false
@@ -201,4 +224,3 @@ end
 topBar.Parent = mainFrame
 scrollFrame.Parent = mainFrame
 mainFrame.Parent = screenGui
-screenGui.Parent = playerGui
