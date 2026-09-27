@@ -772,7 +772,7 @@ local volcanoPositions = {
 	Vector3.new(-5001, 41053, -3416),  -- 7
 	Vector3.new(-4863, 40982, -3499),  -- 8
 	Vector3.new(-5056, 40930, -3701),  -- 9
-	Vector3.new(-5344, 40925, -3581),  -- 10
+	Vector3.new(-5338, 40925, -3576),  -- 10
 }
 
 local volcanoMoving = false
@@ -965,7 +965,7 @@ local function createVolcanoEggRow(order)
 		if not volcanoMoving then
 			inButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 			task.spawn(function()
-				tweenThroughPositions(volcanoPositions, 300)
+				tweenThroughPositions(volcanoPositions, 30)
 				inButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 			end)
 		end
