@@ -15,6 +15,13 @@ if existingGui then
 	existingGui:Destroy()
 end
 
+-- Clean up old waypoint ESP parts from previous run
+for _, obj in ipairs(workspace:GetChildren()) do
+	if obj:IsA("BasePart") and string.sub(obj.Name, 1, 12) == "WaypointESP_" then
+		obj:Destroy()
+	end
+end
+
 -- ===================== ESP EGG (dari LocalScriptZxN) =====================
 local renderedEggs = workspace:FindFirstChild("RenderedEggs")
 
@@ -232,6 +239,38 @@ volcanoOutButton.Parent = mainFrame
 local volcanoOutButtonCorner = Instance.new("UICorner")
 volcanoOutButtonCorner.CornerRadius = UDim.new(0, 7)
 volcanoOutButtonCorner.Parent = volcanoOutButton
+
+-- Menu: WayPoint
+local wayPointTitle = Instance.new("TextLabel")
+wayPointTitle.Name = "WayPointTitle"
+wayPointTitle.Size = UDim2.fromOffset(100, 38)
+wayPointTitle.Position = UDim2.fromOffset(10, 190)
+wayPointTitle.TextYAlignment = Enum.TextYAlignment.Center
+wayPointTitle.BackgroundTransparency = 1
+wayPointTitle.Text = "WayPoint"
+wayPointTitle.TextColor3 = Color3.new(1, 1, 1)
+wayPointTitle.TextSize = 16
+wayPointTitle.Font = Enum.Font.GothamBold
+wayPointTitle.TextXAlignment = Enum.TextXAlignment.Left
+wayPointTitle.ZIndex = 601
+wayPointTitle.Parent = mainFrame
+
+local wayPointToggle = Instance.new("TextButton")
+wayPointToggle.Name = "WayPointToggle"
+wayPointToggle.Size = UDim2.fromOffset(75, 38)
+wayPointToggle.Position = UDim2.new(1, -85, 0, 190)
+wayPointToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+wayPointToggle.BorderSizePixel = 0
+wayPointToggle.Text = "OFF"
+wayPointToggle.TextColor3 = Color3.new(1, 1, 1)
+wayPointToggle.TextSize = 15
+wayPointToggle.Font = Enum.Font.GothamBold
+wayPointToggle.ZIndex = 601
+wayPointToggle.Parent = mainFrame
+
+local wayPointToggleCorner = Instance.new("UICorner")
+wayPointToggleCorner.CornerRadius = UDim.new(0, 7)
+wayPointToggleCorner.Parent = wayPointToggle
 
 -- ===================== FRAME LIST EGG =====================
 local eggListFrame = Instance.new("Frame")
@@ -1147,6 +1186,373 @@ for _, child in ipairs(sortDropdown:GetChildren()) do
 		end)
 	end
 end
+
+-- ===================== FRAME WAYPOINT =====================
+local wayPointFrame = Instance.new("Frame")
+wayPointFrame.Name = "WayPointFrame"
+wayPointFrame.Size = UDim2.new(0.6, 0, 0.6, 0)
+wayPointFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+wayPointFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+wayPointFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+wayPointFrame.BackgroundTransparency = 0.2
+wayPointFrame.BorderSizePixel = 0
+wayPointFrame.ZIndex = 800
+wayPointFrame.Visible = false
+wayPointFrame.Parent = gui
+
+local wayPointFrameCorner = Instance.new("UICorner")
+wayPointFrameCorner.CornerRadius = UDim.new(0, 10)
+wayPointFrameCorner.Parent = wayPointFrame
+
+local wayPointFrameStroke = Instance.new("UIStroke")
+wayPointFrameStroke.Thickness = 1
+wayPointFrameStroke.Color = Color3.fromRGB(100, 100, 100)
+wayPointFrameStroke.Parent = wayPointFrame
+
+-- Top bar WayPoint (dragable)
+local wayPointTopBar = Instance.new("Frame")
+wayPointTopBar.Name = "TopBar"
+wayPointTopBar.Size = UDim2.new(1, 0, 0, 36)
+wayPointTopBar.BackgroundTransparency = 1
+wayPointTopBar.Active = true
+wayPointTopBar.ZIndex = 801
+wayPointTopBar.Parent = wayPointFrame
+
+local wayPointTitleLabel = Instance.new("TextLabel")
+wayPointTitleLabel.Name = "Title"
+wayPointTitleLabel.Size = UDim2.new(1, -50, 1, 0)
+wayPointTitleLabel.Position = UDim2.fromOffset(12, 0)
+wayPointTitleLabel.BackgroundTransparency = 1
+wayPointTitleLabel.Text = "WayPoint"
+wayPointTitleLabel.TextColor3 = Color3.new(1, 1, 1)
+wayPointTitleLabel.TextSize = 17
+wayPointTitleLabel.Font = Enum.Font.GothamBold
+wayPointTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+wayPointTitleLabel.ZIndex = 802
+wayPointTitleLabel.Parent = wayPointTopBar
+
+local wayPointCloseButton = Instance.new("TextButton")
+wayPointCloseButton.Name = "CloseButton"
+wayPointCloseButton.Size = UDim2.fromOffset(26, 26)
+wayPointCloseButton.Position = UDim2.new(1, -32, 0, 5)
+wayPointCloseButton.BackgroundTransparency = 1
+wayPointCloseButton.Text = "×"
+wayPointCloseButton.TextColor3 = Color3.new(1, 1, 1)
+wayPointCloseButton.TextSize = 32
+wayPointCloseButton.Font = Enum.Font.GothamBold
+wayPointCloseButton.ZIndex = 803
+wayPointCloseButton.Parent = wayPointTopBar
+
+-- Scrolling frame for waypoint rows
+local wayPointScroll = Instance.new("ScrollingFrame")
+wayPointScroll.Name = "WayPointScroll"
+wayPointScroll.Size = UDim2.new(1, -16, 1, -48)
+wayPointScroll.Position = UDim2.fromOffset(8, 40)
+wayPointScroll.BackgroundTransparency = 1
+wayPointScroll.BorderSizePixel = 0
+wayPointScroll.ScrollBarThickness = 6
+wayPointScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+wayPointScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+wayPointScroll.ZIndex = 801
+wayPointScroll.Parent = wayPointFrame
+
+local wayPointScrollLayout = Instance.new("UIListLayout")
+wayPointScrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+wayPointScrollLayout.Padding = UDim.new(0, 4)
+wayPointScrollLayout.Parent = wayPointScroll
+
+-- ===================== WAYPOINT HELPER =====================
+local waypointESPStates = {} -- [name] = {Part, Billboard}
+local waypointMoving = false
+
+local function createWaypointESP(name, position)
+	if waypointESPStates[name] then return end
+
+	local part = Instance.new("Part")
+	part.Name = "WaypointESP_" .. name
+	part.Anchored = true
+	part.CanCollide = false
+	part.Transparency = 1
+	part.Size = Vector3.new(1, 1, 1)
+	part.Position = position
+	part.Parent = workspace
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "WaypointMarker"
+	billboard.Size = UDim2.fromOffset(100, 50)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = math.huge
+	billboard.Adornee = part
+	billboard.Parent = part
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = "📍"
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextSize = 40
+	label.Font = Enum.Font.GothamBold
+	label.Parent = billboard
+
+	waypointESPStates[name] = {
+		Part = part,
+		Billboard = billboard
+	}
+end
+
+local function removeWaypointESP(name)
+	local data = waypointESPStates[name]
+	if data then
+		if data.Part then data.Part:Destroy() end
+		waypointESPStates[name] = nil
+	end
+end
+
+local function goToPosition(targetPos)
+	local character = player.Character
+	if not character then return end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not hrp then return end
+
+	if waypointMoving then return end
+	waypointMoving = true
+
+	if humanoid then
+		humanoid.PlatformStand = true
+	end
+
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "WaypointMoveAttachment"
+	attachment.Parent = hrp
+
+	local linearVel = Instance.new("LinearVelocity")
+	linearVel.Attachment0 = attachment
+	linearVel.MaxForce = math.huge
+	linearVel.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVel.VectorVelocity = Vector3.zero
+	linearVel.Parent = hrp
+
+	local alignOrient = Instance.new("AlignOrientation")
+	alignOrient.Attachment0 = attachment
+	alignOrient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	alignOrient.MaxTorque = math.huge
+	alignOrient.Responsiveness = 50
+	alignOrient.Parent = hrp
+
+	local moveSpeed = 100 -- studs per second
+	local arrived = false
+
+	task.spawn(function()
+		while not arrived and waypointMoving do
+			if not hrp or not hrp.Parent then
+				break
+			end
+
+			local currentPos = hrp.Position
+			local direction = targetPos - currentPos
+			local distance = direction.Magnitude
+
+			if distance < 5 then
+				arrived = true
+				break
+			end
+
+			local moveDir = direction.Unit
+			linearVel.VectorVelocity = moveDir * moveSpeed
+
+			local lookAt = CFrame.lookAt(currentPos, targetPos)
+			alignOrient.CFrame = lookAt
+
+			task.wait(0.05)
+		end
+
+		if linearVel and linearVel.Parent then linearVel:Destroy() end
+		if alignOrient and alignOrient.Parent then alignOrient:Destroy() end
+		if attachment and attachment.Parent then attachment:Destroy() end
+
+		if humanoid and humanoid.Parent then
+			humanoid.PlatformStand = false
+		end
+
+		waypointMoving = false
+	end)
+end
+
+-- ===================== WAYPOINT ROW CREATOR =====================
+-- Helper: tambahkan waypoint baru dengan mudah
+-- Contoh: createWaypointRow("Puncak Volcano", Vector3.new(-5101, 41620, -3475), 1)
+local function createWaypointRow(name, position, order)
+	local row = Instance.new("Frame")
+	row.Name = name
+	row.Size = UDim2.new(1, 0, 0, 40)
+	row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = order
+	row.ZIndex = 801
+	row.Parent = wayPointScroll
+
+	local rowCorner = Instance.new("UICorner")
+	rowCorner.CornerRadius = UDim.new(0, 7)
+	rowCorner.Parent = row
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "WaypointName"
+	nameLabel.Size = UDim2.new(0.4, -10, 1, 0)
+	nameLabel.Position = UDim2.fromOffset(10, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = name
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextSize = 14
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLabel.ZIndex = 802
+	nameLabel.Parent = row
+
+	-- ESP toggle (default ON)
+	local espBtn = Instance.new("TextButton")
+	espBtn.Name = "EspButton"
+	espBtn.Size = UDim2.fromOffset(60, 30)
+	espBtn.Position = UDim2.new(1, -150, 0.5, -15)
+	espBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	espBtn.BorderSizePixel = 0
+	espBtn.Text = "ESP"
+	espBtn.TextColor3 = Color3.new(1, 1, 1)
+	espBtn.TextSize = 14
+	espBtn.Font = Enum.Font.GothamBold
+	espBtn.ZIndex = 802
+	espBtn.Parent = row
+
+	local espBtnCorner = Instance.new("UICorner")
+	espBtnCorner.CornerRadius = UDim.new(0, 7)
+	espBtnCorner.Parent = espBtn
+
+	-- Go To button
+	local goToBtn = Instance.new("TextButton")
+	goToBtn.Name = "GoToButton"
+	goToBtn.Size = UDim2.fromOffset(70, 30)
+	goToBtn.Position = UDim2.new(1, -78, 0.5, -15)
+	goToBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	goToBtn.BorderSizePixel = 0
+	goToBtn.Text = "Go To"
+	goToBtn.TextColor3 = Color3.new(1, 1, 1)
+	goToBtn.TextSize = 14
+	goToBtn.Font = Enum.Font.GothamBold
+	goToBtn.ZIndex = 802
+	goToBtn.Parent = row
+
+	local goToBtnCorner = Instance.new("UICorner")
+	goToBtnCorner.CornerRadius = UDim.new(0, 7)
+	goToBtnCorner.Parent = goToBtn
+
+	-- ESP state (default ON)
+	local espOn = true
+	createWaypointESP(name, position)
+
+	espBtn.Activated:Connect(function()
+		espOn = not espOn
+		if espOn then
+			espBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+			createWaypointESP(name, position)
+		else
+			espBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			removeWaypointESP(name)
+		end
+	end)
+
+	goToBtn.Activated:Connect(function()
+		if not waypointMoving then
+			goToBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+			task.spawn(function()
+				goToPosition(position)
+				while waypointMoving do
+					task.wait(0.1)
+				end
+				goToBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			end)
+		end
+	end)
+
+	return row
+end
+
+-- ===================== DAFTAR WAYPOINT =====================
+-- Untuk menambahkan waypoint baru, cukup tambahkan baris di sini:
+createWaypointRow("Puncak Volcano", Vector3.new(-5101, 41620, -3475), 1)
+-- createWaypointRow("Waypoint Lain", Vector3.new(x, y, z), 2)
+
+-- ===================== WAYPOINT TOGGLE =====================
+local function updateWayPointToggle()
+	if wayPointFrame.Visible then
+		wayPointToggle.Text = "ON"
+		wayPointToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		wayPointToggle.Text = "OFF"
+		wayPointToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	end
+end
+
+wayPointToggle.Activated:Connect(function()
+	wayPointFrame.Visible = not wayPointFrame.Visible
+	if wayPointFrame.Visible then
+		local rideFrame = gui:FindFirstChild("MainFrame")
+		if rideFrame then
+			rideFrame.Visible = false
+		end
+	else
+		local rideFrame = gui:FindFirstChild("MainFrame")
+		if rideFrame then
+			rideFrame.Visible = true
+		end
+	end
+	updateWayPointToggle()
+end)
+
+wayPointCloseButton.Activated:Connect(function()
+	wayPointFrame.Visible = false
+	local rideFrame = gui:FindFirstChild("MainFrame")
+	if rideFrame then
+		rideFrame.Visible = true
+	end
+	updateWayPointToggle()
+end)
+
+-- Drag WayPoint frame via top bar
+local draggingWayPoint = false
+local dragStartWayPoint
+local startPosWayPoint
+
+wayPointTopBar.InputBegan:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		draggingWayPoint = true
+		dragStartWayPoint = inputObject.Position
+		startPosWayPoint = wayPointFrame.Position
+	end
+end)
+
+wayPointTopBar.InputChanged:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseMovement
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		if draggingWayPoint then
+			local delta = inputObject.Position - dragStartWayPoint
+			wayPointFrame.Position = UDim2.new(
+				startPosWayPoint.X.Scale,
+				startPosWayPoint.X.Offset + delta.X,
+				startPosWayPoint.Y.Scale,
+				startPosWayPoint.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(inputObject)
+	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
+		or inputObject.UserInputType == Enum.UserInputType.Touch then
+		draggingWayPoint = false
+	end
+end)
 
 -- Saat karakter respawn, pindahkan attachment line ke HRP baru
 player.CharacterAdded:Connect(function(character)
