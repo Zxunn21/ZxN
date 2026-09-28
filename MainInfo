@@ -1,0 +1,203 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+-- Remove existing GUI if re-running
+local existingGui = player.PlayerGui:FindFirstChild("MainInfoGui")
+if existingGui then
+	existingGui:Destroy()
+end
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MainInfoGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Main Frame (60% x 80% of screen)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0.6, 0, 0.8, 0)
+mainFrame.Position = UDim2.new(0.2, 0, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+-- Topbar (draggable)
+local topbar = Instance.new("Frame")
+topbar.Name = "Topbar"
+topbar.Size = UDim2.new(1, 0, 0, 40)
+topbar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+topbar.BorderSizePixel = 0
+topbar.Parent = mainFrame
+
+local topbarCorner = Instance.new("UICorner")
+topbarCorner.CornerRadius = UDim.new(0, 8)
+topbarCorner.Parent = topbar
+
+-- Fix bottom corners of topbar (only round top)
+local topbarBottomFix = Instance.new("Frame")
+topbarBottomFix.Size = UDim2.new(1, 0, 0, 8)
+topbarBottomFix.Position = UDim2.new(0, 0, 1, -8)
+topbarBottomFix.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+topbarBottomFix.BorderSizePixel = 0
+topbarBottomFix.Parent = topbar
+
+local topbarTitle = Instance.new("TextLabel")
+topbarTitle.Size = UDim2.new(1, -20, 1, 0)
+topbarTitle.Position = UDim2.new(0, 20, 0, 0)
+topbarTitle.BackgroundTransparency = 1
+topbarTitle.Text = "Main Info"
+topbarTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+topbarTitle.Font = Enum.Font.SourceSansBold
+topbarTitle.TextSize = 18
+topbarTitle.TextXAlignment = Enum.TextXAlignment.Left
+topbarTitle.Parent = topbar
+
+-- ScrollingFrame for content
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ContentScroll"
+scrollFrame.Size = UDim2.new(1, 0, 1, -40)
+scrollFrame.Position = UDim2.new(0, 0, 0, 40)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scrollFrame.Parent = mainFrame
+
+local scrollLayout = Instance.new("UIListLayout")
+scrollLayout.Padding = UDim.new(0, 0)
+scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+scrollLayout.Parent = scrollFrame
+
+-- Helper: create a row with label, value, and copy button
+local function createRow(order, labelText, valueText)
+	local row = Instance.new("Frame")
+	row.Name = labelText .. "Row"
+	row.Size = UDim2.new(1, 0, 0, 50)
+	row.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = order
+	row.Parent = scrollFrame
+
+	local rowCorner = Instance.new("UICorner")
+	rowCorner.CornerRadius = UDim.new(0, 6)
+	rowCorner.Parent = row
+
+	-- Label (left column)
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(0, 100, 1, 0)
+	label.Position = UDim2.new(0, 10, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(200, 200, 210)
+	label.Font = Enum.Font.SourceSansBold
+	label.TextSize = 16
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = row
+
+	-- Value (center column)
+	local value = Instance.new("TextLabel")
+	value.Name = "Value"
+	value.Size = UDim2.new(1, -200, 1, 0)
+	value.Position = UDim2.new(0, 110, 0, 0)
+	value.BackgroundTransparency = 1
+	value.Text = valueText
+	value.TextColor3 = Color3.fromRGB(255, 255, 255)
+	value.Font = Enum.Font.SourceSans
+	value.TextSize = 15
+	value.TextXAlignment = Enum.TextXAlignment.Center
+	value.Parent = row
+
+	-- Copy button (right column)
+	local copyBtn = Instance.new("TextButton")
+	copyBtn.Name = "CopyButton"
+	copyBtn.Size = UDim2.new(0, 70, 0, 30)
+	copyBtn.Position = UDim2.new(1, -80, 0.5, -15)
+	copyBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
+	copyBtn.Text = "Copy"
+	copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	copyBtn.Font = Enum.Font.SourceSansBold
+	copyBtn.TextSize = 14
+	copyBtn.AutoButtonColor = true
+	copyBtn.BorderSizePixel = 0
+	copyBtn.Parent = row
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = copyBtn
+
+	-- Copy logic
+	copyBtn.MouseButton1Click:Connect(function()
+		if setclipboard then
+			setclipboard(value.Text)
+			copyBtn.Text = "Copied!"
+			task.wait(1)
+			copyBtn.Text = "Copy"
+		end
+	end)
+
+	return row, value
+end
+
+-- Row 1: Universe
+local universeRow, universeValue = createRow(1, "Universe", tostring(game.GameId))
+
+-- Row 2: Position
+local posRow, posValue = createRow(2, "Position", "xx.xx, yy.yy, zz.zz")
+
+-- Update position value with character position
+local function updatePosition()
+	local character = player.Character
+	if character then
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local pos = hrp.Position
+			posValue.Text = string.format("%.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
+		end
+	end
+end
+
+-- Update position periodically
+task.spawn(function()
+	while task.wait(0.5) do
+		updatePosition()
+	end
+end)
+
+-- Dragging logic for topbar
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+topbar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+	end
+end)
+
+topbar.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
