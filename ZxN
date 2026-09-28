@@ -672,6 +672,7 @@ end)
 
 -- === FITUR LINKS ===
 local linkFeatures = {
+	{ description = "Main Info",     			url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/MainInfo",         		guiToHide = "MainInfoGui" },
 	{ description = "Vertical Lock",             url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Vertical%20Lock",         guiToHide = "VerticalLockGui" },
 	{ description = "Light System",              url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Lighting",                guiToHide = "TorchOnHeadGui" },
 	{ description = "Auto Proximity Prompt",     url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoProxPrompt",          guiToHide = "AutoProximityPromptGui" },
