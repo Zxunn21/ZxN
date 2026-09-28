@@ -32,6 +32,7 @@ local specialEggs = {
 	["Devil Fruit Egg"] = true,
 	["Admin Egg"] = true,
 	["Asteroid Egg"] = true,
+	["Solaris Egg"] = true,
 	["Giant Egg"] = true
 }
 
