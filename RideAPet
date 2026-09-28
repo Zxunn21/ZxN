@@ -1385,7 +1385,7 @@ end
 local function createWaypointRow(name, position, order)
 	local row = Instance.new("Frame")
 	row.Name = name
-	row.Size = UDim2.new(1, 0, 0, 40)
+	row.Size = UDim2.new(1, -8, 0, 40)
 	row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 	row.BorderSizePixel = 0
 	row.LayoutOrder = order
@@ -1396,9 +1396,10 @@ local function createWaypointRow(name, position, order)
 	rowCorner.CornerRadius = UDim.new(0, 7)
 	rowCorner.Parent = row
 
+	-- Nama waypoint
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "WaypointName"
-	nameLabel.Size = UDim2.new(0.4, -10, 1, 0)
+	nameLabel.Size = UDim2.new(1, -145, 1, 0)
 	nameLabel.Position = UDim2.fromOffset(10, 0)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = name
@@ -1410,69 +1411,60 @@ local function createWaypointRow(name, position, order)
 	nameLabel.ZIndex = 802
 	nameLabel.Parent = row
 
-	-- ESP toggle (default ON)
+	-- ESP
 	local espBtn = Instance.new("TextButton")
 	espBtn.Name = "EspButton"
-	espBtn.Size = UDim2.fromOffset(60, 30)
-	espBtn.Position = UDim2.new(1, -150, 0.5, -15)
+	espBtn.Size = UDim2.fromOffset(55, 30)
+	espBtn.Position = UDim2.new(1, -130, 0.5, -15)
 	espBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	espBtn.BorderSizePixel = 0
 	espBtn.Text = "ESP"
 	espBtn.TextColor3 = Color3.new(1, 1, 1)
-	espBtn.TextSize = 14
+	espBtn.TextSize = 13
 	espBtn.Font = Enum.Font.GothamBold
 	espBtn.ZIndex = 802
 	espBtn.Parent = row
 
-	local espBtnCorner = Instance.new("UICorner")
-	espBtnCorner.CornerRadius = UDim.new(0, 7)
-	espBtnCorner.Parent = espBtn
+	local espCorner = Instance.new("UICorner")
+	espCorner.CornerRadius = UDim.new(0, 7)
+	espCorner.Parent = espBtn
 
-	-- Go To button
+	-- Go To
 	local goToBtn = Instance.new("TextButton")
 	goToBtn.Name = "GoToButton"
-	goToBtn.Size = UDim2.fromOffset(70, 30)
-	goToBtn.Position = UDim2.new(1, -78, 0.5, -15)
+	goToBtn.Size = UDim2.fromOffset(65, 30)
+	goToBtn.Position = UDim2.new(1, -70, 0.5, -15)
 	goToBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 	goToBtn.BorderSizePixel = 0
 	goToBtn.Text = "Go To"
 	goToBtn.TextColor3 = Color3.new(1, 1, 1)
-	goToBtn.TextSize = 14
+	goToBtn.TextSize = 13
 	goToBtn.Font = Enum.Font.GothamBold
 	goToBtn.ZIndex = 802
 	goToBtn.Parent = row
 
-	local goToBtnCorner = Instance.new("UICorner")
-	goToBtnCorner.CornerRadius = UDim.new(0, 7)
-	goToBtnCorner.Parent = goToBtn
+	local goToCorner = Instance.new("UICorner")
+	goToCorner.CornerRadius = UDim.new(0, 7)
+	goToCorner.Parent = goToBtn
 
-	-- ESP state (default ON)
-	local espOn = true
-	createWaypointESP(name, position)
-
+	-- ESP default ON
 	espBtn.Activated:Connect(function()
-		espOn = not espOn
-		if espOn then
-			espBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-			createWaypointESP(name, position)
-		else
-			espBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		if waypointESPStates[name] then
 			removeWaypointESP(name)
+			espBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		else
+			createWaypointESP(name, position)
+			espBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 		end
 	end)
 
+	-- Go To
 	goToBtn.Activated:Connect(function()
-		if not waypointMoving then
-			goToBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-			task.spawn(function()
-				goToPosition(position)
-				while waypointMoving do
-					task.wait(0.1)
-				end
-				goToBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-			end)
-		end
+		goToPosition(position)
 	end)
+
+	-- Buat ESP otomatis
+	createWaypointESP(name, position)
 
 	return row
 end
