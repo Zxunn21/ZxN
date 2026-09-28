@@ -1344,46 +1344,10 @@ local function hideServerBubble()
 	serverBubble.Visible = false
 end
 
--- URL script untuk dijalankan lagi setelah teleport jika executor mendukung queue-on-teleport
-local AUTO_EXEC_URL = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ZxN"
 local HOLD_TIME = 1
 local hopping = false
 local holdingServer = false
 local holdToken = 0
-
-local function queueScriptAfterTeleport()
-	local code = 'loadstring(game:HttpGet("' .. AUTO_EXEC_URL .. '", true))()'
-
-	local queueFunctions = {
-		function()
-			if typeof(queue_on_teleport) == "function" then
-				queue_on_teleport(code)
-				return true
-			end
-		end,
-		function()
-			if typeof(queueonteleport) == "function" then
-				queueonteleport(code)
-				return true
-			end
-		end,
-		function()
-			if typeof(syn) == "table" and typeof(syn.queue_on_teleport) == "function" then
-				syn.queue_on_teleport(code)
-				return true
-			end
-		end,
-	}
-
-	for _, tryQueue in ipairs(queueFunctions) do
-		local ok, queued = pcall(tryQueue)
-		if ok and queued then
-			return true
-		end
-	end
-
-	return false
-end
 
 local function cancelServerHold()
 	holdingServer = false
@@ -1402,8 +1366,6 @@ local function performServerHop()
 	hideServerBubble()
 	serverButton.Text = "Hop..."
 	serverButton.AutoButtonColor = false
-
-	local queued = queueScriptAfterTeleport()
 
 	local success, result = pcall(function()
 		local HttpService = game:GetService("HttpService")
@@ -1442,7 +1404,7 @@ local function performServerHop()
 		end
 	end
 
-	serverButton.Text = queued and "No Server" or "No Queue"
+	serverButton.Text = "No Server"
 	task.wait(1)
 	serverButton.Text = "Server"
 	serverButton.AutoButtonColor = true
