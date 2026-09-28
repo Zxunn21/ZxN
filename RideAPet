@@ -1340,7 +1340,7 @@ local function goToPosition(targetPos)
 	alignOrient.Responsiveness = 50
 	alignOrient.Parent = hrp
 
-	local moveSpeed = 100 -- studs per second
+	local moveSpeed = 300
 	local arrived = false
 
 	task.spawn(function()
