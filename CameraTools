@@ -188,8 +188,9 @@ cameraRow.Parent = scrollFrame
 
 -- === FREE CAM ===
 -- Mode seperti "fly": kamera bebas bergerak ke segala arah
--- (WASD untuk gerak, Space naik, Shift turun, tahan Ctrl untuk sprint,
--- drag mouse kanan / sentuh layar untuk memutar arah pandang),
+-- (analog thumbstick bawaan Roblox di mobile / WASD di keyboard untuk gerak,
+-- Space naik, Shift turun, tahan Ctrl untuk sprint,
+-- drag mouse kanan / swipe layar untuk memutar arah pandang),
 -- sementara tubuh karakter tetap di-anchor di tempat.
 local RunService = game:GetService("RunService")
 
@@ -256,27 +257,18 @@ local function makeMoveButton(text, dir)
 	return btn
 end
 
--- D-pad kiri: maju/mundur/kiri/kanan
-local movePad = create("Frame", {
-	Name = "FreeCamMovePad",
-	AnchorPoint = Vector2.new(0, 1),
-	Position = UDim2.new(0, 20, 1, -84), -- digeser ke atas agar tidak tertutup tombol [x]
-	Size = UDim2.new(0, 150, 0, 150),
-	BackgroundTransparency = 1,
-	Visible = false,
-})
-local forwardBtn = makeMoveButton("W", "forward")
-forwardBtn.Position = UDim2.new(0, 53, 0, 0)
-forwardBtn.Parent = movePad
-local leftBtn = makeMoveButton("A", "left")
-leftBtn.Position = UDim2.new(0, 0, 0, 53)
-leftBtn.Parent = movePad
-local backwardBtn = makeMoveButton("S", "backward")
-backwardBtn.Position = UDim2.new(0, 53, 0, 106)
-backwardBtn.Parent = movePad
-local rightBtn = makeMoveButton("D", "right")
-rightBtn.Position = UDim2.new(0, 106, 0, 53)
-rightBtn.Parent = movePad
+-- Ambil Controls dari PlayerModule bawaan, sehingga analog thumbstick
+-- Roblox (yang biasanya menggerakkan tubuh) ikut menggerakkan kamera fly ini.
+-- Di keyboard, GetMoveVector() juga sudah mencakup input WASD.
+local Controls
+do
+	local ok, PlayerModule = pcall(function()
+		return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+	end)
+	if ok and PlayerModule then
+		Controls = PlayerModule:GetControls()
+	end
+end
 
 -- Pad kanan: naik/turun
 local vertPad = create("Frame", {
@@ -359,10 +351,9 @@ local function startFreeCam()
 	mainFrame.Visible = false
 	showPanelButton.Visible = true
 
-	-- Tampilkan tombol navigasi hanya di perangkat touch
-	local showPads = UserInputService.TouchEnabled
-	movePad.Visible = showPads
-	vertPad.Visible = showPads
+	-- Tampilkan tombol naik/turun hanya di perangkat touch
+	-- (analog thumbstick bawaan Roblox otomatis muncul sendiri di mobile)
+	vertPad.Visible = UserInputService.TouchEnabled
 end
 
 local function stopFreeCam()
@@ -370,7 +361,6 @@ local function stopFreeCam()
 	lookDragging = false
 	keysDown = {}
 	btnState = {}
-	movePad.Visible = false
 	vertPad.Visible = false
 	showPanelButton.Visible = false
 	mainFrame.Visible = true
@@ -424,21 +414,29 @@ RunService.RenderStepped:Connect(function(dt)
 
 	local rot = CFrame.fromOrientation(pitch, yaw, 0)
 
-	local moveDir = Vector3.zero
-	if keysDown.forward or btnState.forward then moveDir += rot.LookVector end
-	if keysDown.backward or btnState.backward then moveDir -= rot.LookVector end
-	if keysDown.left or btnState.left then moveDir -= rot.RightVector end
-	if keysDown.right or btnState.right then moveDir += rot.RightVector end
+	-- Arah gerak dari analog bawaan Roblox (thumbstick mobile / WASD keyboard)
+	-- via PlayerModule Controls; fallback ke keysDown jika PlayerModule tak tersedia
+	local mv = Vector3.zero
+	if Controls then
+		mv = Controls:GetMoveVector()
+	else
+		if keysDown.forward then mv -= Vector3.zAxis end
+		if keysDown.backward then mv += Vector3.zAxis end
+		if keysDown.left then mv -= Vector3.xAxis end
+		if keysDown.right then mv += Vector3.xAxis end
+	end
+	local moveDir = rot:VectorToWorldSpace(Vector3.new(mv.X, 0, mv.Z))
 	if keysDown.up or btnState.up then moveDir += Vector3.yAxis end
 	if keysDown.down or btnState.down then moveDir -= Vector3.yAxis end
 
 	local pos = camera.CFrame.Position
-	if moveDir.Magnitude > 0 then
+	if moveDir.Magnitude > 0.001 then
 		local speed = BASE_SPEED
 		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
 			speed *= SPRINT_MULT
 		end
-		pos += moveDir.Unit * speed * dt
+		-- Kecepatan mengikuti seberapa jauh analog didorong (analog sensitivity)
+		pos += moveDir.Unit * math.min(moveDir.Magnitude, 1) * speed * dt
 	end
 
 	camera.CFrame = CFrame.new(pos) * rot
