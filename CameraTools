@@ -523,70 +523,82 @@ local function showToast(message)
 	end)
 end
 
+-- === CAPTURE FOTO ===
 local capturing = false
-local captureToken = 0
-local CAPTURE_TIMEOUT = 8
 
 local function takePhoto()
 	if capturing then
-		-- Feedback jelas kalau tombol diklik saat proses foto masih berjalan,
-		-- supaya tidak terkesan "tombol mati" tanpa pesan apa pun
-		showToast("Foto sedang diproses, tunggu sebentar...")
+		showToast("Foto sedang diproses...")
 		return
 	end
+
 	capturing = true
-	captureToken += 1
-	local myToken = captureToken
+	showToast("Mengambil foto...")
 
-	-- PENGAMAN ANTI-MACET: jika callback CaptureService tidak pernah dipanggil
-	-- (mis. capture ditolak / gagal diam-diam di map/perangkat tertentu),
-	-- reset flag setelah beberapa detik agar tombol tidak mati permanen
-	task.delay(CAPTURE_TIMEOUT, function()
-		if captureToken == myToken then
-			capturing = false
-			showToast("Pengambilan foto timeout, coba lagi")
-		end
-	end)
+	local success, err = pcall(function()
 
-	local ok = pcall(function()
-		-- None = tangkapan bersih TANPA UI apapun (lebih bersih dari screenshot bawaan)
 		CaptureService:TakeScreenshotCaptureAsync(function(result, screenshotCapture)
-			-- Abaikan callback lama jika sudah ada percobaan foto baru
-			if captureToken ~= myToken then return end
+
+			-- Capture selesai
 			capturing = false
-			if result == Enum.ScreenshotCaptureResult.Success and screenshotCapture then
-				-- Kilatan sebagai feedback, SETELAH foto diambil agar tidak ikut tertangkap
-				playFlash()
-				-- Minta user menyimpan foto ke galeri Captures Roblox
-				CaptureService:PromptSaveCapturesToGallery({ screenshotCapture }, function(results)
-					local saved = false
-					for _, accepted in pairs(results) do
-						if accepted then saved = true end
-					end
-					if saved then
-						showToast("Foto disimpan ke galeri Captures ✓")
-					else
-						showToast("Foto tidak disimpan")
-					end
-				end)
-			else
+
+			if result ~= Enum.ScreenshotCaptureResult.Success or not screenshotCapture then
+				warn("Screenshot gagal:", result)
 				showToast("Gagal mengambil foto: " .. tostring(result))
+				return
+			end
+
+			-- Capture berhasil
+			playFlash()
+			showToast("Foto berhasil diambil ✓")
+
+			-- Beri sedikit waktu sebelum membuka prompt
+			task.wait(0.15)
+
+			local saveSuccess, saveError = pcall(function()
+
+				CaptureService:PromptSaveCapturesToGallery(
+					{ screenshotCapture },
+					function(results)
+
+						local saved = false
+
+						for _, accepted in pairs(results) do
+							if accepted == true then
+								saved = true
+								break
+							end
+						end
+
+						if saved then
+							showToast("Foto disimpan ✓")
+						else
+							showToast("Foto tidak disimpan")
+						end
+					end
+				)
+
+			end)
+
+			if not saveSuccess then
+				warn("Gagal membuka penyimpanan Capture:", saveError)
+				showToast("Tidak dapat menyimpan foto")
 			end
 		end, {
-			-- None = tangkapan bersih TANPA UI apapun (lebih bersih dari screenshot bawaan)
-			UICaptureMode = Enum.UICaptureMode.None,
+			-- Tidak memasukkan GUI Roblox/game ke dalam foto
+			UICaptureMode = Enum.UICaptureMode.None
 		})
+
 	end)
-	if not ok then
-		if captureToken == myToken then
-			capturing = false
-		end
-		showToast("Fitur foto tidak tersedia di perangkat ini")
+
+	if not success then
+		capturing = false
+		warn("CaptureService error:", err)
+		showToast("Capture tidak tersedia di perangkat ini")
 	end
 end
 
--- Activated lebih andal daripada MouseButton1Click:
--- terpicu konsisten oleh mouse, touch, dan gamepad di semua platform
+-- Activated mendukung mouse, touch, dan gamepad
 photoButton.Activated:Connect(takePhoto)
 
 local function anchorCharacter(character)
