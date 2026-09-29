@@ -399,6 +399,17 @@ local function setZoom(z)
 	camera.FieldOfView = math.clamp(BASE_FOV / zoomValue, 5, 120)
 end
 
+-- Jika CurrentCamera diganti (mis. saat berganti map dalam sesi yang sama,
+-- atau kamera lama dihancurkan oleh sistem map), perbarui referensi 'camera'
+-- agar free cam, zoom, dan tombol foto tetap berfungsi di map manapun
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	camera = workspace.CurrentCamera
+	if freeCamEnabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		setZoom(zoomValue)
+	end
+end)
+
 local zoomDragging = false
 local function zoomFromInput(input)
 	local absPos = zoomSlider.AbsolutePosition
@@ -502,9 +513,29 @@ local function showToast(message)
 end
 
 local capturing = false
+local captureToken = 0
+local CAPTURE_TIMEOUT = 8
+
 local function takePhoto()
-	if capturing then return end
+	if capturing then
+		-- Feedback jelas kalau tombol diklik saat proses foto masih berjalan,
+		-- supaya tidak terkesan "tombol mati" tanpa pesan apa pun
+		showToast("Foto sedang diproses, tunggu sebentar...")
+		return
+	end
 	capturing = true
+	captureToken += 1
+	local myToken = captureToken
+
+	-- PENGAMAN ANTI-MACET: jika callback CaptureService tidak pernah dipanggil
+	-- (mis. capture ditolak / gagal diam-diam di map/perangkat tertentu),
+	-- reset flag setelah beberapa detik agar tombol tidak mati permanen
+	task.delay(CAPTURE_TIMEOUT, function()
+		if captureToken == myToken then
+			capturing = false
+			showToast("Pengambilan foto timeout, coba lagi")
+		end
+	end)
 
 	-- Efek kilatan kamera
 	flashFrame.Visible = true
@@ -518,6 +549,8 @@ local function takePhoto()
 
 	local ok = pcall(function()
 		CaptureService:TakeScreenshotCaptureAsync(function(result, screenshotCapture)
+			-- Abaikan callback lama jika sudah ada percobaan foto baru
+			if captureToken ~= myToken then return end
 			capturing = false
 			if result == Enum.ScreenshotCaptureResult.Success and screenshotCapture then
 				-- Minta user menyimpan foto ke galeri Captures Roblox
@@ -541,12 +574,16 @@ local function takePhoto()
 		})
 	end)
 	if not ok then
-		capturing = false
+		if captureToken == myToken then
+			capturing = false
+		end
 		showToast("Fitur foto tidak tersedia di perangkat ini")
 	end
 end
 
-photoButton.MouseButton1Click:Connect(takePhoto)
+-- Activated lebih andal daripada MouseButton1Click:
+-- terpicu konsisten oleh mouse, touch, dan gamepad di semua platform
+photoButton.Activated:Connect(takePhoto)
 
 local function anchorCharacter(character)
 	anchoredParts = {}
