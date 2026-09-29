@@ -127,7 +127,7 @@ objectInput.Position = UDim2.fromOffset(130, 5)
 objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 objectInput.BorderSizePixel = 0
 objectInput.Text = ""
-objectInput.PlaceholderText = "P part / M model"
+objectInput.PlaceholderText = "m snail, m tiger, p block"
 objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 objectInput.TextColor3 = Color3.new(1, 1, 1)
 objectInput.TextSize = 13
@@ -168,8 +168,7 @@ local objectBeams = {}
 local objectTargetParts = {}
 local objectStartAttachments = {}
 local objectHighlights = {}
-local currentTargetType = nil
-local currentTargetName = nil
+local currentTargets = nil -- daftar target: { { type = "P"/"M", name = "..." }, ... }
 
 local function getObjectPosition(object)
 	if not object or not object.Parent then
@@ -242,6 +241,23 @@ local function findObjects(targetType, targetName)
 	return results
 end
 
+-- Kumpulkan semua objek yang cocok dari seluruh entri input (multi target)
+local function collectAllTargets(targetList)
+	local targets = {}
+	local seen = {}
+
+	for _, entry in ipairs(targetList or {}) do
+		for _, obj in ipairs(findObjects(entry.type, entry.name)) do
+			if not seen[obj] then
+				seen[obj] = true
+				table.insert(targets, obj)
+			end
+		end
+	end
+
+	return targets
+end
+
 local function getRootPart()
 	local character = player.Character
 	if not character then
@@ -251,7 +267,7 @@ local function getRootPart()
 	return character:FindFirstChild("HumanoidRootPart")
 end
 
-local function createObjectLines(targetType, targetName)
+local function createObjectLines(targetList)
 	clearObjectLines()
 
 	if not objectLineEnabled then
@@ -263,7 +279,7 @@ local function createObjectLines(targetType, targetName)
 		return
 	end
 
-	local targets = findObjects(targetType, targetName)
+	local targets = collectAllTargets(targetList)
 	if #targets == 0 then
 		return
 	end
@@ -325,45 +341,51 @@ local function createObjectLines(targetType, targetName)
 		end
 	end
 
-	currentTargetType = targetType
-	currentTargetName = targetName
+	currentTargets = targetList
 end
 
 local function parseObjectInput()
 	local input = objectInput.Text:match("^%s*(.-)%s*$")
 
 	if input == "" then
-		return nil, nil
+		return nil
 	end
 
-	local targetType, targetName = input:match("^([PpMm])%s+(.+)$")
-	if not targetType or not targetName then
-		return nil, nil
+	-- Support multi input dipisah koma, contoh: "m snail, m tiger, p block"
+	local targetList = {}
+	local validCount = 0
+
+	for chunk in input:gmatch("[^,]+") do
+		local entryType, entryName = chunk:match("^%s*([PpMm])%s+(.-)%s*$")
+		if entryType and entryName and entryName ~= "" then
+			validCount += 1
+			targetList[validCount] = {
+				type = string.upper(entryType),
+				name = entryName,
+			}
+		end
 	end
 
-	targetName = targetName:match("^%s*(.-)%s*$")
-	if targetName == "" then
-		return nil, nil
+	if validCount == 0 then
+		return nil
 	end
 
-	return string.upper(targetType), targetName
+	return targetList
 end
 
 local function updateObjectLine()
-	local targetType, targetName = parseObjectInput()
+	local targetList = parseObjectInput()
 
-	if not targetType or not targetName then
-		currentTargetType = nil
-		currentTargetName = nil
+	if not targetList then
+		currentTargets = nil
 		clearObjectLines()
 		return
 	end
 
-	currentTargetType = targetType
-	currentTargetName = targetName
+	currentTargets = targetList
 
 	if objectLineEnabled then
-		createObjectLines(targetType, targetName)
+		createObjectLines(targetList)
 	else
 		clearObjectLines()
 	end
@@ -406,8 +428,8 @@ player.CharacterAdded:Connect(function(character)
 	character:WaitForChild("HumanoidRootPart", 5)
 	task.wait(0.2)
 
-	if objectLineEnabled and currentTargetType and currentTargetName then
-		createObjectLines(currentTargetType, currentTargetName)
+	if objectLineEnabled and currentTargets then
+		createObjectLines(currentTargets)
 	end
 end)
 
@@ -441,7 +463,7 @@ task.spawn(function()
 	while objectInput and objectInput.Parent do
 		task.wait(0.1)
 
-		if objectLineEnabled and currentTargetType and currentTargetName then
+		if objectLineEnabled and currentTargets then
 			local needsRefresh = false
 
 			-- Update posisi garis setiap 0.1s
@@ -464,9 +486,9 @@ task.spawn(function()
 			if needsRefresh or (os.clock() - lastRescan) >= RESCAN_INTERVAL then
 				lastRescan = os.clock()
 
-				local freshTargets = findObjects(currentTargetType, currentTargetName)
+				local freshTargets = collectAllTargets(currentTargets)
 				if targetsChanged(freshTargets) then
-					createObjectLines(currentTargetType, currentTargetName)
+					createObjectLines(currentTargets)
 				end
 			end
 		end
