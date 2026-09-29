@@ -162,6 +162,24 @@ local objectLineToggleCorner = Instance.new("UICorner")
 objectLineToggleCorner.CornerRadius = UDim.new(0, 8)
 objectLineToggleCorner.Parent = objectLineToggle
 
+-- Tombol List (menampilkan daftar model yg pernah muncul di folder MIF)
+local objectListButton = Instance.new("TextButton")
+objectListButton.Name = "ObjectListButton"
+objectListButton.Size = UDim2.new(0, 50, 0, 40)
+objectListButton.AnchorPoint = Vector2.new(1, 0)
+objectListButton.Position = UDim2.new(1, -70, 0, 5)
+objectListButton.BackgroundColor3 = Color3.fromRGB(50, 100, 180)
+objectListButton.BorderSizePixel = 0
+objectListButton.Text = "List"
+objectListButton.TextColor3 = Color3.new(1, 1, 1)
+objectListButton.TextSize = 13
+objectListButton.Font = Enum.Font.GothamBold
+objectListButton.Parent = contentFrame
+
+local objectListButtonCorner = Instance.new("UICorner")
+objectListButtonCorner.CornerRadius = UDim.new(0, 8)
+objectListButtonCorner.Parent = objectListButton
+
 -- LOGIKA LINE TO OBJECT
 local objectLineEnabled = false
 local objectBeams = {}
@@ -169,6 +187,9 @@ local objectTargetParts = {}
 local objectStartAttachments = {}
 local objectHighlights = {}
 local currentTargets = nil -- daftar target: { { type = "P"/"M", name = "..." }, ... }
+local modelHistory = {}     -- map: modelName (lowercase) -> originalName
+local listExclusions = {}   -- set: modelName (lowercase) -> true
+local listFrame = nil       -- reference ke frame daftar model
 
 local function getObjectPosition(object)
 	if not object or not object.Parent then
@@ -291,6 +312,17 @@ local function getEntryTargets(entry)
 		end
 
 		candidates = filtered
+	end
+
+	-- Filter list exclusions (dari tombol List UI)
+	if next(listExclusions) then
+		local filtered2 = {}
+		for _, obj in ipairs(candidates) do
+			if not listExclusions[string.lower(obj.Name)] then
+				table.insert(filtered2, obj)
+			end
+		end
+		candidates = filtered2
 	end
 
 	return candidates
@@ -495,6 +527,174 @@ objectLineToggle.Activated:Connect(function()
 	end
 end)
 
+-- === FUNGSI LIST MODEL ===
+local function scanModelHistory(targetList)
+	local changed = false
+	for _, entry in ipairs(targetList or {}) do
+		if entry.type == "MIF" then
+			local wanted = string.lower(entry.name)
+			for _, obj in ipairs(workspace:GetDescendants()) do
+				local isContainer = obj:IsA("Folder") or obj:IsA("Model")
+				if isContainer and string.find(string.lower(obj.Name), wanted, 1, true) then
+					for _, descendant in ipairs(obj:GetDescendants()) do
+						if descendant:IsA("Model") then
+							local lowerName = string.lower(descendant.Name)
+							if not modelHistory[lowerName] then
+								modelHistory[lowerName] = descendant.Name
+								changed = true
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	return changed
+end
+
+local function refreshListFrame()
+	if not listFrame then return end
+	local scroll = listFrame:FindFirstChild("ListScroll")
+	if not scroll then return end
+
+	-- Hapus item lama
+	for _, child in ipairs(scroll:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	-- Urutkan berdasarkan abjad
+	local names = {}
+	for lowerName, originalName in pairs(modelHistory) do
+		table.insert(names, { lower = lowerName, original = originalName })
+	end
+	table.sort(names, function(a, b)
+		return a.lower < b.lower
+	end)
+
+	-- Buat tombol untuk setiap model
+	local yOffset = 0
+	for _, info in ipairs(names) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -10, 0, 30)
+		btn.Position = UDim2.fromOffset(5, yOffset)
+		btn.BorderSizePixel = 0
+		btn.Text = "  " .. info.original
+		btn.TextColor3 = Color3.new(1, 1, 1)
+		btn.TextSize = 12
+		btn.Font = Enum.Font.GothamBold
+		btn.TextXAlignment = Enum.TextXAlignment.Left
+		btn.ZIndex = 11
+		btn.Parent = scroll
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = btn
+
+		if listExclusions[info.lower] then
+			btn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		else
+			btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		end
+
+		btn.Activated:Connect(function()
+			listExclusions[info.lower] = not listExclusions[info.lower]
+			if listExclusions[info.lower] then
+				btn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+			else
+				btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			end
+			-- Rebuild lines dengan exclusion terbaru
+			if objectLineEnabled and currentTargets then
+				createObjectLines(currentTargets)
+			end
+		end)
+
+		yOffset = yOffset + 35
+	end
+
+	scroll.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+end
+
+local function toggleListFrame()
+	if listFrame and listFrame.Parent then
+		listFrame.Visible = not listFrame.Visible
+		if listFrame.Visible then
+			scanModelHistory(currentTargets)
+			refreshListFrame()
+		end
+		return
+	end
+
+	listFrame = Instance.new("Frame")
+	listFrame.Name = "ListFrame"
+	listFrame.Size = UDim2.new(0, 200, 1, -55)
+	listFrame.Position = UDim2.fromOffset(5, 45)
+	listFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	listFrame.BackgroundTransparency = 0.15
+	listFrame.BorderSizePixel = 0
+	listFrame.ZIndex = 10
+	listFrame.Visible = true
+	listFrame.Parent = mainFrame
+
+	local frameCorner = Instance.new("UICorner")
+	frameCorner.CornerRadius = UDim.new(0, 8)
+	frameCorner.Parent = listFrame
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -40, 0, 30)
+	titleLabel.Position = UDim2.fromOffset(5, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "Model List"
+	titleLabel.TextColor3 = Color3.new(1, 1, 1)
+	titleLabel.TextSize = 14
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+	titleLabel.ZIndex = 11
+	titleLabel.Parent = listFrame
+
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Size = UDim2.new(0, 30, 0, 30)
+	closeBtn.AnchorPoint = Vector2.new(1, 0)
+	closeBtn.Position = UDim2.new(1, -5, 0, 0)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	closeBtn.BorderSizePixel = 0
+	closeBtn.Text = "X"
+	closeBtn.TextColor3 = Color3.new(1, 1, 1)
+	closeBtn.TextSize = 14
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.ZIndex = 11
+	closeBtn.Parent = listFrame
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.Parent = closeBtn
+
+	closeBtn.Activated:Connect(function()
+		listFrame.Visible = false
+	end)
+
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "ListScroll"
+	scroll.Size = UDim2.new(1, -10, 1, -35)
+	scroll.Position = UDim2.fromOffset(5, 30)
+	scroll.BackgroundTransparency = 1
+	scroll.ScrollBarThickness = 4
+	scroll.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
+	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroll.ZIndex = 11
+	scroll.Parent = listFrame
+
+	scanModelHistory(currentTargets)
+	refreshListFrame()
+end
+
+objectListButton.Activated:Connect(function()
+	toggleListFrame()
+end)
+
 objectInput.FocusLost:Connect(function()
 	updateObjectLine()
 end)
@@ -572,6 +772,12 @@ task.spawn(function()
 				local freshTargets = collectAllTargets(currentTargets)
 				if targetsChanged(freshTargets) then
 					createObjectLines(currentTargets)
+				end
+
+				-- Pindai history model untuk MIF
+				local historyChanged = scanModelHistory(currentTargets)
+				if historyChanged and listFrame and listFrame.Visible then
+					refreshListFrame()
 				end
 			end
 		end
