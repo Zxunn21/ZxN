@@ -127,7 +127,7 @@ objectInput.Position = UDim2.fromOffset(130, 5)
 objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 objectInput.BorderSizePixel = 0
 objectInput.Text = ""
-objectInput.PlaceholderText = "m snail, mif Rendere Exc goldeg"
+objectInput.PlaceholderText = "m snail, mif render exc basic, gold, fire"
 objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 objectInput.TextColor3 = Color3.new(1, 1, 1)
 objectInput.TextSize = 13
@@ -265,14 +265,25 @@ local function getEntryTargets(entry)
 		candidates = findObjects(entry.type, entry.name)
 	end
 
-	-- Filter Exc: buang objek yang namanya cocok dengan kata kecuali
+	-- Filter Exc: buang objek yang namanya cocok dengan salah satu kata kecuali
 	if entry.exclude then
-		local excluded = string.lower(entry.exclude)
+		local excluded = {}
+		for _, name in ipairs(entry.exclude) do
+			table.insert(excluded, string.lower(name))
+		end
 		local filtered = {}
 
 		for _, obj in ipairs(candidates) do
-			if not string.find(string.lower(obj.Name), excluded, 1, true) then
-					table.insert(filtered, obj)
+			local objName = string.lower(obj.Name)
+			local shouldExclude = false
+			for _, excl in ipairs(excluded) do
+				if string.find(objName, excl, 1, true) then
+					shouldExclude = true
+					break
+				end
+			end
+			if not shouldExclude then
+				table.insert(filtered, obj)
 			end
 		end
 
@@ -393,36 +404,71 @@ local function parseObjectInput()
 	end
 
 	-- Support multi input dipisah koma, contoh: "m snail, m tiger, p block"
-	-- Format tiap entri: <tipe> <nama> [Exc <kecuali>]
+	-- Format tiap entri: <tipe> <nama> [Exc <kecuali1, kecuali2, ...>]
 	-- tipe: p = part, m = model, mif = model in folder
-	-- Exc = kecualikan objek yang namanya cocok (contoh: "mif Rendere Exc goldeg")
+	-- Exc = kecualikan objek yang namanya cocok dengan salah satu kata
+	-- Contoh multi-exc: "mif render exc basic, gold, fire, lava"
 	local targetList = {}
 	local validCount = 0
 
+	local currentEntry = nil
+	local currentExcludeNames = nil
+
+	local function finishEntry()
+		if currentEntry then
+			if currentExcludeNames and #currentExcludeNames > 0 then
+				currentEntry.exclude = currentExcludeNames
+			end
+			validCount += 1
+			targetList[validCount] = currentEntry
+		end
+		currentEntry = nil
+		currentExcludeNames = nil
+	end
+
 	for chunk in input:gmatch("[^,]+") do
-		local firstToken, rest = chunk:match("^%s*(%S+)%s+(.-)%s*$")
+		local firstToken = chunk:match("^%s*(%S+)%s*$")
+
 		if firstToken then
 			local entryType = string.lower(firstToken)
-			local mainName = rest
-			local excludeName = nil
 
-			-- Pisahkan bagian "Exc <nama>" jika ada
-			local mainPart, excPart = rest:match("^(.-)%s+[Ee][Xx][Cc]%s+(.+)%s*$")
-			if mainPart and mainPart ~= "" and excPart and excPart ~= "" then
-				mainName = mainPart
-				excludeName = excPart
-			end
+			if entryType == "p" or entryType == "m" or entryType == "mif" then
+				-- Mulai entri baru, selesaikan entri sebelumnya
+				finishEntry()
 
-			if (entryType == "p" or entryType == "m" or entryType == "mif") and mainName ~= "" then
-				validCount += 1
-				targetList[validCount] = {
-					type = string.upper(entryType),
-					name = mainName,
-					exclude = excludeName,
-				}
+				local _, rest = chunk:match("^%s*(%S+)%s+(.-)%s*$")
+				rest = rest or ""
+				local mainName = rest
+				local excludeName = nil
+
+				-- Pisahkan bagian "Exc <nama>" jika ada
+				local mainPart, excPart = rest:match("^(.-)%s+[Ee][Xx][Cc]%s+(.+)%s*$")
+				if mainPart and mainPart ~= "" and excPart and excPart ~= "" then
+					mainName = mainPart
+					excludeName = excPart
+				end
+
+				if mainName ~= "" then
+					currentEntry = {
+						type = string.upper(entryType),
+						name = mainName,
+						exclude = nil,
+					}
+					if excludeName then
+						currentExcludeNames = { excludeName }
+					end
+				end
+			elseif currentExcludeNames and currentEntry then
+				-- Chunk ini adalah tambahan exclude name untuk entri saat ini
+				local trimmed = chunk:match("^%s*(.-)%s*$")
+				if trimmed ~= "" then
+					table.insert(currentExcludeNames, trimmed)
+				end
 			end
 		end
 	end
+
+	finishEntry()
 
 	if validCount == 0 then
 		return nil
