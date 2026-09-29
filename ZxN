@@ -1,7 +1,5 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService")
-
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local renderedEggs = workspace:FindFirstChild("RenderedEggs")
@@ -633,6 +631,7 @@ end
 local autoExecuteLinks = {
 	{ description = "RunButton", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RunButton" },
 	{ description = "ToggleSpeed", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ToggleSpeed" },
+	{ description = "HopServer", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/HopServer" },
 }
 
 local function executeLinkDirectly(url, description)
@@ -804,72 +803,6 @@ local teleportLayout = Instance.new("UIListLayout")
 teleportLayout.Padding = UDim.new(0, 7)
 teleportLayout.SortOrder = Enum.SortOrder.LayoutOrder
 teleportLayout.Parent = teleportList
-
--- Server hop button
-local serverButton = Instance.new("TextButton")
-serverButton.Name = "ServerButton"
-serverButton.AnchorPoint = Vector2.new(0.5, 0.5)
-serverButton.Size = UDim2.fromOffset(80, 40)
-serverButton.Position = UDim2.new(0.95, -20, -0.05, -10)
-serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-serverButton.BorderSizePixel = 0
-serverButton.Text = "Server"
-serverButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-serverButton.TextSize = 14
-serverButton.Font = Enum.Font.GothamBold
-serverButton.AutoButtonColor = true
-serverButton.Active = true
-serverButton.ZIndex = 1000
-serverButton.Parent = gui
-
-local serverCorner = Instance.new("UICorner")
-serverCorner.CornerRadius = UDim.new(1, 0)
-serverCorner.Parent = serverButton
-
-local serverStroke = Instance.new("UIStroke")
-serverStroke.Thickness = 2
-serverStroke.Color = Color3.fromRGB(210, 210, 210)
-serverStroke.Parent = serverButton
-
--- Server hop bubble
-local serverBubble = Instance.new("Frame")
-serverBubble.Name = "ServerBubble"
-serverBubble.Size = UDim2.fromOffset(155, 42)
-serverBubble.Position = UDim2.new(0.9, -117, -0.05, 28)
-serverBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-serverBubble.BorderSizePixel = 0
-serverBubble.Visible = false
-serverBubble.ZIndex = 1100
-serverBubble.Parent = gui
-
-local serverBubbleCorner = Instance.new("UICorner")
-serverBubbleCorner.CornerRadius = UDim.new(0, 10)
-serverBubbleCorner.Parent = serverBubble
-
-local serverBubbleStroke = Instance.new("UIStroke")
-serverBubbleStroke.Thickness = 1
-serverBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
-serverBubbleStroke.Parent = serverBubble
-
-local serverBubbleArrow = Instance.new("Frame")
-serverBubbleArrow.Size = UDim2.fromOffset(14, 14)
-serverBubbleArrow.Position = UDim2.new(1, -30, 0, -7)
-serverBubbleArrow.Rotation = 45
-serverBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-serverBubbleArrow.BorderSizePixel = 0
-serverBubbleArrow.ZIndex = 1099
-serverBubbleArrow.Parent = serverBubble
-
-local serverBubbleText = Instance.new("TextLabel")
-serverBubbleText.Size = UDim2.new(1, -12, 1, -8)
-serverBubbleText.Position = UDim2.fromOffset(6, 4)
-serverBubbleText.BackgroundTransparency = 1
-serverBubbleText.Text = "Hold to Server Hop"
-serverBubbleText.TextColor3 = Color3.new(1, 1, 1)
-serverBubbleText.TextSize = 13
-serverBubbleText.Font = Enum.Font.GothamBold
-serverBubbleText.ZIndex = 1101
-serverBubbleText.Parent = serverBubble
 
 local function getSpecialEggModel(eggName)
 	findRenderedEggs()
@@ -1066,125 +999,6 @@ closeButton.Activated:Connect(function()
 	frameOpen = false
 	menuFrame.Visible = false
 	menuOpen = false
-end)
-
-local function showServerBubble()
-	serverBubble.Visible = true
-end
-
-local function hideServerBubble()
-	serverBubble.Visible = false
-end
-
-local HOLD_TIME = 1
-local hopping = false
-local holdingServer = false
-local holdToken = 0
-
-local function cancelServerHold()
-	holdingServer = false
-	holdToken += 0.5
-	serverButton.Text = "Server"
-	serverButton.AutoButtonColor = true
-	hideServerBubble()
-end
-
-local function performServerHop()
-	if hopping then
-		return
-	end
-
-	hopping = true
-	hideServerBubble()
-	serverButton.Text = "Hop..."
-	serverButton.AutoButtonColor = false
-
-	local success, result = pcall(function()
-		local HttpService = game:GetService("HttpService")
-		local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-		local response
-
-		if typeof(request) == "function" then
-			local req = request({Url = url, Method = "GET"})
-			response = req.Body
-		elseif typeof(http_request) == "function" then
-			local req = http_request({Url = url, Method = "GET"})
-			response = req.Body
-		elseif typeof(syn) == "table" and typeof(syn.request) == "function" then
-			local req = syn.request({Url = url, Method = "GET"})
-			response = req.Body
-		else
-			response = game:HttpGet(url)
-		end
-
-		return HttpService:JSONDecode(response)
-	end)
-
-	if success and result and result.data then
-		local candidates = {}
-
-		for _, server in ipairs(result.data) do
-			if server.id ~= game.JobId and server.playing < server.maxPlayers then
-				table.insert(candidates, server.id)
-			end
-		end
-
-		if #candidates > 0 then
-			local target = candidates[math.random(1, #candidates)]
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, target, player)
-			return
-		end
-	end
-
-	serverButton.Text = "No Server"
-	task.wait(1)
-	serverButton.Text = "Server"
-	serverButton.AutoButtonColor = true
-	hopping = false
-end
-
-local function beginServerHold()
-	if hopping or holdingServer then
-		return
-	end
-
-	holdingServer = true
-	showServerBubble()
-	holdToken += 1
-	local token = holdToken
-	local startTime = os.clock()
-
-	task.spawn(function()
-		while holdingServer and token == holdToken do
-			local elapsed = os.clock() - startTime
-			local remaining = HOLD_TIME - elapsed
-
-			if remaining <= 0 then
-				holdingServer = false
-				performServerHop()
-				return
-			end
-
-			serverButton.Text = string.format("%.1f", remaining)
-			task.wait(0.03)
-		end
-	end)
-end
-
-serverButton.InputBegan:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		beginServerHold()
-	end
-end)
-
-serverButton.InputEnded:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		if holdingServer then
-			cancelServerHold()
-		end
-	end
 end)
 
 -- Drag helper
