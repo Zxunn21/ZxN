@@ -6,11 +6,6 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local renderedEggs = workspace:FindFirstChild("RenderedEggs")
 
-local speed = 300
-
-local speedEnabled = false
-local originalSpeed = nil
-
 local frameOpen = false
 local menuOpen = false
 local minimized = false
@@ -56,188 +51,6 @@ local triggerStroke = Instance.new("UIStroke")
 triggerStroke.Thickness = 2
 triggerStroke.Color = Color3.fromRGB(255, 255, 255)
 triggerStroke.Parent = trigger
-
-local speedToggle = Instance.new("TextButton")
-speedToggle.Name = "SpeedToggle"
-speedToggle.AnchorPoint = Vector2.new (0.5, 0.5)
-speedToggle.Size = UDim2.fromOffset(80, 40)
-speedToggle.Position = UDim2.new(0.83, -20, -0.05, -10)
-speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
-speedToggle.BorderSizePixel = 0
-speedToggle.Text = "OFF"
-speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-speedToggle.TextSize = 12
-speedToggle.Font = Enum.Font.GothamBold
-speedToggle.TextXAlignment = Enum.TextXAlignment.Right
-speedToggle.TextYAlignment = Enum.TextYAlignment.Center
-speedToggle.AutoButtonColor = false
-speedToggle.Active = true
-speedToggle.ZIndex = 1000
-speedToggle.Parent = gui
-
-local speedCorner = Instance.new("UICorner")
-speedCorner.CornerRadius = UDim.new(1, 0)
-speedCorner.Parent = speedToggle
-
-local speedStroke = Instance.new("UIStroke")
-speedStroke.Thickness = 2
-speedStroke.Color = Color3.fromRGB(210, 210, 210)
-speedStroke.Parent = speedToggle
-
-local speedPadding = Instance.new("UIPadding")
-speedPadding.Parent = speedToggle
-
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Name = "SpeedLabel"
-speedLabel.Size = UDim2.fromOffset(80, 20)
-speedLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-speedLabel.Position = UDim2.new(0.5, 0, 0, -10)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed"
-speedLabel.TextColor3 = Color3.new(1, 1, 1)
-speedLabel.TextSize = 13
-speedLabel.Font = Enum.Font.GothamBold
-speedLabel.TextXAlignment = Enum.TextXAlignment.Center
-speedLabel.ZIndex = 1000
-speedLabel.Parent = speedToggle
-
--- Knob putih
-local speedKnob = Instance.new("Frame")
-speedKnob.Name = "Knob"
-speedKnob.Size = UDim2.fromOffset(32, 32)
-speedKnob.Position = UDim2.new(0, 4, 0.5, -16)
-speedKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-speedKnob.BorderSizePixel = 0
-speedKnob.Active = false
-speedKnob.Selectable = false
-speedKnob.ZIndex = 1001
-speedKnob.Parent = speedToggle
-
-local knobCorner = Instance.new("UICorner")
-knobCorner.CornerRadius = UDim.new(1, 0)
-knobCorner.Parent = speedKnob
-
-local knobStroke = Instance.new("UIStroke")
-knobStroke.Thickness = 1
-knobStroke.Color = Color3.fromRGB(200, 200, 200)
-knobStroke.Parent = speedKnob
-
-local speedBubble = Instance.new("Frame")
-speedBubble.Name = "SpeedBubble"
-speedBubble.Size = UDim2.fromOffset(155, 42)
-speedBubble.AnchorPoint = Vector2.new(0.5, 0)
-speedBubble.Position = UDim2.new(0.5, 0, 1, 10)
-speedBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-speedBubble.BorderSizePixel = 0
-speedBubble.Visible = false
-speedBubble.ZIndex = 1100
-speedBubble.Parent = speedToggle
-
-local speedBubbleCorner = Instance.new("UICorner")
-speedBubbleCorner.CornerRadius = UDim.new(0, 10)
-speedBubbleCorner.Parent = speedBubble
-
-local speedBubbleStroke = Instance.new("UIStroke")
-speedBubbleStroke.Thickness = 1
-speedBubbleStroke.Color = Color3.fromRGB(100, 100, 100)
-speedBubbleStroke.Parent = speedBubble
-
-local speedBubbleArrow = Instance.new("Frame")
-speedBubbleArrow.Size = UDim2.fromOffset(14, 14)
-speedBubbleArrow.Position = UDim2.new(0.5, -30, 0, -7)
-speedBubbleArrow.Rotation = 135
-speedBubbleArrow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-speedBubbleArrow.BorderSizePixel = 0
-speedBubbleArrow.ZIndex = 1099
-speedBubbleArrow.Parent = speedBubble
-
-local speedBubbleText = Instance.new("TextLabel")
-speedBubbleText.Size = UDim2.new(1, -12, 1, -8)
-speedBubbleText.Position = UDim2.fromOffset(6, 4)
-speedBubbleText.BackgroundTransparency = 1
-speedBubbleText.Text = "Hold to Change"
-speedBubbleText.TextColor3 = Color3.new(1, 1, 1)
-speedBubbleText.TextSize = 13
-speedBubbleText.Font = Enum.Font.GothamBold
-speedBubbleText.ZIndex = 1101
-speedBubbleText.Parent = speedBubble
-
-local speedInput = Instance.new("TextBox")
-speedInput.Size = UDim2.new(1, -12, 0, 34)
-speedInput.Position = UDim2.fromOffset(6, 4)
-speedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedInput.TextColor3 = Color3.new(1, 1, 1)
-speedInput.PlaceholderText = "Speed"
-speedInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-speedInput.Text = ""
-speedInput.TextSize = 15
-speedInput.Font = Enum.Font.GothamBold
-speedInput.ClearTextOnFocus = false
-speedInput.Visible = false
-speedInput.ZIndex = 1101
-speedInput.Parent = speedBubble
-
-local speedInputCorner = Instance.new("UICorner")
-speedInputCorner.CornerRadius = UDim.new(0, 7)
-speedInputCorner.Parent = speedInput
-
-local function showSpeedBubble()
-	speedInput.Text = ""
-	speedInput.Visible = false
-	speedBubbleText.Text = "Hold to Change"
-	speedBubbleText.Size = UDim2.new(1, -12, 1, -8)
-	speedBubbleText.Position = UDim2.fromOffset(6, 4)
-	speedBubble.Visible = true
-	speedBubble.ZIndex = 1100
-end
-
-local function openSpeedInput()
-	speedBubbleText.Text = "Speed"
-	speedBubbleText.Size = UDim2.new(1, -12, 0, 22)
-	speedBubbleText.Position = UDim2.fromOffset(6, 4)
-	speedInput.Visible = true
-	speedInput:CaptureFocus()
-end
-
-local function hideSpeedBubble()
-	speedBubble.Visible = false
-	if speedInput:IsFocused() then
-		speedInput:ReleaseFocus()
-	end
-end
-
-local speedHoldTime = 1
-local speedHolding = false
-local speedHoldToken = 0
-
-local function beginSpeedHold()
-	if speedHolding then
-		return
-	end
-
-	speedHolding = true
-	showSpeedBubble()
-	speedHoldToken += 1
-	local token = speedHoldToken
-	local startTime = os.clock()
-
-	task.spawn(function()
-		while speedHolding and token == speedHoldToken do
-			if os.clock() - startTime >= speedHoldTime then
-				speedHolding = false
-				openSpeedInput()
-				return
-			end
-			task.wait(0.03)
-		end
-	end)
-end
-
-local function cancelSpeedHold()
-	speedHolding = false
-	speedHoldToken += 0.3
-	hideSpeedBubble()
-end
 
 -- Menu
 local menuFrame = Instance.new("Frame")
@@ -817,9 +630,9 @@ for i, feature in ipairs(linkFeatures) do
 end
 
 -- === HELPER: EKSEKUSI LANGSUNG TANPA PEMICU ===
--- Daftar link yang dijalankan otomatis saat script dimuat (tanpa perlu tombol).
 local autoExecuteLinks = {
 	{ description = "RunButton", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RunButton" },
+	{ description = "ToggleSpeed", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ToggleSpeed" },
 }
 
 local function executeLinkDirectly(url, description)
@@ -1158,87 +971,6 @@ local function updateTeleportList()
 	end
 end
 
-local function getHumanoid()
-	local character = player.Character
-
-	if not character then
-		return nil
-	end
-
-	return character:FindFirstChildOfClass("Humanoid")
-end
-
-local function readSpeed()
-	return speed
-end
-
-local function updateSpeedButton()
-	if speedEnabled then
-		-- ON
-		speedToggle.BackgroundColor3 = Color3.fromRGB(35, 200, 65)
-		speedToggle.Text = "ON"
-		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-		speedToggle.TextXAlignment = Enum.TextXAlignment.Left
-
-		speedPadding.PaddingLeft = UDim.new(0, 15)
-		speedPadding.PaddingRight = UDim.new(0, 0)
-
-		speedKnob.Position = UDim2.new(
-			1, -36,
-			0.5, -16
-		)
-	else
-		-- OFF
-		speedToggle.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
-		speedToggle.Text = "OFF"
-		speedToggle.TextColor3 = Color3.fromRGB(0, 0, 0)
-		speedToggle.TextXAlignment = Enum.TextXAlignment.Right
-
-		speedPadding.PaddingLeft = UDim.new(0, 0)
-		speedPadding.PaddingRight = UDim.new(0, 15)
-
-		speedKnob.Position = UDim2.new(
-			0, 4,
-			0.5, -16
-		)
-	end
-end
-
-local function enableSpeed()
-	local humanoid = getHumanoid()
-
-	if not humanoid then
-		return
-	end
-
-	-- Simpan speed asli tepat saat ON ditekan
-	originalSpeed = humanoid.WalkSpeed
-
-	readSpeed()
-
-	humanoid.WalkSpeed = speed
-	speedEnabled = true
-
-	updateSpeedButton()
-end
-
-local function disableSpeed()
-	local humanoid = getHumanoid()
-
-	if not humanoid then
-		return
-	end
-
-	if originalSpeed ~= nil then
-		humanoid.WalkSpeed = originalSpeed
-	end
-
-	speedEnabled = false
-	originalSpeed = nil
-
-	updateSpeedButton()
-end
-
 -- Main menu
 trigger.Activated:Connect(function()
 	-- Jika main frame sedang terbuka, tutup saja (toggle)
@@ -1455,49 +1187,6 @@ serverButton.InputEnded:Connect(function(inputObject)
 	end
 end)
 
--- Speed toggle: tap = ON/OFF, hold 1 second = change speed
-speedToggle.InputBegan:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		beginSpeedHold()
-	end
-end)
-
-speedToggle.InputEnded:Connect(function(inputObject)
-	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
-		or inputObject.UserInputType == Enum.UserInputType.Touch then
-		if speedHolding then
-			cancelSpeedHold()
-
-			if speedEnabled then
-				disableSpeed()
-			else
-				enableSpeed()
-			end
-		end
-	end
-end)
-
-speedInput.FocusLost:Connect(function()
-	local number = tonumber(speedInput.Text)
-
-	if number and number >= 0 then
-		speed = number
-		speedInput.Text = ""
-
-		if speedEnabled then
-			local humanoid = getHumanoid()
-			if humanoid then
-				humanoid.WalkSpeed = speed
-			end
-		end
-	else
-		speedInput.Text = ""
-	end
-
-	hideSpeedBubble()
-end)
-
 -- Drag helper
 local function makeDraggable(object)
 	local dragging = false
@@ -1557,16 +1246,6 @@ workspace.DescendantAdded:Connect(function(obj)
 	makePromptInstant(obj)
 end)
 
--- Character respawn
-player.CharacterAdded:Connect(function(character)
-	local humanoid = character:WaitForChild("Humanoid")
-
-	originalSpeed = humanoid.WalkSpeed
-	speedEnabled = false
-
-	updateSpeedButton()
-end)
-
 -- Update loop
 task.spawn(function()
 	while true do
@@ -1576,5 +1255,4 @@ task.spawn(function()
 	end
 end)
 
-updateSpeedButton()
 updateTeleportList()
