@@ -220,20 +220,7 @@ local function readSpeed()
 	return speed
 end
 
-local function -- Monitor: auto-off saat WalkSpeed turun di bawah target saat toggle aktif
-task.spawn(function()
-	while true do
-		task.wait(0.1)
-		if speedEnabled then
-			local humanoid = getHumanoid()
-			if humanoid and humanoid.WalkSpeed < speed then
-				autoDisableSpeed()
-			end
-		end
-	end
-end)
-
-updateSpeedButton()
+local function updateSpeedButton()
 	if speedEnabled then
 		-- ON
 		speedToggle.BackgroundColor3 = Color3.fromRGB(35, 200, 65)
@@ -358,6 +345,19 @@ player.CharacterAdded:Connect(function(character)
 	speedEnabled = false
 
 	updateSpeedButton()
+end)
+
+-- Monitor: auto-off saat WalkSpeed turun di bawah target saat toggle aktif
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		if speedEnabled then
+			local humanoid = getHumanoid()
+			if humanoid and humanoid.WalkSpeed < speed then
+				autoDisableSpeed()
+			end
+		end
+	end
 end)
 
 updateSpeedButton()
