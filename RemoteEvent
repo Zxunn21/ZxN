@@ -1,0 +1,382 @@
+-- === REMOTE EVENT SPY TOOL ===
+-- GUI untuk memata-matai RemoteEvent/RemoteFunction yang terpicu dari client:
+-- - Panel kiri: daftar remote yang terpicu (berupa tombol)
+-- - Panel kanan: detail script yang memicunya + tombol Execute untuk
+--   menembakkan ulang remote itu dengan argument yang sama.
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local thisScriptPath = script:GetFullName()
+
+local function create(className, props, children)
+	local inst = Instance.new(className)
+	if props then
+		for k, v in props do
+			inst[k] = v
+		end
+	end
+	if children then
+		for _, child in children do
+			child.Parent = inst
+		end
+	end
+	return inst
+end
+
+-- Hapus GUI lama jika ada
+local existingGui = playerGui:FindFirstChild("RemoteEventGui")
+if existingGui then
+	existingGui:Destroy()
+end
+
+-- === GUI ===
+local screenGui = create("ScreenGui", {
+	Name = "RemoteEventGui",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	DisplayOrder = 999999,
+})
+screenGui.Parent = playerGui
+
+local mainFrame = create("Frame", {
+	Name = "MainFrame",
+	Size = UDim2.new(0.6, 0, 0.8, 0),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	BackgroundColor3 = Color3.fromRGB(30, 30, 35),
+	BackgroundTransparency = 0.1,
+	BorderSizePixel = 0,
+	Active = true,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 10) }),
+	create("UIStroke", { Color = Color3.fromRGB(90, 90, 110), Thickness = 1.5, Transparency = 0.2 }),
+})
+mainFrame.Parent = screenGui
+
+local topBar = create("Frame", {
+	Name = "TopBar",
+	Size = UDim2.new(1, 0, 0, 36),
+	BackgroundColor3 = Color3.fromRGB(45, 45, 55),
+	BackgroundTransparency = 0.2,
+	BorderSizePixel = 0,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 10) }),
+	create("TextLabel", {
+		Name = "Title",
+		Size = UDim2.new(1, -20, 1, 0),
+		Position = UDim2.new(0, 10, 0, 0),
+		BackgroundTransparency = 1,
+		Text = "Remote Event Spy",
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Font = Enum.Font.GothamBold,
+		TextSize = 16,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}),
+})
+topBar.Parent = mainFrame
+
+-- === PANEL KIRI (30%) : daftar remote yang terpicu ===
+local leftPanel = create("Frame", {
+	Name = "LeftPanel",
+	Position = UDim2.new(0, 0, 0, 44),
+	Size = UDim2.new(0.3, 0, 1, -52),
+	BackgroundColor3 = Color3.fromRGB(20, 20, 25),
+	BackgroundTransparency = 0.3,
+	BorderSizePixel = 0,
+})
+leftPanel.Parent = mainFrame
+
+local leftScroll = create("ScrollingFrame", {
+	Name = "ListFrame",
+	Position = UDim2.new(0, 4, 0, 4),
+	Size = UDim2.new(1, -8, 1, -8),
+	BackgroundColor3 = Color3.fromRGB(20, 20, 25),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 6,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+}, {
+	create("UIListLayout", {
+		Padding = UDim.new(0, 4),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		FillDirection = Enum.FillDirection.Vertical,
+	}),
+	create("UIPadding", {
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 4),
+		PaddingLeft = UDim.new(0, 4),
+		PaddingRight = UDim.new(0, 4),
+	}),
+})
+leftScroll.Parent = leftPanel
+
+-- === PANEL KANAN (70%) : detail + tombol Execute ===
+local rightPanel = create("Frame", {
+	Name = "RightPanel",
+	Position = UDim2.new(0.3, 0, 0, 44),
+	Size = UDim2.new(0.7, 0, 1, -52),
+	BackgroundColor3 = Color3.fromRGB(22, 22, 28),
+	BackgroundTransparency = 0.3,
+	BorderSizePixel = 0,
+})
+rightPanel.Parent = mainFrame
+
+local detailScroll = create("ScrollingFrame", {
+	Name = "DetailFrame",
+	Position = UDim2.new(0, 6, 0, 6),
+	Size = UDim2.new(1, -12, 1, -52),
+	BackgroundColor3 = Color3.fromRGB(16, 16, 22),
+	BackgroundTransparency = 0.3,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 6,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+	create("UIListLayout", {
+		Padding = UDim.new(0, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		FillDirection = Enum.FillDirection.Vertical,
+	}),
+	create("UIPadding", {
+		PaddingTop = UDim.new(0, 6),
+		PaddingBottom = UDim.new(0, 6),
+		PaddingLeft = UDim.new(0, 8),
+		PaddingRight = UDim.new(0, 8),
+	}),
+})
+detailScroll.Parent = rightPanel
+
+local executeButton = create("TextButton", {
+	Name = "ExecuteButton",
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, -10, 1, -8),
+	Size = UDim2.new(0, 110, 0, 32),
+	BackgroundColor3 = Color3.fromRGB(50, 150, 80),
+	BackgroundTransparency = 0.15,
+	Text = "Execute",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 14,
+	AutoButtonColor = true,
+	Visible = false,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+	create("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Transparency = 0.6, Thickness = 1 }),
+})
+executeButton.Parent = rightPanel
+
+local function addDetailRow(order, labelText, valueText)
+	local height = math.max(1, math.ceil(#valueText / 40)) * 18 + 8
+	local row = create("TextLabel", {
+		Name = labelText .. "Row",
+		LayoutOrder = order,
+		Size = UDim2.new(1, 0, 0, height),
+		BackgroundColor3 = Color3.fromRGB(35, 35, 45),
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+		Text = labelText .. ":\n" .. valueText,
+		TextColor3 = Color3.fromRGB(220, 220, 235),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextWrapped = true,
+	}, {
+		create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+	})
+	row.Parent = detailScroll
+end
+
+local function clearDetails()
+	for _, child in ipairs(detailScroll:GetChildren()) do
+		if child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+end
+
+-- === DATA & LOGIKA ===
+local entries = {} -- array of {remote, remoteClass, remotePath, caller, callerLine, args, method}
+local entryKeyToIndex = {}
+local selectedEntry = nil
+
+local function describeValue(v)
+	if type(v) == "table" then
+		local ok, encoded = pcall(function() return game:GetService("HttpService"):JSONEncode(v) end)
+		if ok then return encoded end
+		return tostring(v)
+	end
+	return tostring(v)
+end
+
+local function formatArgs(args)
+	local parts = {}
+	for i, v in ipairs(args) do
+		parts[i] = "  [" .. i .. "] " .. describeValue(v)
+	end
+	if #parts == 0 then
+		return "  (tanpa argument)"
+	end
+	return table.concat(parts, "\n")
+end
+
+local function selectEntry(entry)
+	selectedEntry = entry
+	clearDetails()
+	addDetailRow(1, "Class", entry.remoteClass)
+	addDetailRow(2, "Remote", entry.remotePath)
+	addDetailRow(3, "Method", entry.method)
+	addDetailRow(4, "Script Pememicu", entry.caller .. " (line " .. entry.callerLine .. ")")
+	addDetailRow(5, "Arguments", formatArgs(entry.args))
+	executeButton.Visible = true
+end
+
+local function makeEntryButton(entry)
+	local label = entry.remote.Name .. " (" .. entry.method .. ")"
+	local btn = create("TextButton", {
+		Name = entry.remotePath .. entry.method,
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = Color3.fromRGB(60, 120, 200),
+		BackgroundTransparency = 0.3,
+		Text = label,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 13,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		AutoButtonColor = true,
+	}, {
+		create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+		create("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Transparency = 0.6, Thickness = 1 }),
+	})
+	btn.MouseButton1Click:Connect(function()
+		-- Refresh path (bisa berubah jika dipindah, dan remote bisa sudah hancur)
+		if entry.remote and entry.remote.Parent then
+			entry.remotePath = entry.remote:GetFullName()
+		end
+		selectEntry(entry)
+	end)
+	return btn
+end
+
+local function recordTrigger(remote, method, caller, callerLine, args)
+	-- Abaikan trigger dari tool ini sendiri agar daftar tetap bersih
+	if caller == thisScriptPath then return end
+	if not remote or not remote.Parent then return end
+
+	local key = tostring(remote) .. method .. caller
+	local existingIdx = entryKeyToIndex[key]
+	if existingIdx then
+		-- Update argument terbaru untuk entry yang sudah ada
+		entries[existingIdx].args = args
+		return
+	end
+
+	local entry = {
+		remote = remote,
+		remoteClass = remote.ClassName,
+		remotePath = remote:GetFullName(),
+		method = method,
+		caller = caller,
+		callerLine = callerLine,
+		args = args,
+	}
+	table.insert(entries, entry)
+	entryKeyToIndex[key] = #entries
+
+	local btn = makeEntryButton(entry)
+	btn.LayoutOrder = #entries
+	btn.Parent = leftScroll
+end
+
+-- === HOOK __namecall ===
+-- Intercept semua FireServer (RemoteEvent) dan InvokeServer (RemoteFunction)
+-- yang dipanggil dari script client, lalu catat siapa pememicunya.
+local instanceMT = getmetatable(game)
+local oldNamecall = instanceMT.__namecall
+instanceMT.__namecall = function(self, ...)
+	local methodName = (select(1, ...))
+	if methodName == "FireServer" and typeof(self) == "Instance" and self:IsA("RemoteEvent") then
+		local caller = debug.info(2, "s") or "(tidak diketahui)"
+		local line = tostring(debug.info(2, "l")) or "?"
+		local args = { select(2, ...) }
+		local ok, err = pcall(recordTrigger, self, "FireServer", caller, line, args)
+		if not ok then warn("RemoteEvent Spy error: " .. tostring(err)) end
+	elseif methodName == "InvokeServer" and typeof(self) == "Instance" and self:IsA("RemoteFunction") then
+		local caller = debug.info(2, "s") or "(tidak diketahui)"
+		local line = tostring(debug.info(2, "l")) or "?"
+		local args = { select(2, ...) }
+		local ok, err = pcall(recordTrigger, self, "InvokeServer", caller, line, args)
+		if not ok then warn("RemoteEvent Spy error: " .. tostring(err)) end
+	end
+	return oldNamecall(self, ...)
+end
+
+-- === TOMBOL EXECUTE ===
+-- Menembakkan ulang remote dengan argument yang terekam
+executeButton.MouseButton1Click:Connect(function()
+	if not selectedEntry then return end
+	local entry = selectedEntry
+	if not entry.remote or not entry.remote.Parent then
+		warn("Remote sudah tidak ada: " .. entry.remotePath)
+		return
+	end
+	local ok, err
+	if entry.method == "FireServer" then
+		ok, err = pcall(function()
+			entry.remote:FireServer(table.unpack(entry.args))
+		end)
+	else
+		ok, err = pcall(function()
+			entry.remote:InvokeServer(table.unpack(entry.args))
+		end)
+	end
+	if not ok then
+		warn("Execute gagal: " .. tostring(err))
+	end
+end)
+
+-- === TOPBAR DRAGABLE ===
+do
+	local dragging = false
+	local dragStart = nil
+	local startPos = nil
+
+	topBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = mainFrame.Position
+		end
+	end)
+
+	topBar.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+-- === PESAN AWAL ===
+addDetailRow(1, "Info", "Menunggu RemoteEvent/RemoteFunction terpicu...\nPanel kiri akan terisi otomatis saat ada script client yang memanggil FireServer atau InvokeServer.")
