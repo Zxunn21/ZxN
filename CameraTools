@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -55,7 +56,7 @@ screenGui.Parent = playerGui
 
 local mainFrame = create("Frame", {
 	Name = "MainFrame",
-	Size = UDim2.new(0, 320, 0, 260),
+	Size = UDim2.new(0, 520, 0, 260),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	BackgroundColor3 = Color3.fromRGB(30, 30, 35),
@@ -161,11 +162,11 @@ local function makeRow(order, labelText, buttons)
 end
 
 local layoutRow = makeRow(1, "Layout", {
-	makeButton("Vertical", function()
+	makeButton("Potrait", function()
 		playerGui.ScreenOrientation = Enum.ScreenOrientation.Portrait
 	end),
-	makeButton("Horizontal", function()
-		playerGui.ScreenOrientation = Enum.ScreenOrientation.LandscapeLeft
+	makeButton("Landscape", function()
+		playerGui.ScreenOrientation = Enum.ScreenOrientation.LandscapeRight
 	end),
 	makeButton("Auto", function()
 		playerGui.ScreenOrientation = Enum.ScreenOrientation.Sensor
@@ -185,6 +186,184 @@ local cameraRow = makeRow(2, "Camera View", {
 	end),
 })
 cameraRow.Parent = scrollFrame
+
+-- === FREE CAM ===
+local freeCamEnabled = false
+local freeCamSpeed = 50
+local camera = workspace.CurrentCamera
+
+local freeCamPos = Vector3.new(0, 50, 0)
+local freeCamYaw = 0
+local freeCamPitch = 0
+
+-- Mobile joystick state
+local joystickTouchId = nil
+local joystickStartPos = nil
+local joystickCurrentPos = nil
+local lookTouchId = nil
+local lookLastPos = nil
+
+-- Mobile joystick UI
+local joystickBase = create("Frame", {
+	Name = "JoystickBase",
+	Size = UDim2.fromOffset(100, 100),
+	Position = UDim2.new(0, 20, 1, -120),
+	BackgroundColor3 = Color3.fromRGB(50, 50, 60),
+	BackgroundTransparency = 0.5,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 800,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", { Color = Color3.fromRGB(100, 100, 120), Thickness = 1.5, Transparency = 0.3 }),
+})
+
+local joystickKnob = create("Frame", {
+	Name = "Knob",
+	Size = UDim2.fromOffset(40, 40),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	BackgroundColor3 = Color3.fromRGB(100, 150, 220),
+	BorderSizePixel = 0,
+	ZIndex = 801,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+})
+joystickKnob.Parent = joystickBase
+joystickBase.Parent = screenGui
+
+local function startFreeCam()
+	freeCamEnabled = true
+	freeCamPos = camera.CFrame.Position
+	local look = camera.CFrame.LookVector
+	freeCamYaw = math.atan2(-look.X, -look.Z)
+	freeCamPitch = math.asin(math.clamp(look.Y, -1, 1))
+	camera.CameraType = Enum.CameraType.Scriptable
+	if UserInputService.TouchEnabled then
+		joystickBase.Visible = true
+	end
+end
+
+local function stopFreeCam()
+	freeCamEnabled = false
+	camera.CameraType = Enum.CameraType.Custom
+	joystickBase.Visible = false
+	joystickTouchId = nil
+	lookTouchId = nil
+	joystickKnob.Position = UDim2.new(0.5, 0, 0.5, 0)
+end
+
+-- Touch input for mobile look + joystick
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not freeCamEnabled or processed then return end
+
+	if input.UserInputType == Enum.UserInputType.Touch then
+		local pos = input.Position
+		local viewportX = camera.ViewportSize.X
+		local viewportY = camera.ViewportSize.Y
+
+		-- Left-bottom quadrant = joystick movement
+		if pos.X < viewportX * 0.5 and pos.Y > viewportY * 0.5 and not joystickTouchId then
+			joystickTouchId = input.Id
+			joystickStartPos = pos
+			joystickCurrentPos = pos
+		elseif not lookTouchId then
+			lookTouchId = input.Id
+			lookLastPos = pos
+		end
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input, processed)
+	if not freeCamEnabled then return end
+
+	if input.UserInputType == Enum.UserInputType.Touch then
+		if input.Id == joystickTouchId then
+			joystickCurrentPos = input.Position
+			local delta = joystickCurrentPos - joystickStartPos
+			local maxDist = 40
+			local clampedX = math.clamp(delta.X, -maxDist, maxDist)
+			local clampedY = math.clamp(delta.Y, -maxDist, maxDist)
+			joystickKnob.Position = UDim2.new(0.5, clampedX, 0.5, clampedY)
+		elseif input.Id == lookTouchId then
+			local delta = input.Position - lookLastPos
+			freeCamYaw -= delta.X * 0.005
+			freeCamPitch = math.clamp(freeCamPitch - delta.Y * 0.005, -math.pi / 2 + 0.01, math.pi / 2 - 0.01)
+			lookLastPos = input.Position
+		end
+	elseif input.UserInputType == Enum.UserInputType.MouseMovement then
+		if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+			freeCamYaw -= input.Delta.X * 0.005
+			freeCamPitch = math.clamp(freeCamPitch - input.Delta.Y * 0.005, -math.pi / 2 + 0.01, math.pi / 2 - 0.01)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		if input.Id == joystickTouchId then
+			joystickTouchId = nil
+			joystickStartPos = nil
+			joystickCurrentPos = nil
+			joystickKnob.Position = UDim2.new(0.5, 0, 0.5, 0)
+		elseif input.Id == lookTouchId then
+			lookTouchId = nil
+			lookLastPos = nil
+		end
+	end
+end)
+
+-- Camera update loop
+RunService.RenderStepped:Connect(function(dt)
+	if not freeCamEnabled then return end
+
+	local moveVector = Vector3.zero
+
+	-- Keyboard movement (desktop)
+	if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveVector += Vector3.new(0, 0, -1) end
+	if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVector += Vector3.new(0, 0, 1) end
+	if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveVector += Vector3.new(-1, 0, 0) end
+	if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVector += Vector3.new(1, 0, 0) end
+	if UserInputService:IsKeyDown(Enum.KeyCode.E) then moveVector += Vector3.new(0, 1, 0) end
+	if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveVector += Vector3.new(0, -1, 0) end
+
+	-- Mobile joystick movement
+	if joystickTouchId and joystickStartPos and joystickCurrentPos then
+		local delta = joystickCurrentPos - joystickStartPos
+		local maxDist = 40
+		moveVector += Vector3.new(
+			math.clamp(delta.X, -maxDist, maxDist) / maxDist,
+			0,
+			math.clamp(delta.Y, -maxDist, maxDist) / maxDist
+		)
+	end
+
+	-- Apply movement relative to camera orientation
+	if moveVector.Magnitude > 0 then
+		local cf = CFrame.fromOrientation(freeCamPitch, freeCamYaw, 0)
+		local worldMove = cf:VectorToWorldSpace(moveVector)
+		freeCamPos += worldMove * freeCamSpeed * dt
+	end
+
+	camera.CFrame = CFrame.new(freeCamPos) * CFrame.fromOrientation(freeCamPitch, freeCamYaw, 0)
+end)
+
+-- Free Cam toggle row
+local freeCamButton
+freeCamButton = makeButton("OFF", function()
+	if freeCamEnabled then
+		stopFreeCam()
+		freeCamButton.Text = "OFF"
+		freeCamButton.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
+	else
+		startFreeCam()
+		freeCamButton.Text = "ON"
+		freeCamButton.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	end
+end)
+
+local freeCamRow = makeRow(3, "Free Cam", { freeCamButton })
+freeCamRow.Parent = scrollFrame
 
 do
 	local dragging = false
