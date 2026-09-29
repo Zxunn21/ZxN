@@ -523,78 +523,74 @@ local function showToast(message)
 	end)
 end
 
--- === CAPTURE FOTO ===
+-- === ROBLOX BUILT-IN STYLE CAPTURE ===
+
+local CaptureService = game:GetService("CaptureService")
 local capturing = false
 
 local function takePhoto()
+
 	if capturing then
-		showToast("Foto sedang diproses...")
 		return
 	end
 
 	capturing = true
-	showToast("Mengambil foto...")
 
 	local success, err = pcall(function()
 
-		CaptureService:TakeScreenshotCaptureAsync(function(result, screenshotCapture)
+		CaptureService:TakeScreenshotCaptureAsync(
+			function(result, screenshotCapture)
 
-			-- Capture selesai
-			capturing = false
+				capturing = false
 
-			if result ~= Enum.ScreenshotCaptureResult.Success or not screenshotCapture then
-				warn("Screenshot gagal:", result)
-				showToast("Gagal mengambil foto: " .. tostring(result))
-				return
-			end
+				if result ~= Enum.ScreenshotCaptureResult.Success
+					or not screenshotCapture then
 
-			-- Capture berhasil
-			playFlash()
-			showToast("Foto berhasil diambil ✓")
+					warn("Screenshot gagal:", result)
+					showToast("Gagal mengambil foto")
+					return
+				end
 
-			-- Beri sedikit waktu sebelum membuka prompt
-			task.wait(0.15)
+				-- Efek kamera
+				playFlash()
 
-			local saveSuccess, saveError = pcall(function()
-
+				-- Buka sistem penyimpanan Capture milik Roblox
 				CaptureService:PromptSaveCapturesToGallery(
 					{ screenshotCapture },
+
 					function(results)
 
-						for capture, accepted in pairs(results) do
-							print("CAPTURE SAVE RESULT:", capture, accepted)
+						for _, saved in pairs(results) do
 
-							if accepted then
+							if saved then
 								showToast("Foto berhasil disimpan ✓")
 							else
-								showToast("Penyimpanan dibatalkan/gagal")
+								showToast("Foto tidak disimpan")
 							end
+
 						end
 
 					end
 				)
 
-			end)
+			end,
 
-			if not saveSuccess then
-				warn("Gagal membuka penyimpanan Capture:", saveError)
-				showToast("Tidak dapat menyimpan foto")
-			end
-		end, {
-			-- Tidak memasukkan GUI Roblox/game ke dalam foto
-			UICaptureMode = Enum.UICaptureMode.None
-		})
+			{
+				-- Foto bersih tanpa GUI game
+				UICaptureMode = Enum.UICaptureMode.None
+			}
+		)
 
 	end)
 
 	if not success then
 		capturing = false
+
 		warn("CaptureService error:", err)
-		showToast("Capture tidak tersedia di perangkat ini")
+		showToast("Capture tidak tersedia")
 	end
 end
 
--- Activated mendukung mouse, touch, dan gamepad
 photoButton.Activated:Connect(takePhoto)
 
 local function anchorCharacter(character)
