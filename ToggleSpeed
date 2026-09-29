@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -231,10 +232,6 @@ local function getHumanoid()
 	return character:FindFirstChildOfClass("Humanoid")
 end
 
-local function readSpeed()
-	return speed
-end
-
 local function updateSpeedButton()
 	if speedEnabled then
 		-- ON
@@ -274,28 +271,20 @@ local function enableSpeed()
 		return
 	end
 
-	-- Simpan speed asli tepat saat ON ditekan
+	-- Simpan speed asli tepat saat ON ditekan.
+	-- PENTING: WalkSpeed TIDAK diubah sama sekali.
+	-- Server (dan siapa pun yang membaca humanoid.WalkSpeed) tetap melihat
+	-- kecepatan asli (misal 200). Gerakan lebih cepat didapat lewat
+	-- boost velocity client-side di Heartbeat loop di bawah.
 	originalSpeed = humanoid.WalkSpeed
-
-	readSpeed()
-
-	humanoid.WalkSpeed = speed
 	speedEnabled = true
 
 	updateSpeedButton()
 end
 
 local function disableSpeed()
-	local humanoid = getHumanoid()
-
-	if not humanoid then
-		return
-	end
-
-	if originalSpeed ~= nil then
-		humanoid.WalkSpeed = originalSpeed
-	end
-
+	-- Tidak ada yang perlu di-restore: WalkSpeed tidak pernah diubah.
+	-- Cukup mematikan boost loop.
 	speedEnabled = false
 	originalSpeed = nil
 
@@ -340,10 +329,8 @@ speedInput.FocusLost:Connect(function()
 		speedInput.Text = ""
 
 		if speedEnabled then
-			local humanoid = getHumanoid()
-			if humanoid then
-				humanoid.WalkSpeed = speed
-			end
+			-- Tidak perlu apa-apa: boost loop membaca `speed` secara langsung
+			-- setiap frame, jadi nilai baru otomatis terpakai tanpa menyentuh WalkSpeed.
 		end
 	else
 		speedInput.Text = ""
@@ -356,23 +343,66 @@ end)
 player.CharacterAdded:Connect(function(character)
 	local humanoid = character:WaitForChild("Humanoid")
 
-	originalSpeed = humanoid.WalkSpeed
+	-- Respawn: matikan boost, state baru akan dibaca saat toggle ON lagi.
+	-- WalkSpeed tidak pernah diubah script ini, jadi tidak ada yang perlu di-restore.
 	speedEnabled = false
+	originalSpeed = nil
 
 	updateSpeedButton()
 end)
 
--- Monitor: auto-off saat WalkSpeed turun di bawah target saat toggle aktif
+-- BOOST VELOCITY (inti fitur):
+-- Pemain bergerak secepat `speed` (misal 300) TANPA mengubah WalkSpeed.
+-- Server tetap melihat humanoid.WalkSpeed = originalSpeed (misal 200).
+-- Caranya: setiap Heartbeat, tambahkan velocity tambahan ke HumanoidRootPart
+-- sebesar (speed - originalSpeed) ke arah gerakan pemain (MoveDirection).
+local boostConn = nil
+
+local function startBoost()
+	if boostConn then
+		boostConn:Disconnect()
+		boostConn = nil
+	end
+
+	boostConn = RunService.Heartbeat:Connect(function()
+		if not speedEnabled or originalSpeed == nil then
+			return
+		end
+
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+
+		if humanoid and hrp and humanoid.Health > 0 then
+			local boost = speed - originalSpeed
+			if boost > 0 and humanoid.MoveDirection.Magnitude > 0 then
+				hrp.AssemblyLinearVelocity += humanoid.MoveDirection * boost
+			end
+		end
+	end)
+end
+
+local function stopBoost()
+	if boostConn then
+			boostConn:Disconnect()
+			boostConn = nil
+	end
+end
+
+-- Monitor: auto-off saat game menurunkan WalkSpeed di bawah speed asli saat toggle aktif
+-- (karena WalkSpeed tidak pernah kita ubah, yang terpantau hanya perubahan dari game/server)
 task.spawn(function()
 	while true do
 		task.wait(0.1)
-		if speedEnabled then
+		if speedEnabled and originalSpeed ~= nil then
 			local humanoid = getHumanoid()
-			if humanoid and humanoid.WalkSpeed < speed then
+			if humanoid and humanoid.WalkSpeed < originalSpeed then
 				autoDisableSpeed()
 			end
 		end
 	end
 end)
+
+startBoost()
 
 updateSpeedButton()
