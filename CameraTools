@@ -187,33 +187,152 @@ local cameraRow = makeRow(2, "Camera View", {
 cameraRow.Parent = scrollFrame
 
 -- === FREE CAM ===
--- Anchor avatar dan berikan kontrol penuh ke default Roblox camera (sudah support mobile)
+-- Mode seperti "fly": kamera bebas bergerak ke segala arah
+-- (WASD untuk gerak, Space naik, Shift turun, tahan Ctrl untuk sprint,
+-- drag mouse kanan / sentuh layar untuk memutar arah pandang),
+-- sementara tubuh karakter tetap di-anchor di tempat.
+local RunService = game:GetService("RunService")
+
 local freeCamEnabled = false
 local camera = workspace.CurrentCamera
 local anchoredParts = {}
 
-local function startFreeCam()
-	freeCamEnabled = true
+local BASE_SPEED = 50
+local SPRINT_MULT = 3
+local LOOK_SENSITIVITY = 0.005
 
-	-- Anchor semua part karakter
-	local character = player.Character
-	if character then
-		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") and not part.Anchored then
+local yaw, pitch = 0, 0
+local keysDown = {}
+local btnState = {}
+local lookDragging = false
+
+local KEYMAP = {
+	[Enum.KeyCode.W] = "forward",
+	[Enum.KeyCode.Up] = "forward",
+	[Enum.KeyCode.S] = "backward",
+	[Enum.KeyCode.Down] = "backward",
+	[Enum.KeyCode.A] = "left",
+	[Enum.KeyCode.Left] = "left",
+	[Enum.KeyCode.D] = "right",
+	[Enum.KeyCode.Right] = "right",
+	[Enum.KeyCode.Space] = "up",
+	[Enum.KeyCode.LeftShift] = "down",
+}
+
+-- Tombol navigasi on-screen (untuk mobile / touch)
+local function makeMoveButton(text, dir)
+	local btn = create("TextButton", {
+		Name = dir .. "Button",
+		Size = UDim2.new(0, 44, 0, 44),
+		BackgroundColor3 = Color3.fromRGB(60, 60, 75),
+		BackgroundTransparency = 0.35,
+		Text = text,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Font = Enum.Font.GothamBold,
+		TextSize = 16,
+		AutoButtonColor = false,
+	}, {
+		create("UICorner", { CornerRadius = UDim.new(0, 10) }),
+	})
+	local function setActive(on)
+		btnState[dir] = on or nil
+		btn.BackgroundTransparency = on and 0 or 0.35
+	end
+	btn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch
+			or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			setActive(true)
+		end
+	end)
+	btn.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch
+			or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			setActive(false)
+		end
+	end)
+	btn.MouseLeave:Connect(function()
+		setActive(false)
+	end)
+	return btn
+end
+
+-- D-pad kiri: maju/mundur/kiri/kanan
+local movePad = create("Frame", {
+	Name = "FreeCamMovePad",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 20, 1, -20),
+	Size = UDim2.new(0, 150, 0, 150),
+	BackgroundTransparency = 1,
+	Visible = false,
+})
+local forwardBtn = makeMoveButton("W", "forward")
+forwardBtn.Position = UDim2.new(0, 53, 0, 0)
+forwardBtn.Parent = movePad
+local leftBtn = makeMoveButton("A", "left")
+leftBtn.Position = UDim2.new(0, 0, 0, 53)
+leftBtn.Parent = movePad
+local backwardBtn = makeMoveButton("S", "backward")
+backwardBtn.Position = UDim2.new(0, 53, 0, 106)
+backwardBtn.Parent = movePad
+local rightBtn = makeMoveButton("D", "right")
+rightBtn.Position = UDim2.new(0, 106, 0, 53)
+rightBtn.Parent = movePad
+
+-- Pad kanan: naik/turun
+local vertPad = create("Frame", {
+	Name = "FreeCamVertPad",
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, -20, 1, -20),
+	Size = UDim2.new(0, 44, 0, 98),
+	BackgroundTransparency = 1,
+	Visible = false,
+})
+local upBtn = makeMoveButton("▲", "up")
+upBtn.Position = UDim2.new(0, 0, 0, 0)
+upBtn.Parent = vertPad
+local downBtn = makeMoveButton("▼", "down")
+downBtn.Position = UDim2.new(0, 0, 0, 54)
+downBtn.Parent = vertPad
+
+movePad.Parent = screenGui
+vertPad.Parent = screenGui
+
+local function anchorCharacter(character)
+	anchoredParts = {}
+	if not character then return end
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and not part.Anchored then
 			part.Anchored = true
-				table.insert(anchoredParts, part)
-			end
+			table.insert(anchoredParts, part)
 		end
 	end
+end
 
-	-- Pastikan kamera di mode Classic (default controls, support mobile touch look & zoom)
-	player.CameraMode = Enum.CameraMode.Classic
-	player.CameraMinZoomDistance = 0.5
-	player.CameraMaxZoomDistance = 500
+local function startFreeCam()
+	freeCamEnabled = true
+	anchorCharacter(player.Character)
+
+	-- Mulai orientasi dari arah pandang kamera saat ini
+	local look = camera.CFrame.LookVector
+	yaw = math.atan2(-look.X, -look.Z)
+	pitch = math.asin(math.clamp(look.Y, -1, 1))
+
+	-- Kamera dikendalikan penuh oleh script ini (mode fly)
+	camera.CameraType = Enum.CameraType.Scriptable
+
+	-- Tampilkan tombol navigasi hanya di perangkat touch
+	local showPads = UserInputService.TouchEnabled
+	movePad.Visible = showPads
+	vertPad.Visible = showPads
 end
 
 local function stopFreeCam()
 	freeCamEnabled = false
+	lookDragging = false
+	keysDown = {}
+	btnState = {}
+	movePad.Visible = false
+	vertPad.Visible = false
 
 	-- Unanchor kembali semua part yang sebelumnya di-anchor
 	for _, part in ipairs(anchoredParts) do
@@ -222,19 +341,74 @@ local function stopFreeCam()
 		end
 	end
 	anchoredParts = {}
+
+	-- Kembalikan kamera ke kontrol default Roblox
+	camera.CameraType = Enum.CameraType.Custom
 end
 
--- Re-apply saat karakter respawn
+-- Input keyboard & drag untuk memutar pandangan
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		local dir = KEYMAP[input.KeyCode]
+		if dir then keysDown[dir] = true end
+	elseif input.UserInputType == Enum.UserInputType.MouseButton2
+		or input.UserInputType == Enum.UserInputType.Touch then
+		if freeCamEnabled then lookDragging = true end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		local dir = KEYMAP[input.KeyCode]
+		if dir then keysDown[dir] = nil end
+	elseif input.UserInputType == Enum.UserInputType.MouseButton2
+		or input.UserInputType == Enum.UserInputType.Touch then
+		lookDragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not (freeCamEnabled and lookDragging) then return end
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		yaw -= input.Delta.X * LOOK_SENSITIVITY
+		pitch = math.clamp(pitch - input.Delta.Y * LOOK_SENSITIVITY, -math.rad(89), math.rad(89))
+	end
+end)
+
+-- Update kamera setiap frame (gerak halus seperti fly)
+RunService.RenderStepped:Connect(function(dt)
+	if not freeCamEnabled then return end
+
+	local rot = CFrame.fromOrientation(pitch, yaw, 0)
+
+	local moveDir = Vector3.zero
+	if keysDown.forward or btnState.forward then moveDir += rot.LookVector end
+	if keysDown.backward or btnState.backward then moveDir -= rot.LookVector end
+	if keysDown.left or btnState.left then moveDir -= rot.RightVector end
+	if keysDown.right or btnState.right then moveDir += rot.RightVector end
+	if keysDown.up or btnState.up then moveDir += Vector3.yAxis end
+	if keysDown.down or btnState.down then moveDir -= Vector3.yAxis end
+
+	local pos = camera.CFrame.Position
+	if moveDir.Magnitude > 0 then
+		local speed = BASE_SPEED
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+			speed *= SPRINT_MULT
+		end
+		pos += moveDir.Unit * speed * dt
+	end
+
+	camera.CFrame = CFrame.new(pos) * rot
+end)
+
+-- Re-apply anchor saat karakter respawn
 player.CharacterAdded:Connect(function(character)
 	anchoredParts = {}
 	if freeCamEnabled then
 		task.wait(0.1)
-		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") and not part.Anchored then
-				part.Anchored = true
-				table.insert(anchoredParts, part)
-			end
-		end
+		anchorCharacter(character)
 	end
 end)
 
