@@ -298,6 +298,83 @@ local function autoDisableSpeed()
 	updateSpeedButton()
 end
 
+-- ===== Flip Button (🔄) =====
+-- Tombol di sebelah toggle speed. Saat aktif, toggle speed
+-- berubah ON/OFF bergantian dengan cepat setiap 0.2 detik.
+local flipButton = Instance.new("TextButton")
+flipButton.Name = "SpeedFlip"
+flipButton.AnchorPoint = Vector2.new(0.5, 0.5)
+flipButton.Size = UDim2.fromOffset(40, 40)
+flipButton.Position = UDim2.new(0.83, -86, -0.05, -10)
+flipButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+flipButton.BorderSizePixel = 0
+flipButton.Text = "🔄"
+flipButton.TextSize = 20
+flipButton.Font = Enum.Font.GothamBold
+flipButton.TextColor3 = Color3.new(1, 1, 1)
+flipButton.AutoButtonColor = false
+flipButton.ZIndex = 1000
+flipButton.Parent = gui
+
+local flipCorner = Instance.new("UICorner")
+flipCorner.CornerRadius = UDim.new(1, 0)
+flipCorner.Parent = flipButton
+
+local flipStroke = Instance.new("UIStroke")
+flipStroke.Thickness = 2
+flipStroke.Color = Color3.fromRGB(210, 210, 210)
+flipStroke.Parent = flipButton
+
+local flipActive = false
+local flipToken = 0
+
+local function updateFlipButton()
+	if flipActive then
+		flipButton.BackgroundColor3 = Color3.fromRGB(35, 200, 65)
+		flipStroke.Color = Color3.fromRGB(255, 255, 255)
+	else
+		flipButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		flipStroke.Color = Color3.fromRGB(210, 210, 210)
+	end
+end
+
+local function stopFlip()
+	flipToken += 1
+	if flipActive then
+		flipActive = false
+		updateFlipButton()
+	end
+end
+
+flipButton.MouseButton1Click:Connect(function()
+	if flipActive then
+		-- Matikan flip dan pastikan speed off
+		stopFlip()
+		disableSpeed()
+	else
+		-- Aktifkan flip: ON/OFF bergantian tiap 0.2 detik
+		flipToken += 1
+		flipActive = true
+		updateFlipButton()
+
+		local token = flipToken
+		task.spawn(function()
+			while flipActive and token == flipToken do
+				if speedEnabled then
+					disableSpeed()
+				else
+					enableSpeed()
+				end
+				task.wait(0.2)
+			end
+			-- Saat loop berhenti karena token berubah, pastikan state aman
+			if token ~= flipToken and speedEnabled and not flipActive then
+				-- state ditangani oleh pemanggil stopFlip()
+			end
+			end)
+	end
+end)
+
 -- Speed toggle: tap = ON/OFF, hold 1 second = change speed
 speedToggle.InputBegan:Connect(function(inputObject)
 	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
@@ -311,6 +388,9 @@ speedToggle.InputEnded:Connect(function(inputObject)
 		or inputObject.UserInputType == Enum.UserInputType.Touch then
 		if speedHolding then
 			cancelSpeedHold()
+
+			-- Menekan toggle speed manual akan mematikan mode flip
+			stopFlip()
 
 			if speedEnabled then
 				disableSpeed()
