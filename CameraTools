@@ -297,7 +297,6 @@ local controlsGui = create("ScreenGui", {
 })
 controlsGui.Parent = playerGui
 
-movePad.Parent = controlsGui
 vertPad.Parent = controlsGui
 
 -- Tombol [x] di sudut kiri bawah untuk memunculkan kembali panel Camera Tools
