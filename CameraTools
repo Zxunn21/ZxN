@@ -230,6 +230,7 @@ local joystickKnob = create("Frame", {
 	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
 })
 joystickKnob.Parent = joystickBase
+joystickBase.Active = false
 joystickBase.Parent = screenGui
 
 local function startFreeCam()
@@ -253,14 +254,26 @@ local function stopFreeCam()
 	joystickKnob.Position = UDim2.new(0.5, 0, 0.5, 0)
 end
 
+-- Helper: check if a screen position is on the mainFrame (so we don't interfere with buttons)
+local function isOnMainFrame(pos)
+	local vp = camera.ViewportSize
+	local framePos = mainFrame.AbsolutePosition
+	local frameSize = mainFrame.AbsoluteSize
+	return pos.X >= framePos.X and pos.X <= framePos.X + frameSize.X
+		and pos.Y >= framePos.Y and pos.Y <= framePos.Y + frameSize.Y
+end
+
 -- Touch input for mobile look + joystick
 UserInputService.InputBegan:Connect(function(input, processed)
-	if not freeCamEnabled or processed then return end
+	if not freeCamEnabled then return end
 
 	if input.UserInputType == Enum.UserInputType.Touch then
 		local pos = input.Position
 		local viewportX = camera.ViewportSize.X
 		local viewportY = camera.ViewportSize.Y
+
+		-- Skip touches on the mainFrame (button presses)
+		if isOnMainFrame(pos) then return end
 
 		-- Left-bottom quadrant = joystick movement
 		if pos.X < viewportX * 0.5 and pos.Y > viewportY * 0.5 and not joystickTouchId then
