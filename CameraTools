@@ -260,7 +260,7 @@ end
 local movePad = create("Frame", {
 	Name = "FreeCamMovePad",
 	AnchorPoint = Vector2.new(0, 1),
-	Position = UDim2.new(0, 20, 1, -20),
+	Position = UDim2.new(0, 20, 1, -84), -- digeser ke atas agar tidak tertutup tombol [x]
 	Size = UDim2.new(0, 150, 0, 150),
 	BackgroundTransparency = 1,
 	Visible = false,
@@ -294,8 +294,43 @@ local downBtn = makeMoveButton("▼", "down")
 downBtn.Position = UDim2.new(0, 0, 0, 54)
 downBtn.Parent = vertPad
 
-movePad.Parent = screenGui
-vertPad.Parent = screenGui
+-- ScreenGui terpisah khusus untuk kontrol free cam (WASD, naik/turun, [x])
+-- DisplayOrder tinggi memastikan selalu dirender di atas semua UI lain di game
+local controlsGui = create("ScreenGui", {
+	Name = "CameraToolsControlsGui",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = false,
+	DisplayOrder = 1000000,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+})
+controlsGui.Parent = playerGui
+
+movePad.Parent = controlsGui
+vertPad.Parent = controlsGui
+
+-- Tombol [x] di sudut kiri bawah untuk memunculkan kembali panel Camera Tools
+local showPanelButton = create("TextButton", {
+	Name = "ShowPanelButton",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 20, 1, -20),
+	Size = UDim2.new(0, 44, 0, 44),
+	BackgroundColor3 = Color3.fromRGB(60, 120, 200),
+	BackgroundTransparency = 0.3,
+	Text = "X",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 18,
+	AutoButtonColor = true,
+	Visible = false,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 10) }),
+	create("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Transparency = 0.6, Thickness = 1 }),
+})
+showPanelButton.MouseButton1Click:Connect(function()
+	showPanelButton.Visible = false
+	mainFrame.Visible = true
+end)
+showPanelButton.Parent = controlsGui
 
 local function anchorCharacter(character)
 	anchoredParts = {}
@@ -320,6 +355,10 @@ local function startFreeCam()
 	-- Kamera dikendalikan penuh oleh script ini (mode fly)
 	camera.CameraType = Enum.CameraType.Scriptable
 
+	-- Sembunyikan panel Camera Tools, tampilkan tombol [x] di sudut kiri bawah
+	mainFrame.Visible = false
+	showPanelButton.Visible = true
+
 	-- Tampilkan tombol navigasi hanya di perangkat touch
 	local showPads = UserInputService.TouchEnabled
 	movePad.Visible = showPads
@@ -333,6 +372,8 @@ local function stopFreeCam()
 	btnState = {}
 	movePad.Visible = false
 	vertPad.Visible = false
+	showPanelButton.Visible = false
+	mainFrame.Visible = true
 
 	-- Unanchor kembali semua part yang sebelumnya di-anchor
 	for _, part in ipairs(anchoredParts) do
