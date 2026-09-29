@@ -9,7 +9,6 @@ local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local thisScriptPath = script:GetFullName()
 
 local function create(className, props, children)
 	local inst = Instance.new(className)
@@ -233,13 +232,13 @@ local function selectEntry(entry)
 	addDetailRow(1, "Class", entry.remoteClass)
 	addDetailRow(2, "Remote", entry.remotePath)
 	addDetailRow(3, "Method", entry.method)
-	addDetailRow(4, "Script Pememicu", entry.caller .. " (line " .. entry.callerLine .. ")")
+	addDetailRow(4, "Aksi Pemicu", entry.trigger)
 	addDetailRow(5, "Arguments", formatArgs(entry.args))
 	executeButton.Visible = true
 end
 
 local function makeEntryButton(entry)
-	local label = entry.remote.Name .. " (" .. entry.method .. ")"
+	local label = entry.remote.Name .. " - " .. entry.trigger
 	local btn = create("TextButton", {
 		Name = entry.remotePath .. entry.method,
 		Size = UDim2.new(1, 0, 0, 30),
@@ -265,15 +264,14 @@ local function makeEntryButton(entry)
 	return btn
 end
 
-local function recordTrigger(remote, method, caller, callerLine, args)
-	-- Abaikan trigger dari tool ini sendiri agar daftar tetap bersih
-	if caller == thisScriptPath then return end
+local function recordTrigger(remote, method, trigger, args)
 	if not remote or not remote.Parent then return end
 
-	local key = tostring(remote) .. method .. caller
+	local key = tostring(remote) .. method
 	local existingIdx = entryKeyToIndex[key]
 	if existingIdx then
-		-- Update argument terbaru untuk entry yang sudah ada
+		-- Update trigger & argument terbaru untuk entry yang sudah ada
+		entries[existingIdx].trigger = trigger
 		entries[existingIdx].args = args
 		return
 	end
@@ -283,8 +281,7 @@ local function recordTrigger(remote, method, caller, callerLine, args)
 		remoteClass = remote.ClassName,
 		remotePath = remote:GetFullName(),
 		method = method,
-		caller = caller,
-		callerLine = callerLine,
+		trigger = trigger,
 		args = args,
 	}
 	table.insert(entries, entry)
@@ -295,28 +292,90 @@ local function recordTrigger(remote, method, caller, callerLine, args)
 	btn.Parent = leftScroll
 end
 
--- === HOOK __namecall ===
--- Intercept semua FireServer (RemoteEvent) dan InvokeServer (RemoteFunction)
--- yang dipanggil dari script client, lalu catat siapa pememicunya.
-local instanceMT = getmetatable(game)
-local oldNamecall = instanceMT.__namecall
-instanceMT.__namecall = function(self, ...)
-	local methodName = (select(1, ...))
-	if methodName == "FireServer" and typeof(self) == "Instance" and self:IsA("RemoteEvent") then
-		local caller = debug.info(2, "s") or "(tidak diketahui)"
-		local line = tostring(debug.info(2, "l")) or "?"
-		local args = { select(2, ...) }
-		local ok, err = pcall(recordTrigger, self, "FireServer", caller, line, args)
-		if not ok then warn("RemoteEvent Spy error: " .. tostring(err)) end
-	elseif methodName == "InvokeServer" and typeof(self) == "Instance" and self:IsA("RemoteFunction") then
-		local caller = debug.info(2, "s") or "(tidak diketahui)"
-		local line = tostring(debug.info(2, "l")) or "?"
-		local args = { select(2, ...) }
-		local ok, err = pcall(recordTrigger, self, "InvokeServer", caller, line, args)
-		if not ok then warn("RemoteEvent Spy error: " .. tostring(err)) end
-	end
-	return oldNamecall(self, ...)
+-- === TRACKING AKSI PEMAIN ===
+-- Catat aksi terakhir (lompat, klik, pukul, dll) agar tiap remote yang
+-- menyala bisa diberi label aksi apa yang memicunya.
+local lastAction = "(belum ada aksi)"
+local lastActionAt = 0
+local ACTION_WINDOW = 5 -- detik; remote yang menyala > 5 dtk setelah aksi dianggap dari server
+
+local function setAction(label)
+	lastAction = label
+	lastActionAt = os.clock()
 end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	local label
+	if input.KeyCode == Enum.KeyCode.Space then
+		label = "Lompat (Space)"
+	elseif input.KeyCode == Enum.KeyCode.ButtonA then
+		label = "Lompat (Tombol A)"
+	elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+		label = "Klik kiri"
+	elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+		label = "Klik kanan"
+	elseif input.UserInputType == Enum.UserInputType.Touch then
+		label = "Sentuh layar"
+	elseif input.UserInputType == Enum.UserInputType.Keyboard then
+		label = "Tombol " .. input.KeyCode.Name
+	end
+	if label then setAction(label) end
+end)
+
+-- Aksi memukul / menggunakan Tool (misal pedang, tinju)
+local function watchCharacter(character)
+	local function watchTool(tool)
+		if tool:IsA("Tool") then
+			tool.Activated:Connect(function()
+				setAction("Pukul/Gunakan (Tool " .. tool.Name .. ")")
+			end)
+		end
+	end
+	for _, child in ipairs(character:GetChildren()) do
+		watchTool(child)
+	end
+	character.ChildAdded:Connect(watchTool)
+end
+if player.Character then watchCharacter(player.Character) end
+player.CharacterAdded:Connect(watchCharacter)
+
+-- === MONITORING REMOTE ===
+-- Pasang listener OnClientEvent ke semua RemoteEvent yang ada (dan yang
+-- muncul nanti, lewat DescendantAdded). Setiap kali remote menyala ke
+-- client - misal server mem-broadcast efek setelah kamu memukul atau
+-- melakukan aksi - remote itu tercatat di panel kiri beserta aksinya.
+local function isRemoteEvent(inst)
+	return inst.ClassName == "RemoteEvent" or inst.ClassName == "UnreliableRemoteEvent"
+end
+
+local function getTriggerLabel()
+	if os.clock() - lastActionAt <= ACTION_WINDOW then
+		return lastAction
+	end
+	return "(server / tanpa aksi baru)"
+end
+
+local function hookRemote(remote)
+	local ok, err = pcall(function()
+		remote.OnClientEvent:Connect(function(...)
+			recordTrigger(remote, "OnClientEvent", getTriggerLabel(), { ... })
+		end)
+	end)
+	if not ok then
+		warn("RemoteEvent Spy: gagal memasang listener di " .. remote:GetFullName())
+	end
+end
+
+for _, descendant in ipairs(game:GetDescendants()) do
+	if isRemoteEvent(descendant) then
+		hookRemote(descendant)
+	end
+end
+game.DescendantAdded:Connect(function(descendant)
+	if isRemoteEvent(descendant) then
+		hookRemote(descendant)
+	end
+end)
 
 -- === TOMBOL EXECUTE ===
 -- Menembakkan ulang remote dengan argument yang terekam
@@ -328,13 +387,13 @@ executeButton.MouseButton1Click:Connect(function()
 		return
 	end
 	local ok, err
-	if entry.method == "FireServer" then
+	if entry.method == "InvokeServer" then
 		ok, err = pcall(function()
-			entry.remote:FireServer(table.unpack(entry.args))
+			entry.remote:InvokeServer(table.unpack(entry.args))
 		end)
 	else
 		ok, err = pcall(function()
-			entry.remote:InvokeServer(table.unpack(entry.args))
+			entry.remote:FireServer(table.unpack(entry.args))
 		end)
 	end
 	if not ok then
@@ -379,4 +438,4 @@ do
 end
 
 -- === PESAN AWAL ===
-addDetailRow(1, "Info", "Menunggu RemoteEvent/RemoteFunction terpicu...\nPanel kiri akan terisi otomatis saat ada script client yang memanggil FireServer atau InvokeServer.")
+addDetailRow(1, "Info", "Menunggu aksi...\nLakukan aksi seperti memukul, menekan tombol, atau apa pun yang memicu RemoteEvent di game - remote yang menyala akan muncul otomatis di panel kiri dengan label aksinya.")
