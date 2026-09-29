@@ -493,6 +493,7 @@ local linkFeatures = {
 	{ description = "Additional Buttons",        url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AdditionalButtons",       guiToHide = "AdditionalButtonsGui" },
 	{ description = "Proximity Prompts Tools",   url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ProximityPromptsTools",   guiToHide = "ProximityPromptsToolsGui" },
 	{ description = "Root Object",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RootObject",         		guiToHide = "RootObjectGui" },
+	{ description = "Remote Event",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RemoteEvent",         		guiToHide = "RemoteEventGui" },
 }
 
 local function createLinkFeature(index, feature)
