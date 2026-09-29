@@ -127,7 +127,7 @@ objectInput.Position = UDim2.fromOffset(130, 5)
 objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 objectInput.BorderSizePixel = 0
 objectInput.Text = ""
-objectInput.PlaceholderText = "m snail, m tiger, p block"
+objectInput.PlaceholderText = "m snail, mif Rendere Exc goldeg"
 objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 objectInput.TextColor3 = Color3.new(1, 1, 1)
 objectInput.TextSize = 13
@@ -241,13 +241,54 @@ local function findObjects(targetType, targetName)
 	return results
 end
 
+-- Ambil kandidat objek dari satu entri input
+-- Tipe entri: "P" = part, "M" = model, "MIF" = model in folder
+-- entry.exclude (opsional) = nama model yang dikecualikan (Exc)
+local function getEntryTargets(entry)
+	local candidates = {}
+
+	if entry.type == "MIF" then
+		-- Model In Folder: semua model di dalam folder yang namanya cocok
+		local wanted = string.lower(entry.name)
+
+		for _, obj in ipairs(workspace:GetDescendants()) do
+			local isContainer = obj:IsA("Folder") or obj:IsA("Model")
+			if isContainer and string.find(string.lower(obj.Name), wanted, 1, true) then
+				for _, descendant in ipairs(obj:GetDescendants()) do
+					if descendant:IsA("Model") then
+						table.insert(candidates, descendant)
+					end
+				end
+			end
+		end
+	else
+		candidates = findObjects(entry.type, entry.name)
+	end
+
+	-- Filter Exc: buang objek yang namanya cocok dengan kata kecuali
+	if entry.exclude then
+		local excluded = string.lower(entry.exclude)
+		local filtered = {}
+
+		for _, obj in ipairs(candidates) do
+			if not string.find(string.lower(obj.Name), excluded, 1, true) then
+					table.insert(filtered, obj)
+			end
+		end
+
+		candidates = filtered
+	end
+
+	return candidates
+end
+
 -- Kumpulkan semua objek yang cocok dari seluruh entri input (multi target)
 local function collectAllTargets(targetList)
 	local targets = {}
 	local seen = {}
 
 	for _, entry in ipairs(targetList or {}) do
-		for _, obj in ipairs(findObjects(entry.type, entry.name)) do
+		for _, obj in ipairs(getEntryTargets(entry)) do
 			if not seen[obj] then
 				seen[obj] = true
 				table.insert(targets, obj)
@@ -352,17 +393,34 @@ local function parseObjectInput()
 	end
 
 	-- Support multi input dipisah koma, contoh: "m snail, m tiger, p block"
+	-- Format tiap entri: <tipe> <nama> [Exc <kecuali>]
+	-- tipe: p = part, m = model, mif = model in folder
+	-- Exc = kecualikan objek yang namanya cocok (contoh: "mif Rendere Exc goldeg")
 	local targetList = {}
 	local validCount = 0
 
 	for chunk in input:gmatch("[^,]+") do
-		local entryType, entryName = chunk:match("^%s*([PpMm])%s+(.-)%s*$")
-		if entryType and entryName and entryName ~= "" then
-			validCount += 1
-			targetList[validCount] = {
-				type = string.upper(entryType),
-				name = entryName,
-			}
+		local firstToken, rest = chunk:match("^%s*(%S+)%s+(.-)%s*$")
+		if firstToken then
+			local entryType = string.lower(firstToken)
+			local mainName = rest
+			local excludeName = nil
+
+			-- Pisahkan bagian "Exc <nama>" jika ada
+			local mainPart, excPart = rest:match("^(.-)%s+[Ee][Xx][Cc]%s+(.+)%s*$")
+			if mainPart and mainPart ~= "" and excPart and excPart ~= "" then
+				mainName = mainPart
+				excludeName = excPart
+			end
+
+			if (entryType == "p" or entryType == "m" or entryType == "mif") and mainName ~= "" then
+				validCount += 1
+				targetList[validCount] = {
+					type = string.upper(entryType),
+					name = mainName,
+					exclude = excludeName,
+				}
+			end
 		end
 	end
 
