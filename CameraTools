@@ -561,20 +561,16 @@ local function takePhoto()
 					{ screenshotCapture },
 					function(results)
 
-						local saved = false
+						for capture, accepted in pairs(results) do
+							print("CAPTURE SAVE RESULT:", capture, accepted)
 
-						for _, accepted in pairs(results) do
-							if accepted == true then
-								saved = true
-								break
+							if accepted then
+								showToast("Foto berhasil disimpan ✓")
+							else
+								showToast("Penyimpanan dibatalkan/gagal")
 							end
 						end
 
-						if saved then
-							showToast("Foto disimpan ✓")
-						else
-							showToast("Foto tidak disimpan")
-						end
 					end
 				)
 
