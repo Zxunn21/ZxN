@@ -441,8 +441,7 @@ end)
 
 -- === TOMBOL AMBIL FOTO (📸 lingkaran, tengah bawah layar) ===
 -- Menggunakan CaptureService: screenshot TANPA UI apapun (UICaptureMode.None),
--- lebih bersih daripada screenshot bawaan Roblox, lalu meminta penyimpanan
--- ke galeri Captures Roblox.
+-- hasil foto bersih — tombol, slider, dan GUI lain tidak ikut tertangkap.
 -- Catatan: resolusi tangkapan otomatis mengikuti resolusi render perangkat
 -- (Roblox tidak menyediakan parameter resolusi/anti-alias lewat API).
 local TweenService = game:GetService("TweenService")
@@ -466,8 +465,7 @@ local photoButton = create("TextButton", {
 })
 photoButton.Parent = controlsGui
 
--- Kilatan layar putih saat foto diambil
--- (tidak ikut tertangkap karena UICaptureMode.None mengecualikan semua UI)
+-- Kilatan layar putih sebagai feedback foto
 local flashFrame = create("Frame", {
 	Name = "PhotoFlash",
 	Size = UDim2.new(1, 0, 1, 0),
@@ -478,6 +476,19 @@ local flashFrame = create("Frame", {
 	ZIndex = 50,
 })
 flashFrame.Parent = controlsGui
+
+-- Kilatan dimainkan SETELAH tangkapan selesai (dipanggil dari takePhoto),
+-- sehingga efeknya tidak pernah ikut tampil di dalam foto
+local function playFlash()
+	flashFrame.Visible = true
+	flashFrame.BackgroundTransparency = 0.1
+	TweenService:Create(flashFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+	task.delay(0.45, function()
+		flashFrame.Visible = false
+	end)
+end
 
 -- Notifikasi status singkat di bagian atas layar
 local toastLabel = create("TextLabel", {
@@ -537,22 +548,15 @@ local function takePhoto()
 		end
 	end)
 
-	-- Efek kilatan kamera
-	flashFrame.Visible = true
-	flashFrame.BackgroundTransparency = 0.1
-	TweenService:Create(flashFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		BackgroundTransparency = 1,
-	}):Play()
-	task.delay(0.45, function()
-		flashFrame.Visible = false
-	end)
-
 	local ok = pcall(function()
+		-- None = tangkapan bersih TANPA UI apapun (lebih bersih dari screenshot bawaan)
 		CaptureService:TakeScreenshotCaptureAsync(function(result, screenshotCapture)
 			-- Abaikan callback lama jika sudah ada percobaan foto baru
 			if captureToken ~= myToken then return end
 			capturing = false
 			if result == Enum.ScreenshotCaptureResult.Success and screenshotCapture then
+				-- Kilatan sebagai feedback, SETELAH foto diambil agar tidak ikut tertangkap
+				playFlash()
 				-- Minta user menyimpan foto ke galeri Captures Roblox
 				CaptureService:PromptSaveCapturesToGallery({ screenshotCapture }, function(results)
 					local saved = false
@@ -560,7 +564,7 @@ local function takePhoto()
 						if accepted then saved = true end
 					end
 					if saved then
-						showToast("Foto disimpan ke galeri Roblox ✓")
+						showToast("Foto disimpan ke galeri Captures ✓")
 					else
 						showToast("Foto tidak disimpan")
 					end
