@@ -200,7 +200,8 @@ local anchoredParts = {}
 
 local BASE_SPEED = 50
 local SPRINT_MULT = 3
-local LOOK_SENSITIVITY = 0.005
+-- Sensitivitas naik dari 0.005 ke 0.01 agar rotasi di layar sentuh tidak berat
+local LOOK_SENSITIVITY = 0.01
 
 local yaw, pitch = 0, 0
 local keysDown = {}
@@ -299,7 +300,8 @@ controlsGui.Parent = playerGui
 
 vertPad.Parent = controlsGui
 
--- Tombol [x] di sudut kiri bawah untuk memunculkan kembali panel Camera Tools
+-- Tombol [x] di sudut kiri bawah untuk MEMATIKAN Free Cam
+-- (panel Camera Tools otomatis muncul kembali saat free cam mati)
 local showPanelButton = create("TextButton", {
 	Name = "ShowPanelButton",
 	AnchorPoint = Vector2.new(0, 1),
@@ -317,11 +319,234 @@ local showPanelButton = create("TextButton", {
 	create("UICorner", { CornerRadius = UDim.new(0, 10) }),
 	create("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Transparency = 0.6, Thickness = 1 }),
 })
-showPanelButton.MouseButton1Click:Connect(function()
-	showPanelButton.Visible = false
-	mainFrame.Visible = true
-end)
 showPanelButton.Parent = controlsGui
+
+-- === SLIDER ZOOM (sisi kanan layar, 0.5x - 10x) ===
+-- Zoom diimplementasikan lewat FieldOfView: zoom besar = FOV kecil (efek telefoto)
+local ZOOM_MIN, ZOOM_MAX = 0.5, 10
+local BASE_FOV = 70
+local zoomValue = 1
+
+local zoomSlider = create("Frame", {
+	Name = "ZoomSlider",
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -14, 0.5, 0),
+	Size = UDim2.new(0, 28, 0, 220),
+	BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+	BackgroundTransparency = 0.4,
+	BorderSizePixel = 0,
+	Visible = false,
+	Active = true,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", { Color = Color3.fromRGB(90, 90, 110), Transparency = 0.5, Thickness = 1 }),
+})
+
+local zoomFill = create("Frame", {
+	Name = "Fill",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 0, 1, 0),
+	Size = UDim2.new(1, 0, 0, 0),
+	BackgroundColor3 = Color3.fromRGB(60, 120, 200),
+	BackgroundTransparency = 0.2,
+	BorderSizePixel = 0,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+})
+zoomFill.Parent = zoomSlider
+
+local zoomKnob = create("Frame", {
+	Name = "Knob",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Size = UDim2.new(1, 10, 0, 20),
+	BackgroundColor3 = Color3.fromRGB(235, 235, 245),
+	BorderSizePixel = 0,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", { Color = Color3.fromRGB(40, 40, 55), Transparency = 0.4, Thickness = 1 }),
+})
+zoomKnob.Parent = zoomSlider
+
+local zoomLabel = create("TextLabel", {
+	Name = "ZoomLabel",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 0, -8),
+	Size = UDim2.new(0, 70, 0, 16),
+	BackgroundTransparency = 1,
+	Text = "x1.0",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+})
+zoomLabel.Parent = zoomSlider
+zoomSlider.Parent = controlsGui
+
+-- Pemetaan logaritmik agar rentang 0.5-10 terasa merata di sepanjang slider
+local function zoomFromFraction(f)
+	return ZOOM_MIN * (ZOOM_MAX / ZOOM_MIN) ^ f
+end
+local function fractionFromZoom(z)
+	return math.log(z / ZOOM_MIN) / math.log(ZOOM_MAX / ZOOM_MIN)
+end
+
+local function setZoom(z)
+	zoomValue = math.clamp(z, ZOOM_MIN, ZOOM_MAX)
+	local f = fractionFromZoom(zoomValue)
+	zoomFill.Size = UDim2.new(1, 0, f, 0)
+	zoomKnob.Position = UDim2.new(0.5, 0, 1 - f, 0)
+	zoomLabel.Text = "x" .. string.format("%.1f", zoomValue)
+	-- Zoom 1x = FOV normal; zoom > 1 mempersempit FOV (telefoto), zoom < 1 melebarkan
+	camera.FieldOfView = math.clamp(BASE_FOV / zoomValue, 5, 120)
+end
+
+local zoomDragging = false
+local function zoomFromInput(input)
+	local absPos = zoomSlider.AbsolutePosition
+	local h = math.max(zoomSlider.AbsoluteSize.Y, 1)
+	local f = math.clamp(1 - (input.Position.Y - absPos.Y) / h, 0, 1)
+	setZoom(zoomFromFraction(f))
+end
+
+zoomSlider.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		zoomDragging = true
+		zoomFromInput(input) -- tap langsung mengatur nilai di posisi sentuhan
+	end
+end)
+zoomSlider.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		zoomDragging = false
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if not zoomDragging then return end
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		zoomFromInput(input)
+	end
+end)
+
+-- === TOMBOL AMBIL FOTO (📸 lingkaran, tengah bawah layar) ===
+-- Menggunakan CaptureService: screenshot TANPA UI apapun (UICaptureMode.None),
+-- lebih bersih daripada screenshot bawaan Roblox, lalu meminta penyimpanan
+-- ke galeri Captures Roblox.
+-- Catatan: resolusi tangkapan otomatis mengikuti resolusi render perangkat
+-- (Roblox tidak menyediakan parameter resolusi/anti-alias lewat API).
+local TweenService = game:GetService("TweenService")
+local CaptureService = game:GetService("CaptureService")
+
+local photoButton = create("TextButton", {
+	Name = "PhotoButton",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -24),
+	Size = UDim2.new(0, 64, 0, 64),
+	BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+	BackgroundTransparency = 0.15,
+	Text = "📸",
+	TextSize = 30,
+	Font = Enum.Font.GothamBold,
+	AutoButtonColor = true,
+	Visible = false,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", { Color = Color3.fromRGB(60, 60, 75), Transparency = 0.3, Thickness = 3 }),
+})
+photoButton.Parent = controlsGui
+
+-- Kilatan layar putih saat foto diambil
+-- (tidak ikut tertangkap karena UICaptureMode.None mengecualikan semua UI)
+local flashFrame = create("Frame", {
+	Name = "PhotoFlash",
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 50,
+})
+flashFrame.Parent = controlsGui
+
+-- Notifikasi status singkat di bagian atas layar
+local toastLabel = create("TextLabel", {
+	Name = "PhotoToast",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 60),
+	Size = UDim2.new(0, 340, 0, 32),
+	BackgroundColor3 = Color3.fromRGB(25, 25, 32),
+	BackgroundTransparency = 0.25,
+	Text = "",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamMedium,
+	TextSize = 14,
+	Visible = false,
+	ZIndex = 51,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+	create("UIStroke", { Color = Color3.fromRGB(90, 90, 110), Transparency = 0.4, Thickness = 1 }),
+})
+toastLabel.Parent = controlsGui
+
+local toastToken = 0
+local function showToast(message)
+	toastToken += 1
+	local myToken = toastToken
+	toastLabel.Text = message
+	toastLabel.Visible = true
+	task.delay(2.5, function()
+		if toastToken == myToken then
+			toastLabel.Visible = false
+		end
+	end)
+end
+
+local capturing = false
+local function takePhoto()
+	if capturing then return end
+	capturing = true
+
+	-- Efek kilatan kamera
+	flashFrame.Visible = true
+	flashFrame.BackgroundTransparency = 0.1
+	TweenService:Create(flashFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+	task.delay(0.45, function()
+		flashFrame.Visible = false
+	end)
+
+	local ok = pcall(function()
+		CaptureService:TakeScreenshotCaptureAsync(function(result, screenshotCapture)
+			capturing = false
+			if result == Enum.ScreenshotCaptureResult.Success and screenshotCapture then
+				-- Minta user menyimpan foto ke galeri Captures Roblox
+				CaptureService:PromptSaveCapturesToGallery({ screenshotCapture }, function(results)
+					local saved = false
+					for _, accepted in pairs(results) do
+						if accepted then saved = true end
+					end
+					if saved then
+						showToast("Foto disimpan ke galeri Roblox ✓")
+					else
+						showToast("Foto tidak disimpan")
+					end
+				end)
+			else
+				showToast("Gagal mengambil foto: " .. tostring(result))
+			end
+		end, {
+			-- None = tangkapan bersih TANPA UI apapun (lebih bersih dari screenshot bawaan)
+			UICaptureMode = Enum.UICaptureMode.None,
+		})
+	end)
+	if not ok then
+		capturing = false
+		showToast("Fitur foto tidak tersedia di perangkat ini")
+	end
+end
+
+photoButton.MouseButton1Click:Connect(takePhoto)
 
 local function anchorCharacter(character)
 	anchoredParts = {}
@@ -353,6 +578,13 @@ local function startFreeCam()
 	-- Tampilkan tombol naik/turun hanya di perangkat touch
 	-- (analog thumbstick bawaan Roblox otomatis muncul sendiri di mobile)
 	vertPad.Visible = UserInputService.TouchEnabled
+
+	-- Tampilkan slider zoom di sisi kanan layar, terapkan zoom tersimpan
+	zoomSlider.Visible = true
+	setZoom(zoomValue)
+
+	-- Tampilkan tombol foto 📸 di tengah bawah layar
+	photoButton.Visible = true
 end
 
 local function stopFreeCam()
@@ -361,8 +593,13 @@ local function stopFreeCam()
 	keysDown = {}
 	btnState = {}
 	vertPad.Visible = false
+	zoomSlider.Visible = false
+	photoButton.Visible = false
 	showPanelButton.Visible = false
 	mainFrame.Visible = true
+
+	-- Kembalikan zoom kamera ke normal
+	camera.FieldOfView = BASE_FOV
 
 	-- Unanchor kembali semua part yang sebelumnya di-anchor
 	for _, part in ipairs(anchoredParts) do
@@ -466,6 +703,62 @@ end)
 
 local freeCamRow = makeRow(3, "Free Cam", { freeCamButton })
 freeCamRow.Parent = scrollFrame
+
+-- Tombol [x] berfungsi sebagai tombol MATIKAN Free Cam
+showPanelButton.MouseButton1Click:Connect(function()
+	if freeCamEnabled then
+		stopFreeCam()
+		freeCamButton.Text = "OFF"
+		freeCamButton.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
+	end
+end)
+
+-- === SETTINGS: kecepatan gerak & sensitivitas kamera (input kecil) ===
+local function makeNumberInput(name, getValue, setValue, min, max, fmt)
+	local box = create("TextBox", {
+		Name = name .. "Input",
+		Size = UDim2.new(0, 90, 0, 28),
+		BackgroundColor3 = Color3.fromRGB(25, 25, 32),
+		BackgroundTransparency = 0.2,
+		Text = fmt(getValue()),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		PlaceholderText = name,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 14,
+		ClearTextOnFocus = false,
+	}, {
+		create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+		create("UIStroke", { Color = Color3.fromRGB(90, 90, 110), Transparency = 0.4, Thickness = 1 }),
+	})
+	box.FocusLost:Connect(function()
+		local n = tonumber(box.Text)
+		if n then
+			setValue(math.clamp(n, min, max))
+		end
+		box.Text = fmt(getValue())
+	end)
+	return box
+end
+
+-- Speed: kecepatan gerak kamera (studs/detik)
+local speedInput = makeNumberInput(
+	"Speed",
+	function() return BASE_SPEED end,
+	function(v) BASE_SPEED = v end,
+	1, 1000,
+	function(v) return string.format("%.0f", v) end
+)
+-- Sens: sensitivitas rotasi (skala 1-100, makin besar makin ringan)
+local sensInput = makeNumberInput(
+	"Sens",
+	function() return LOOK_SENSITIVITY * 1000 end,
+	function(v) LOOK_SENSITIVITY = v / 1000 end,
+	1, 100,
+	function(v) return string.format("%.1f", v) end
+)
+
+local settingsRow = makeRow(4, "Settings", { speedInput, sensInput })
+settingsRow.Parent = scrollFrame
 
 do
 	local dragging = false
