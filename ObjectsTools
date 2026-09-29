@@ -411,13 +411,40 @@ player.CharacterAdded:Connect(function(character)
 	end
 end)
 
+local function targetsChanged(newTargets)
+	-- Bandingkan jumlah
+	if #newTargets ~= #objectTargetParts then
+		return true
+	end
+
+	-- Bandingkan isi (cek apakah ada target baru yang belum punya garis)
+	local existing = {}
+	for _, data in ipairs(objectTargetParts) do
+		if data.target then
+			existing[data.target] = true
+		end
+	end
+
+	for _, t in ipairs(newTargets) do
+		if not existing[t] then
+			return true
+		end
+	end
+
+	return false
+end
+
 task.spawn(function()
+	local RESCAN_INTERVAL = 1 -- detik, interval pemindaian ulang part/model baru
+	local lastRescan = os.clock()
+
 	while objectInput and objectInput.Parent do
 		task.wait(0.1)
 
-		if objectLineEnabled then
+		if objectLineEnabled and currentTargetType and currentTargetName then
 			local needsRefresh = false
 
+			-- Update posisi garis setiap 0.1s
 			for _, data in ipairs(objectTargetParts) do
 				local target = data.target
 				local targetPart = data.part
@@ -433,10 +460,14 @@ task.spawn(function()
 				end
 			end
 
-			if needsRefresh and currentTargetType and currentTargetName then
-				createObjectLines(currentTargetType, currentTargetName)
-			elseif currentTargetType and currentTargetName and #objectTargetParts == 0 then
-				createObjectLines(currentTargetType, currentTargetName)
+			-- Pindai ulang otomatis: setiap RESCAN_INTERVAL, atau langsung jika ada target yang hilang
+			if needsRefresh or (os.clock() - lastRescan) >= RESCAN_INTERVAL then
+				lastRescan = os.clock()
+
+				local freshTargets = findObjects(currentTargetType, currentTargetName)
+				if targetsChanged(freshTargets) then
+					createObjectLines(currentTargetType, currentTargetName)
+				end
 			end
 		end
 	end
