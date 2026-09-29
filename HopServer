@@ -104,6 +104,16 @@ local function cancelServerHold()
 	hideServerBubble()
 end
 
+local function resetServerButton(message)
+	if message and message ~= "" then
+		serverButton.Text = message
+		task.wait(1)
+	end
+	serverButton.Text = "Server"
+	serverButton.AutoButtonColor = true
+	hopping = false
+end
+
 local function performServerHop()
 	if hopping then
 		return
@@ -135,27 +145,69 @@ local function performServerHop()
 		return HttpService:JSONDecode(response)
 	end)
 
-	if success and result and result.data then
-		local candidates = {}
+	local candidates = {}
 
+	if success and result and result.data then
 		for _, server in ipairs(result.data) do
 			if server.id ~= game.JobId and server.playing < server.maxPlayers then
-				table.insert(candidates, server.id)
+				table.insert(candidates, {
+					id = server.id,
+					playing = server.playing,
+				})
 			end
-		end
-
-		if #candidates > 0 then
-			local target = candidates[math.random(1, #candidates)]
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, target, player)
-			return
 		end
 	end
 
-	serverButton.Text = "No Server"
-	task.wait(1)
-	serverButton.Text = "Server"
-	serverButton.AutoButtonColor = true
-	hopping = false
+	-- Prioritaskan server dengan pemain paling sedikit:
+	-- makin kosong server, makin kecil kemungkinan data basi
+	-- ternyata sudah penuh saat teleport dieksekusi.
+	table.sort(candidates, function(a, b)
+		return a.playing < b.playing
+	end)
+
+	if #candidates == 0 then
+		resetServerButton("No Server")
+		return
+	end
+
+	-- Coba maksimal 3 server berbeda (terurut dari yang paling kosong).
+	-- Jika satu gagal/penuh, otomatis lanjut ke server berikutnya.
+	local attempts = math.min(#candidates, 3)
+
+	for i = 1, attempts do
+		local target = candidates[i].id
+
+		local ok = pcall(function()
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, target, player)
+		end)
+
+		if ok then
+			-- Teleport sudah dimulai. WATCHDOG: jika dalam 8 detik masih
+			-- di server ini, hop gagal diam-diam (misal server ternyata
+			-- penuh / teleport dibatalkan engine).
+			-- Jika berhasil, client keluar dari server dan loop ini
+			-- tidak pernah melanjutkan eksekusi.
+			local jobId = game.JobId
+			local startTime = os.clock()
+
+			while os.clock() - startTime < 8 do
+				if game.JobId ~= jobId then
+					-- Sudah tidak di server lama — hop sukses.
+					return
+				end
+				task.wait(0.25)
+			end
+			-- Masih di server yang sama setelah 8 detik → gagal,
+			-- lanjut coba server berikutnya.
+		else
+			-- Teleport error sinkron (instance tidak tersedia dll.),
+			-- coba server berikutnya.
+			task.wait(0.5)
+		end
+	end
+
+	-- Semua percobaan gagal → reset tombol ke kondisi normal.
+	resetServerButton("Failed")
 end
 
 local function beginServerHold()
