@@ -300,8 +300,9 @@ local function autoDisableSpeed()
 end
 
 -- ===== Flip Button (🔄) =====
--- Tombol di sebelah toggle speed. Saat aktif, toggle speed
--- berubah ON/OFF bergantian dengan cepat setiap 0.2 detik.
+-- Tombol di sebelah toggle speed. Saat aktif, script MEMAKSA toggle speed
+-- menjadi ON setiap 0.2 detik. Jika toggle speed sudah kondisi ON,
+-- script hanya standbye (tidak melakukan apa-apa).
 local flipButton = Instance.new("TextButton")
 flipButton.Name = "SpeedFlip"
 flipButton.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -353,7 +354,8 @@ flipButton.MouseButton1Click:Connect(function()
 		stopFlip()
 		disableSpeed()
 	else
-		-- Aktifkan flip: ON/OFF bergantian tiap 0.2 detik
+		-- Aktifkan flip: PAKSA toggle ON setiap 0.2 detik.
+		-- Jika toggle speed sudah ON, script hanya standbye.
 		flipToken += 1
 		flipActive = true
 		updateFlipButton()
@@ -361,18 +363,13 @@ flipButton.MouseButton1Click:Connect(function()
 		local token = flipToken
 		task.spawn(function()
 			while flipActive and token == flipToken do
-				if speedEnabled then
-					disableSpeed()
-				else
+				-- STANDBYE: jika toggle speed sudah ON, tidak melakukan apa-apa
+				if not speedEnabled then
 					enableSpeed()
 				end
 				task.wait(0.2)
 			end
-			-- Saat loop berhenti karena token berubah, pastikan state aman
-			if token ~= flipToken and speedEnabled and not flipActive then
-				-- state ditangani oleh pemanggil stopFlip()
-			end
-			end)
+		end)
 	end
 end)
 
