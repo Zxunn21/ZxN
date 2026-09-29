@@ -127,7 +127,7 @@ objectInput.Position = UDim2.fromOffset(130, 5)
 objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 objectInput.BorderSizePixel = 0
 objectInput.Text = ""
-objectInput.PlaceholderText = "m snail, mif render exc basic, gold, fire"
+objectInput.PlaceholderText = "m snail, mif render exc basic + gold + fire"
 objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 objectInput.TextColor3 = Color3.new(1, 1, 1)
 objectInput.TextSize = 13
@@ -269,7 +269,10 @@ local function getEntryTargets(entry)
 	if entry.exclude then
 		local excluded = {}
 		for _, name in ipairs(entry.exclude) do
-			table.insert(excluded, string.lower(name))
+			local trimmed = name:match("^%s*(.-)%s*$")
+			if trimmed ~= "" then
+				table.insert(excluded, string.lower(trimmed))
+			end
 		end
 		local filtered = {}
 
@@ -404,71 +407,47 @@ local function parseObjectInput()
 	end
 
 	-- Support multi input dipisah koma, contoh: "m snail, m tiger, p block"
-	-- Format tiap entri: <tipe> <nama> [Exc <kecuali1, kecuali2, ...>]
+	-- Format tiap entri: <tipe> <nama> [Exc <kecuali>]
 	-- tipe: p = part, m = model, mif = model in folder
-	-- Exc = kecualikan objek yang namanya cocok dengan salah satu kata
-	-- Contoh multi-exc: "mif render exc basic, gold, fire, lava"
+	-- Exc = kecualikan objek yang namanya cocok (contoh: "mif Rendere Exc goldeg")
 	local targetList = {}
 	local validCount = 0
 
-	local currentEntry = nil
-	local currentExcludeNames = nil
-
-	local function finishEntry()
-		if currentEntry then
-			if currentExcludeNames and #currentExcludeNames > 0 then
-				currentEntry.exclude = currentExcludeNames
-			end
-			validCount += 1
-			targetList[validCount] = currentEntry
-		end
-		currentEntry = nil
-		currentExcludeNames = nil
-	end
-
 	for chunk in input:gmatch("[^,]+") do
-		local firstToken = chunk:match("^%s*(%S+)%s*$")
-
+		local firstToken, rest = chunk:match("^%s*(%S+)%s+(.-)%s*$")
 		if firstToken then
 			local entryType = string.lower(firstToken)
+			local mainName = rest
+			local excludeName = nil
 
-			if entryType == "p" or entryType == "m" or entryType == "mif" then
-				-- Mulai entri baru, selesaikan entri sebelumnya
-				finishEntry()
-
-				local _, rest = chunk:match("^%s*(%S+)%s+(.-)%s*$")
-				rest = rest or ""
-				local mainName = rest
-				local excludeName = nil
-
-				-- Pisahkan bagian "Exc <nama>" jika ada
-				local mainPart, excPart = rest:match("^(.-)%s+[Ee][Xx][Cc]%s+(.+)%s*$")
-				if mainPart and mainPart ~= "" and excPart and excPart ~= "" then
-					mainName = mainPart
-					excludeName = excPart
-				end
-
-				if mainName ~= "" then
-					currentEntry = {
-						type = string.upper(entryType),
-						name = mainName,
-						exclude = nil,
-					}
-					if excludeName then
-						currentExcludeNames = { excludeName }
+			-- Pisahkan bagian "Exc <nama>" jika ada
+			-- Exc mendukung multiple exclude dipisah "+", contoh: "mif render exc basic + gold + fire"
+			local mainPart, excPart = rest:match("^(.-)%s+[Ee][Xx][Cc]%s+(.+)%s*$")
+			if mainPart and mainPart ~= "" and excPart and excPart ~= "" then
+				mainName = mainPart
+				-- Split excPart by "+" untuk dapat multiple exclude names
+				local excludeList = {}
+				for excName in excPart:gmatch("[^+]+") do
+					local trimmed = excName:match("^%s*(.-)%s*$")
+					if trimmed ~= "" then
+						table.insert(excludeList, trimmed)
 					end
 				end
-			elseif currentExcludeNames and currentEntry then
-				-- Chunk ini adalah tambahan exclude name untuk entri saat ini
-				local trimmed = chunk:match("^%s*(.-)%s*$")
-				if trimmed ~= "" then
-					table.insert(currentExcludeNames, trimmed)
+				if #excludeList > 0 then
+					excludeName = excludeList
 				end
+			end
+
+			if (entryType == "p" or entryType == "m" or entryType == "mif") and mainName ~= "" then
+				validCount += 1
+				targetList[validCount] = {
+					type = string.upper(entryType),
+					name = mainName,
+					exclude = excludeName,
+				}
 			end
 		end
 	end
-
-	finishEntry()
 
 	if validCount == 0 then
 		return nil
