@@ -4,7 +4,22 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local speed = 300
+-- Helper: default speed berdasarkan universe ID
+local DEFAULT_SPEED = 50
+
+local UNIVERSE_SPEEDS = {
+	[10035204815] = 300,
+}
+
+local function getDefaultSpeed()
+	local universeId = game.GameId
+	if UNIVERSE_SPEEDS[universeId] then
+		return UNIVERSE_SPEEDS[universeId]
+	end
+	return DEFAULT_SPEED
+end
+
+local speed = getDefaultSpeed()
 
 local speedEnabled = false
 local originalSpeed = nil
