@@ -354,8 +354,12 @@ end)
 -- BOOST VELOCITY (inti fitur):
 -- Pemain bergerak secepat `speed` (misal 300) TANPA mengubah WalkSpeed.
 -- Server tetap melihat humanoid.WalkSpeed = originalSpeed (misal 200).
--- Caranya: setiap Heartbeat, tambahkan velocity tambahan ke HumanoidRootPart
--- sebesar (speed - originalSpeed) ke arah gerakan pemain (MoveDirection).
+-- Caranya: setiap Heartbeat, SET velocity horizontal HumanoidRootPart
+-- menjadi MoveDirection * speed. Komponen Y (gravitasi/lompatan) dibiarkan.
+-- CATATAN: JANGAN pakai `+=` — di udara velocity tidak direset Humanoid,
+-- jadi boost akan menumpuk tiap frame dan pemain terlempar liar
+-- sampai menyentuh zona Air (Root.AreaTeleport.Air) lalu diteleport
+-- kembali ke checkpoint/awal oleh MasterSSS (setupWaterTeleport).
 local boostConn = nil
 
 local function startBoost()
@@ -373,10 +377,12 @@ local function startBoost()
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local hrp = character and character:FindFirstChild("HumanoidRootPart")
 
-		if humanoid and hrp and humanoid.Health > 0 then
-			local boost = speed - originalSpeed
-			if boost > 0 and humanoid.MoveDirection.Magnitude > 0 then
-				hrp.AssemblyLinearVelocity += humanoid.MoveDirection * boost
+		if humanoid and hrp and humanoid.Health > 0 and speed > originalSpeed then
+			local md = humanoid.MoveDirection
+			if md.Magnitude > 0 then
+				local vel = hrp.AssemblyLinearVelocity
+				-- SET (bukan +=): kecepatan horizontal tepat `speed`, Y tetap alami.
+				hrp.AssemblyLinearVelocity = Vector3.new(md.X * speed, vel.Y, md.Z * speed)
 			end
 		end
 	end)
