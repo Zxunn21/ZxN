@@ -1,0 +1,586 @@
+-- ============================================================
+--  Waypoints (LocalScript)
+--  GUI untuk membuat, melihat, dan mengelola waypoint.
+-- ============================================================
+
+-- ===================== WAYPOINT HELPER =====================
+-- Format data waypoint:
+--   { universe = <UniverseId>, name = "<Nama>", emoji = "📍", position = Vector3.new(x, y, z) }
+local WAYPOINTS = {
+	-- Contoh:
+	-- { universe = 1234567890, name = "Spawn", emoji = "📍", position = Vector3.new(0, 5, 0) },
+}
+-- ============================================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local UNIVERSE_ID = game.GameId
+
+-- ===================== Util =====================
+
+local function formatNumber(n)
+	return tostring(math.round(n * 100) / 100)
+end
+
+-- Posisi karakter saat ini (dipakai saat membuat waypoint baru)
+local function getCharacterPosition()
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		return hrp.Position
+	end
+	return Vector3.zero
+end
+
+-- Semua waypoint yang cocok dengan universe saat ini
+local function getWaypointsForThisUniverse()
+	local result = {}
+	for _, wp in WAYPOINTS do
+		if wp.universe == UNIVERSE_ID then
+			table.insert(result, wp)
+		end
+	end
+	return result
+end
+
+-- Serialisasi seluruh data waypoint (helper + yang baru dibuat)
+-- dengan format yang sama persis seperti tabel WAYPOINTS di atas.
+local function serializeAllWaypoints()
+	local lines = { "local WAYPOINTS = {" }
+	for _, wp in WAYPOINTS do
+		local p = wp.position
+		table.insert(
+			lines,
+			string.format(
+				'\t{ universe = %d, name = "%s", emoji = "%s", position = Vector3.new(%s, %s, %s) },',
+				wp.universe,
+				wp.name,
+				wp.emoji or "📍",
+				formatNumber(p.X),
+				formatNumber(p.Y),
+				formatNumber(p.Z)
+			)
+		)
+	end
+	table.insert(lines, "}")
+	return table.concat(lines, "\n")
+end
+
+-- ===================== GUI =====================
+
+local COLORS = {
+	Background = Color3.fromRGB(32, 32, 40),
+	Topbar = Color3.fromRGB(45, 45, 58),
+	Row = Color3.fromRGB(44, 44, 54),
+	Entry = Color3.fromRGB(50, 50, 62),
+	Button = Color3.fromRGB(0, 150, 255),
+	ButtonHover = Color3.fromRGB(40, 170, 255),
+	Danger = Color3.fromRGB(235, 70, 70),
+	DangerHover = Color3.fromRGB(255, 95, 95),
+	Success = Color3.fromRGB(60, 180, 90),
+	SuccessHover = Color3.fromRGB(80, 200, 110),
+	Text = Color3.fromRGB(255, 255, 255),
+	SubText = Color3.fromRGB(175, 175, 190),
+	Input = Color3.fromRGB(25, 25, 32),
+}
+
+local FONT = Enum.Font.GothamMedium
+
+local function create(className, props, parent)
+	local inst = Instance.new(className)
+	for k, v in props do
+		inst[k] = v
+	end
+	inst.Parent = parent
+	return inst
+end
+
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = create("ScreenGui", {
+	Name = "WaypointsGui",
+	ResetOnSpawn = false,
+}, playerGui)
+
+local function addHover(button, normalColor, hoverColor)
+	button.MouseEnter:Connect(function()
+		button.BackgroundColor3 = hoverColor
+	end)
+	button.MouseLeave:Connect(function()
+		button.BackgroundColor3 = normalColor
+	end)
+end
+
+-- Membuat topbar bisa di-drag untuk memindahkan window
+local function makeDraggable(topbar, frame)
+	local dragging = false
+	local dragInput = nil
+	local dragStart = nil
+	local startPos = nil
+
+	topbar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	topbar.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+-- Window standar: 60% x 80% layar, topbar dragable
+local function makeWindow(name, titleText)
+	local frame = create("Frame", {
+		Name = name,
+		Size = UDim2.new(0.6, 0, 0.8, 0),
+		Position = UDim2.new(0.2, 0, 0.1, 0),
+		BackgroundColor3 = COLORS.Background,
+		BorderSizePixel = 0,
+		Visible = false,
+		Active = true,
+		ClipsDescendants = true,
+	}, screenGui)
+	create("UICorner", { CornerRadius = UDim.new(0, 10) }, frame)
+
+	local topbar = create("Frame", {
+		Name = "Topbar",
+		Size = UDim2.new(1, 0, 0, 42),
+		BackgroundColor3 = COLORS.Topbar,
+		BorderSizePixel = 0,
+	}, frame)
+	create("UICorner", { CornerRadius = UDim.new(0, 10) }, topbar)
+	create("Frame", {
+		Name = "CornerFix",
+		Size = UDim2.new(1, 0, 0, 12),
+		Position = UDim2.new(0, 0, 1, -12),
+		BackgroundColor3 = COLORS.Topbar,
+		BorderSizePixel = 0,
+	}, topbar)
+
+	create("TextLabel", {
+		Name = "Title",
+		Size = UDim2.new(1, -100, 1, 0),
+		Position = UDim2.new(0, 16, 0, 0),
+		BackgroundTransparency = 1,
+		Text = titleText,
+		TextColor3 = COLORS.Text,
+		Font = FONT,
+		TextSize = 16,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, topbar)
+
+	local content = create("Frame", {
+		Name = "Content",
+		Size = UDim2.new(1, -24, 1, -58),
+		Position = UDim2.new(0, 12, 0, 50),
+		BackgroundTransparency = 1,
+	}, frame)
+
+	makeDraggable(topbar, frame)
+
+	return frame, content
+end
+
+-- Tombol ✕ di topbar untuk menutup window
+local function addCloseButton(frame, onClick)
+	local topbar = frame:FindFirstChild("Topbar")
+	if not topbar then
+		return
+	end
+	local btn = create("TextButton", {
+		Name = "CloseButton",
+		Size = UDim2.new(0, 30, 0, 30),
+		Position = UDim2.new(1, -38, 0.5, -15),
+		BackgroundColor3 = COLORS.Danger,
+		Text = "✕",
+		TextColor3 = COLORS.Text,
+		Font = FONT,
+		TextSize = 14,
+	}, topbar)
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }, btn)
+	addHover(btn, COLORS.Danger, COLORS.DangerHover)
+	btn.Activated:Connect(onClick)
+end
+
+-- ===================== Windows =====================
+
+local mainFrame, mainContent = makeWindow("MainFrame", "📍 Waypoints")
+local createFrame, createContent = makeWindow("CreateFrame", "Create Waypoint")
+local listFrame, listContent = makeWindow("ListFrame", "List Waypoints")
+
+local function showWindow(frame)
+	mainFrame.Visible = false
+	createFrame.Visible = false
+	listFrame.Visible = false
+	if frame then
+		frame.Visible = true
+	end
+end
+
+addCloseButton(mainFrame, function()
+	showWindow(nil)
+end)
+addCloseButton(createFrame, function()
+	showWindow(mainFrame)
+end)
+addCloseButton(listFrame, function()
+	showWindow(mainFrame)
+end)
+
+-- ===================== Main Frame =====================
+
+local refreshList -- didefinisikan di bawah, dipakai oleh tombol Open
+
+local function makeRow(parent, labelText, buttonText, onActivated)
+	local row = create("Frame", {
+		Name = labelText .. "Row",
+		Size = UDim2.new(1, 0, 0, 56),
+		BackgroundColor3 = COLORS.Row,
+		BorderSizePixel = 0,
+	}, parent)
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }, row)
+
+	create("TextLabel", {
+		Name = "Label",
+		Size = UDim2.new(1, -150, 1, 0),
+		Position = UDim2.new(0, 14, 0, 0),
+		BackgroundTransparency = 1,
+		Text = labelText,
+		TextColor3 = COLORS.Text,
+		Font = FONT,
+		TextSize = 15,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local btn = create("TextButton", {
+		Name = "ActionButton",
+		Size = UDim2.new(0, 110, 0, 36),
+		Position = UDim2.new(1, -124, 0.5, -18),
+		BackgroundColor3 = COLORS.Button,
+		Text = buttonText,
+		TextColor3 = COLORS.Text,
+		Font = FONT,
+		TextSize = 14,
+	}, row)
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }, btn)
+	addHover(btn, COLORS.Button, COLORS.ButtonHover)
+	btn.Activated:Connect(onActivated)
+
+	return row
+end
+
+create("UIListLayout", {
+	Name = "RowLayout",
+	Padding = UDim.new(0, 10),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, mainContent)
+
+makeRow(mainContent, "Create Waypoint", "Create", function()
+	showWindow(createFrame)
+end)
+
+makeRow(mainContent, "List Waypoints", "Open", function()
+	refreshList()
+	showWindow(listFrame)
+end)
+
+-- ===================== Create Waypoint Frame =====================
+
+create("UIListLayout", {
+	Name = "InputLayout",
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, createContent)
+
+local function makeInput(parent, order, labelText, defaultText)
+	-- Satu baris: label di kiri, input di kanan (sejajar)
+	local row = create("Frame", {
+		Name = labelText .. "Row",
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = COLORS.Row,
+		BorderSizePixel = 0,
+		LayoutOrder = order,
+	}, parent)
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }, row)
+
+	create("TextLabel", {
+		Name = "Label",
+		Size = UDim2.new(0, 100, 1, 0),
+		Position = UDim2.new(0, 14, 0, 0),
+		BackgroundTransparency = 1,
+		Text = labelText,
+		TextColor3 = COLORS.Text,
+		Font = FONT,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local box = create("TextBox", {
+		Name = "Box",
+		Size = UDim2.new(1, -140, 0, 32),
+		Position = UDim2.new(1, -128, 0.5, -16),
+		BackgroundColor3 = COLORS.Input,
+		Text = defaultText or "",
+		PlaceholderText = "",
+		TextColor3 = COLORS.Text,
+		PlaceholderColor3 = COLORS.SubText,
+		Font = FONT,
+		TextSize = 14,
+		ClearTextOnFocus = false,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }, box)
+	create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, box)
+
+	return box
+end
+
+local nameBox = makeInput(createContent, 1, "Name", "")
+local emojiBox = makeInput(createContent, 2, "Emoji", "📍")
+
+local createWarning = create("TextLabel", {
+	Name = "Warning",
+	Size = UDim2.new(1, 0, 0, 16),
+	BackgroundTransparency = 1,
+	Text = "",
+	TextColor3 = COLORS.Danger,
+	Font = FONT,
+	TextSize = 12,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	LayoutOrder = 5,
+}, createContent)
+
+local createWaypointButton = create("TextButton", {
+	Name = "CreateWaypointButton",
+	Size = UDim2.new(1, 0, 0, 44),
+	BackgroundColor3 = COLORS.Success,
+	Text = "Create Waypoint",
+	TextColor3 = COLORS.Text,
+	Font = FONT,
+	TextSize = 15,
+	LayoutOrder = 6,
+}, createContent)
+create("UICorner", { CornerRadius = UDim.new(0, 8) }, createWaypointButton)
+addHover(createWaypointButton, COLORS.Success, COLORS.SuccessHover)
+
+createWaypointButton.Activated:Connect(function()
+	local name = nameBox.Text
+	if name == "" then
+		createWarning.Text = "Nama waypoint tidak boleh kosong!"
+		return
+	end
+
+	local emoji = emojiBox.Text
+	if emoji == "" then
+		emoji = "📍"
+	end
+
+	table.insert(WAYPOINTS, {
+		universe = UNIVERSE_ID,
+		name = name,
+		emoji = emoji,
+		position = getCharacterPosition(),
+	})
+
+	-- reset form
+	nameBox.Text = ""
+	emojiBox.Text = "📍"
+	createWarning.Text = ""
+
+	showWindow(mainFrame)
+end)
+
+-- ===================== List Waypoints Frame =====================
+
+local scrollList = create("ScrollingFrame", {
+	Name = "WaypointList",
+	Size = UDim2.new(1, 0, 1, -66),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 6,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, listContent)
+
+create("UIListLayout", {
+	Name = "EntryLayout",
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, scrollList)
+
+local copyAllButton = create("TextButton", {
+	Name = "CopyAllButton",
+	Size = UDim2.new(1, 0, 0, 44),
+	Position = UDim2.new(0, 0, 1, -50),
+	BackgroundColor3 = COLORS.Success,
+	Text = "Copy All Waypoints",
+	TextColor3 = COLORS.Text,
+	Font = FONT,
+	TextSize = 15,
+}, listContent)
+create("UICorner", { CornerRadius = UDim.new(0, 8) }, copyAllButton)
+addHover(copyAllButton, COLORS.Success, COLORS.SuccessHover)
+
+copyAllButton.Activated:Connect(function()
+	-- Menyalin seluruh data waypoint (helper + baru) ke clipboard
+	-- dengan format yang sama persis seperti di script helper.
+	StarterGui:SetClipboard(serializeAllWaypoints())
+	copyAllButton.Text = "✓ Tersalin ke Clipboard!"
+	task.delay(1.5, function()
+		copyAllButton.Text = "Copy All Waypoints"
+	end)
+end)
+
+refreshList = function()
+	-- Bersihkan entri lama
+	for _, child in scrollList:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	local waypoints = getWaypointsForThisUniverse()
+
+	if #waypoints == 0 then
+		create("TextLabel", {
+			Name = "EmptyLabel",
+			Size = UDim2.new(1, 0, 0, 40),
+			BackgroundTransparency = 1,
+			Text = "Belum ada waypoint di universe ini.",
+			TextColor3 = COLORS.SubText,
+			Font = FONT,
+			TextSize = 14,
+		}, scrollList)
+		return
+	end
+
+	for i, wp in waypoints do
+		local p = wp.position
+
+		local entry = create("Frame", {
+			Name = "Entry" .. i,
+			Size = UDim2.new(1, -8, 0, 52),
+			BackgroundColor3 = COLORS.Entry,
+			BorderSizePixel = 0,
+			LayoutOrder = i,
+		}, scrollList)
+		create("UICorner", { CornerRadius = UDim.new(0, 8) }, entry)
+
+		create("TextLabel", {
+			Name = "Emoji",
+			Size = UDim2.new(0, 40, 1, 0),
+			Position = UDim2.new(0, 8, 0, 0),
+			BackgroundTransparency = 1,
+			Text = wp.emoji or "📍",
+			TextColor3 = COLORS.Text,
+			Font = FONT,
+			TextSize = 20,
+		}, entry)
+
+		create("TextLabel", {
+			Name = "WaypointName",
+			Size = UDim2.new(1, -220, 0, 24),
+			Position = UDim2.new(0, 52, 0, 4),
+			BackgroundTransparency = 1,
+			Text = wp.name,
+			TextColor3 = COLORS.Text,
+			Font = FONT,
+			TextSize = 15,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}, entry)
+
+		create("TextLabel", {
+			Name = "WaypointPosition",
+			Size = UDim2.new(1, -220, 0, 16),
+			Position = UDim2.new(0, 52, 0, 28),
+			BackgroundTransparency = 1,
+			Text = string.format(
+				"(%s, %s, %s)",
+				formatNumber(p.X),
+				formatNumber(p.Y),
+				formatNumber(p.Z)
+			),
+			TextColor3 = COLORS.SubText,
+			Font = FONT,
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		}, entry)
+
+		local deleteButton = create("TextButton", {
+			Name = "DeleteButton",
+			Size = UDim2.new(0, 80, 0, 30),
+			Position = UDim2.new(1, -88, 0.5, -15),
+			BackgroundColor3 = COLORS.Danger,
+			Text = "Delete",
+			TextColor3 = COLORS.Text,
+			Font = FONT,
+			TextSize = 13,
+		}, entry)
+		create("UICorner", { CornerRadius = UDim.new(0, 8) }, deleteButton)
+		addHover(deleteButton, COLORS.Danger, COLORS.DangerHover)
+
+		deleteButton.Activated:Connect(function()
+			-- Hapus waypoint ini dari tabel WAYPOINTS (berdasarkan referensi)
+			for idx, w in WAYPOINTS do
+				if w == wp then
+					table.remove(WAYPOINTS, idx)
+					break
+				end
+			end
+			refreshList()
+		end)
+	end
+end
+
+-- ===================== Toggle Button =====================
+
+local toggleButton = create("TextButton", {
+	Name = "ToggleButton",
+	Size = UDim2.new(0, 44, 0, 44),
+	Position = UDim2.new(0, 10, 0.5, -22),
+	BackgroundColor3 = COLORS.Button,
+	Text = "📍",
+	TextColor3 = COLORS.Text,
+	Font = FONT,
+	TextSize = 20,
+}, screenGui)
+create("UICorner", { CornerRadius = UDim.new(1, 0) }, toggleButton)
+addHover(toggleButton, COLORS.Button, COLORS.ButtonHover)
+
+toggleButton.Activated:Connect(function()
+	local anyVisible = mainFrame.Visible or createFrame.Visible or listFrame.Visible
+	if anyVisible then
+		showWindow(nil)
+	else
+		showWindow(mainFrame)
+	end
+end)
+
+-- Tampilkan main frame saat game dimulai
+showWindow(mainFrame)
