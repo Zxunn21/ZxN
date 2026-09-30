@@ -235,9 +235,11 @@ local function showWindow(frame)
 	createFrame.Visible = false
 	listFrame.Visible = false
 	copyFrame.Visible = false
-	if frame then
-		frame.Visible = true
+	-- Main frame selalu tampil sebagai window utama
+	if not frame then
+		frame = mainFrame
 	end
+	frame.Visible = true
 end
 
 -- ===================== ESP Waypoints =====================
@@ -330,9 +332,6 @@ espAllButton.Activated:Connect(function()
 	updateESP()
 end)
 
-addCloseButton(mainFrame, function()
-	showWindow(nil)
-end)
 addCloseButton(createFrame, function()
 	showWindow(mainFrame)
 end)
@@ -764,30 +763,6 @@ refreshList = function()
 		end)
 	end
 end
-
--- ===================== Toggle Button =====================
-
-local toggleButton = create("TextButton", {
-	Name = "ToggleButton",
-	Size = UDim2.new(0, 44, 0, 44),
-	Position = UDim2.new(0, 10, 0.5, -22),
-	BackgroundColor3 = COLORS.Button,
-	Text = "📍",
-	TextColor3 = COLORS.Text,
-	Font = FONT,
-	TextSize = 20,
-}, screenGui)
-create("UICorner", { CornerRadius = UDim.new(1, 0) }, toggleButton)
-addHover(toggleButton, COLORS.Button, COLORS.ButtonHover)
-
-toggleButton.Activated:Connect(function()
-	local anyVisible = mainFrame.Visible or createFrame.Visible or listFrame.Visible
-	if anyVisible then
-		showWindow(nil)
-	else
-		showWindow(mainFrame)
-	end
-end)
 
 -- Tampilkan main frame saat game dimulai
 setEspButtonState()
