@@ -26,7 +26,7 @@ gui.Parent = playerGui
 local frame = Instance.new("Frame")
 frame.Name = "JumpButtonFrame"
 frame.AnchorPoint = Vector2.new(0.5, 0.5)
-frame.Size = UDim2.fromScale(0.4, 0.5)
+frame.Size = UDim2.fromScale(0.8, 0.8)
 frame.Position = UDim2.new(0.5, 0, 0.5, -50)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.BackgroundTransparency = 0.3
@@ -319,6 +319,365 @@ jumpMinusButton.Activated:Connect(function()
 	)
 
 	jumpButtonSavedSize = jumpButton.Size
+end)
+
+-- === Buttons Adjustment ===
+local RunService = game:GetService("RunService")
+local selectedObject = nil
+local selectMode = false
+local dragMode = false
+local selectType = "button" -- "button" or "frame"
+local setDragMode -- forward declaration
+
+-- Separate ScreenGui for highlight (IgnoreGuiInset=true so offset maps to absolute screen pixels)
+local highlightGui = Instance.new("ScreenGui")
+highlightGui.Name = "SelectionHighlightGui"
+highlightGui.ResetOnSpawn = false
+highlightGui.IgnoreGuiInset = true
+highlightGui.DisplayOrder = 999999
+highlightGui.Parent = playerGui
+
+local highlight = Instance.new("Frame")
+highlight.Name = "SelectionHighlight"
+highlight.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+highlight.BackgroundTransparency = 0.85
+highlight.BorderSizePixel = 0
+highlight.ZIndex = 9999
+highlight.Visible = false
+highlight.Parent = highlightGui
+
+local highlightStroke = Instance.new("UIStroke")
+highlightStroke.Thickness = 2
+highlightStroke.Color = Color3.fromRGB(0, 200, 255)
+highlightStroke.Parent = highlight
+
+local highlightCorner = Instance.new("UICorner")
+highlightCorner.CornerRadius = UDim.new(0, 4)
+highlightCorner.Parent = highlight
+
+-- Title for Buttons Adjustment row
+local adjTitle = Instance.new("TextLabel")
+adjTitle.Name = "ButtonsAdjTitle"
+adjTitle.Size = UDim2.fromOffset(100, 36)
+adjTitle.Position = UDim2.fromOffset(5, 56)
+adjTitle.BackgroundTransparency = 1
+adjTitle.Text = "Buttons Adjust"
+adjTitle.TextColor3 = Color3.new(1, 1, 1)
+adjTitle.TextSize = 14
+adjTitle.Font = Enum.Font.GothamBold
+adjTitle.TextXAlignment = Enum.TextXAlignment.Left
+adjTitle.TextYAlignment = Enum.TextYAlignment.Center
+adjTitle.ZIndex = 512
+adjTitle.Parent = contentArea
+
+-- Type toggle: Frame
+local adjFrameButton = Instance.new("TextButton")
+adjFrameButton.Name = "AdjFrameButton"
+adjFrameButton.Size = UDim2.fromOffset(52, 36)
+adjFrameButton.Position = UDim2.fromOffset(108, 56)
+adjFrameButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+adjFrameButton.BorderSizePixel = 0
+adjFrameButton.Text = "Frame"
+adjFrameButton.TextColor3 = Color3.new(1, 1, 1)
+adjFrameButton.TextSize = 11
+adjFrameButton.Font = Enum.Font.GothamBold
+adjFrameButton.ZIndex = 512
+adjFrameButton.Parent = contentArea
+
+-- Type toggle: Button
+local adjButtonButton = Instance.new("TextButton")
+adjButtonButton.Name = "AdjButtonButton"
+adjButtonButton.Size = UDim2.fromOffset(52, 36)
+adjButtonButton.Position = UDim2.fromOffset(165, 56)
+adjButtonButton.BackgroundColor3 = Color3.fromRGB(50, 150, 85)
+adjButtonButton.BorderSizePixel = 0
+adjButtonButton.Text = "Button"
+adjButtonButton.TextColor3 = Color3.new(1, 1, 1)
+adjButtonButton.TextSize = 11
+adjButtonButton.Font = Enum.Font.GothamBold
+adjButtonButton.ZIndex = 512
+adjButtonButton.Parent = contentArea
+
+local adjSelectButton = Instance.new("TextButton")
+adjSelectButton.Name = "AdjSelectButton"
+adjSelectButton.Size = UDim2.fromOffset(52, 36)
+adjSelectButton.AnchorPoint = Vector2.new(1, 0)
+adjSelectButton.Position = UDim2.new(1, -172, 0, 56)
+adjSelectButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+adjSelectButton.BorderSizePixel = 0
+adjSelectButton.Text = "Select"
+adjSelectButton.TextColor3 = Color3.new(1, 1, 1)
+adjSelectButton.TextSize = 11
+adjSelectButton.Font = Enum.Font.GothamBold
+adjSelectButton.ZIndex = 512
+adjSelectButton.Parent = contentArea
+
+local adjDragButton = Instance.new("TextButton")
+adjDragButton.Name = "AdjDragButton"
+adjDragButton.Size = UDim2.fromOffset(52, 36)
+adjDragButton.AnchorPoint = Vector2.new(1, 0)
+adjDragButton.Position = UDim2.new(1, -112, 0, 56)
+adjDragButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+adjDragButton.BorderSizePixel = 0
+adjDragButton.Text = "Drag"
+adjDragButton.TextColor3 = Color3.new(1, 1, 1)
+adjDragButton.TextSize = 11
+adjDragButton.Font = Enum.Font.GothamBold
+adjDragButton.ZIndex = 512
+adjDragButton.Parent = contentArea
+
+local adjPlusButton = Instance.new("TextButton")
+adjPlusButton.Name = "AdjPlusButton"
+adjPlusButton.Size = UDim2.fromOffset(45, 36)
+adjPlusButton.AnchorPoint = Vector2.new(1, 0)
+adjPlusButton.Position = UDim2.new(1, -61, 0, 56)
+adjPlusButton.BackgroundColor3 = Color3.fromRGB(50, 130, 70)
+adjPlusButton.BorderSizePixel = 0
+adjPlusButton.Text = "+"
+adjPlusButton.TextColor3 = Color3.new(1, 1, 1)
+adjPlusButton.TextSize = 20
+adjPlusButton.Font = Enum.Font.GothamBold
+adjPlusButton.ZIndex = 512
+adjPlusButton.Parent = contentArea
+
+local adjMinusButton = Instance.new("TextButton")
+adjMinusButton.Name = "AdjMinusButton"
+adjMinusButton.Size = UDim2.fromOffset(45, 36)
+adjMinusButton.AnchorPoint = Vector2.new(1, 0)
+adjMinusButton.Position = UDim2.new(1, -10, 0, 56)
+adjMinusButton.BackgroundColor3 = Color3.fromRGB(150, 70, 70)
+adjMinusButton.BorderSizePixel = 0
+adjMinusButton.Text = "-"
+adjMinusButton.TextColor3 = Color3.new(1, 1, 1)
+adjMinusButton.TextSize = 20
+adjMinusButton.Font = Enum.Font.GothamBold
+adjMinusButton.ZIndex = 512
+adjMinusButton.Parent = contentArea
+
+for _, button in ipairs({adjFrameButton, adjButtonButton, adjSelectButton, adjDragButton, adjPlusButton, adjMinusButton}) do
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = button
+end
+
+-- Update highlight position to match selected object (called every frame via RenderStepped)
+local function updateHighlight()
+	if selectedObject and selectedObject.Parent then
+		local pos = selectedObject.AbsolutePosition
+		local size = selectedObject.AbsoluteSize
+		highlight.Position = UDim2.fromOffset(pos.X, pos.Y)
+		highlight.Size = UDim2.fromOffset(size.X, size.Y)
+		highlight.Visible = true
+	else
+		highlight.Visible = false
+	end
+end
+
+-- Highlight tracking via RenderStepped for accurate real-time position
+local highlightConnection
+local function startHighlightTracking()
+	if highlightConnection then return end
+	highlightConnection = RunService.RenderStepped:Connect(function()
+		if selectedObject then
+			if not selectedObject.Parent then
+				selectedObject = nil
+				if dragMode then
+					setDragMode(false)
+				end
+			end
+		end
+		updateHighlight()
+	end)
+end
+
+-- Check if object matches current selectType
+local function matchesSelectType(obj)
+	if selectType == "button" then
+		return obj:IsA("GuiButton")
+	elseif selectType == "frame" then
+		return obj:IsA("GuiObject") and not obj:IsA("GuiButton")
+	end
+	return false
+end
+
+-- Get screen position from input
+local function getTapPosition(input)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		return Vector2.new(input.Position.X, input.Position.Y)
+	elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local mouseLoc = UserInputService:GetMouseLocation()
+		return Vector2.new(mouseLoc.X, mouseLoc.Y)
+	end
+	return nil
+end
+
+-- Selection logic
+local selectInputConnection = nil
+
+local function setSelectMode(enabled)
+	selectMode = enabled
+	adjSelectButton.Text = enabled and "Selecting..." or "Select"
+	adjSelectButton.BackgroundColor3 = enabled
+		and Color3.fromRGB(50, 150, 85)
+		or Color3.fromRGB(70, 70, 70)
+
+	-- Hide main frame while selecting
+	frame.Visible = not enabled
+
+	if selectInputConnection then
+		selectInputConnection:Disconnect()
+		selectInputConnection = nil
+	end
+
+	if enabled then
+		startHighlightTracking()
+		selectInputConnection = UserInputService.InputBegan:Connect(function(input)
+			if not selectMode then return end
+			local tapPos = getTapPosition(input)
+			if not tapPos then return end
+
+			task.defer(function()
+				if not selectMode then return end
+				local objects = playerGui:GetGuiObjectsAtPosition(tapPos.X, tapPos.Y)
+				for _, obj in ipairs(objects) do
+					if obj.Visible
+						and not obj:IsDescendantOf(gui)
+						and not obj:IsDescendantOf(highlightGui)
+						and matchesSelectType(obj) then
+						selectedObject = obj
+						setSelectMode(false)
+						if dragMode then
+							setDragMode(false)
+						end
+						updateHighlight()
+						break
+					end
+				end
+			end)
+		end)
+	else
+		frame.Visible = true
+	end
+end
+
+adjSelectButton.Activated:Connect(function()
+	setSelectMode(not selectMode)
+end)
+
+-- Type toggle buttons
+local function setSelectType(typeName)
+	selectType = typeName
+	if typeName == "frame" then
+		adjFrameButton.BackgroundColor3 = Color3.fromRGB(50, 150, 85)
+		adjButtonButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	else
+		adjFrameButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+		adjButtonButton.BackgroundColor3 = Color3.fromRGB(50, 150, 85)
+	end
+	-- Clear current selection if it doesn't match new type
+	if selectedObject and selectedObject.Parent and not matchesSelectType(selectedObject) then
+		selectedObject = nil
+		if dragMode then
+			setDragMode(false)
+		end
+		updateHighlight()
+	end
+end
+
+adjFrameButton.Activated:Connect(function()
+	setSelectType("frame")
+end)
+
+adjButtonButton.Activated:Connect(function()
+	setSelectType("button")
+end)
+
+-- Drag logic
+local function setDragMode(enabled)
+	dragMode = enabled
+	adjDragButton.Text = enabled and "Drag ON" or "Drag"
+	adjDragButton.BackgroundColor3 = enabled
+		and Color3.fromRGB(50, 150, 85)
+		or Color3.fromRGB(70, 70, 70)
+end
+
+adjDragButton.Activated:Connect(function()
+	setDragMode(not dragMode)
+end)
+
+-- Drag implementation via global UserInputService events
+local draggingObj = false
+local dragObjStart
+local dragObjStartPos
+
+UserInputService.InputBegan:Connect(function(input)
+	if not dragMode or not selectedObject or not selectedObject.Parent then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		local tapPos = getTapPosition(input)
+		if not tapPos then return end
+		local objPos = selectedObject.AbsolutePosition
+		local objSize = selectedObject.AbsoluteSize
+		if tapPos.X >= objPos.X and tapPos.X <= objPos.X + objSize.X
+			and tapPos.Y >= objPos.Y and tapPos.Y <= objPos.Y + objSize.Y then
+			draggingObj = true
+			dragObjStart = input.Position
+			dragObjStartPos = selectedObject.Position
+		end
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not dragMode or not draggingObj or not selectedObject or not selectedObject.Parent then return end
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		local delta = input.Position - dragObjStart
+		selectedObject.Position = UDim2.new(
+			dragObjStartPos.X.Scale,
+			dragObjStartPos.X.Offset + delta.X,
+			dragObjStartPos.Y.Scale,
+			dragObjStartPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		draggingObj = false
+	end
+end)
+
+-- Plus/Minus for selected object
+adjPlusButton.Activated:Connect(function()
+	if not selectedObject or not selectedObject.Parent then return end
+	local size = selectedObject.Size
+	selectedObject.Size = UDim2.new(
+		size.X.Scale, math.min(size.X.Offset + 10, 2000),
+		size.Y.Scale, math.min(size.Y.Offset + 10, 2000)
+	)
+	updateHighlight()
+end)
+
+adjMinusButton.Activated:Connect(function()
+	if not selectedObject or not selectedObject.Parent then return end
+	local size = selectedObject.Size
+	selectedObject.Size = UDim2.new(
+		size.X.Scale, math.max(size.X.Offset - 10, 10),
+		size.Y.Scale, math.max(size.Y.Offset - 10, 10)
+	)
+	updateHighlight()
+end)
+
+-- Start highlight tracking
+task.spawn(function()
+	while gui.Parent do
+		task.wait(0.5)
+	end
+	if highlightConnection then
+		highlightConnection:Disconnect()
+	end
+	highlightGui:Destroy()
 end)
 
 player.CharacterAdded:Connect(function()
