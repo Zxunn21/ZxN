@@ -993,7 +993,25 @@ local function openMainMenu()
 	menuFrame.Visible = true
 end
 
+-- Forward declarations untuk tombol "<<" agar bisa dipakai di hideAllGuisAndFrames
+local lastClosedFrame = nil
+local lastClosedOnOpen = nil
+local updateReopenButton
+
 local function hideAllGuisAndFrames()
+	-- Simpan frame terakhir yang terlihat sebelum ditutup,
+	-- agar tombol "<<" bisa membuka kembali frame yang benar.
+	if menuFrame.Visible then
+		lastClosedFrame = menuFrame
+		lastClosedOnOpen = function() menuOpen = true end
+	elseif frameRideAPet.Visible then
+		lastClosedFrame = frameRideAPet
+		lastClosedOnOpen = function() frameOpen = true end
+	elseif teleportFrame.Visible then
+		lastClosedFrame = teleportFrame
+		lastClosedOnOpen = nil
+	end
+
 	-- Hide semua GUI terdaftar
 	hideAllRegisteredGuis()
 
@@ -1011,6 +1029,11 @@ local function hideAllGuisAndFrames()
 	frameRideAPet.Visible = false
 	teleportFrame.Visible = false
 	frameOpen = false
+
+	-- Update tombol "<<" agar muncul jika ada frame yang ditutup
+	if updateReopenButton then
+		updateReopenButton()
+	end
 end
 
 local HOLD_DURATION = 0.5
@@ -1190,10 +1213,10 @@ local trackedFrames = {
 	{ frame = teleportFrame },
 }
 
-local lastClosedFrame = nil
-local lastClosedOnOpen = nil
+lastClosedFrame = nil
+lastClosedOnOpen = nil
 
-local function updateReopenButton()
+updateReopenButton = function()
 	local allClosed = true
 	for _, entry in ipairs(trackedFrames) do
 		if entry.frame.Visible then
