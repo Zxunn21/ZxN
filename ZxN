@@ -994,24 +994,10 @@ local function openMainMenu()
 end
 
 -- Forward declarations untuk tombol "<<" agar bisa dipakai di hideAllGuisAndFrames
-local lastClosedFrame = nil
-local lastClosedOnOpen = nil
+local lastOpenedGuiName = nil
 local updateReopenButton
 
 local function hideAllGuisAndFrames()
-	-- Simpan frame terakhir yang terlihat sebelum ditutup,
-	-- agar tombol "<<" bisa membuka kembali frame yang benar.
-	if menuFrame.Visible then
-		lastClosedFrame = menuFrame
-		lastClosedOnOpen = function() menuOpen = true end
-	elseif frameRideAPet.Visible then
-		lastClosedFrame = frameRideAPet
-		lastClosedOnOpen = function() frameOpen = true end
-	elseif teleportFrame.Visible then
-		lastClosedFrame = teleportFrame
-		lastClosedOnOpen = nil
-	end
-
 	-- Hide semua GUI terdaftar
 	hideAllRegisteredGuis()
 
@@ -1205,50 +1191,83 @@ end
 makeDraggable(trigger)
 makeDraggable(reopenButton)
 
--- === Logika tombol "<<" (buka kembali frame terakhir yang ditutup) ===
--- Semua frame yang dilacak: menu utama, control frame, dan teleport frame.
-local trackedFrames = {
-	{ frame = menuFrame, onOpen = function() menuOpen = true end },
-	{ frame = frameRideAPet, onOpen = function() frameOpen = true end },
-	{ frame = teleportFrame },
-}
+-- === Logika tombol "<<" (buka kembali GUI terakhir yang ditutup) ===
+-- Pantau setiap GUI terdaftar (dari guiToHide). Saat sebuah GUI ditampilkan,
+-- catat namanya. Tombol "<<" akan menampilkan kembali GUI yang dicatat terakhir.
 
-lastClosedFrame = nil
-lastClosedOnOpen = nil
-
-updateReopenButton = function()
-	local allClosed = true
-	for _, entry in ipairs(trackedFrames) do
-		if entry.frame.Visible then
-			allClosed = false
-			break
-		end
-	end
-	-- Tombol hanya muncul jika semua frame tertutup
-	-- dan ada frame yang pernah ditutup
-	reopenButton.Visible = allClosed and lastClosedFrame ~= nil
+local registeredGuiSet = {}
+for _, guiName in ipairs(registeredGuis) do
+	registeredGuiSet[guiName] = true
 end
 
-for _, entry in ipairs(trackedFrames) do
-	entry.frame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if entry.frame.Visible then
-			updateReopenButton()
-		else
-			-- Catat frame ini sebagai frame terakhir yang ditutup
-			lastClosedFrame = entry.frame
-			lastClosedOnOpen = entry.onOpen
-			-- Defer agar rangkaian perubahan (mis. buka frame lain) selesai dulu
-			task.defer(updateReopenButton)
+local function isGuiVisible(descendant)
+	if descendant:IsA("ScreenGui") then
+		return descendant.Enabled
+	elseif descendant:IsA("GuiObject") then
+		return descendant.Visible
+	end
+	return false
+end
+
+local function monitorGui(descendant)
+	if not (descendant:IsA("ScreenGui") or descendant:IsA("GuiObject")) then return end
+	if not registeredGuiSet[descendant.Name] then return end
+
+	local function checkVisibility()
+		if isGuiVisible(descendant) then
+			lastOpenedGuiName = descendant.Name
+			if updateReopenButton then
+				updateReopenButton()
+			end
 		end
+	end
+
+	if descendant:IsA("ScreenGui") then
+		descendant:GetPropertyChangedSignal("Enabled"):Connect(checkVisibility)
+	else
+		descendant:GetPropertyChangedSignal("Visible"):Connect(checkVisibility)
+	end
+
+	checkVisibility()
+end
+
+-- Pantau GUI yang sudah ada
+for _, descendant in ipairs(playerGui:GetDescendants()) do
+	monitorGui(descendant)
+end
+
+-- Pantau GUI yang ditambahkan kemudian
+playerGui.DescendantAdded:Connect(monitorGui)
+
+updateReopenButton = function()
+	local allFramesClosed = not menuFrame.Visible and not frameRideAPet.Visible and not teleportFrame.Visible
+
+	-- Hanya tampilkan tombol "<<" jika GUI terakhir yang dicatat sedang tersembunyi
+	local lastGuiVisible = false
+	if lastOpenedGuiName and playerGui then
+		for _, descendant in ipairs(playerGui:GetDescendants()) do
+			if descendant.Name == lastOpenedGuiName then
+				if isGuiVisible(descendant) then
+					lastGuiVisible = true
+					break
+				end
+			end
+		end
+	end
+
+	reopenButton.Visible = allFramesClosed and lastOpenedGuiName ~= nil and not lastGuiVisible
+end
+
+-- Update tombol "<<" saat frame visibility berubah
+for _, frame in ipairs({menuFrame, frameRideAPet, teleportFrame}) do
+	frame:GetPropertyChangedSignal("Visible"):Connect(function()
+		updateReopenButton()
 	end)
 end
 
 reopenButton.Activated:Connect(function()
-	if lastClosedFrame and lastClosedFrame.Parent then
-		lastClosedFrame.Visible = true
-		if lastClosedOnOpen then
-			lastClosedOnOpen()
-		end
+	if lastOpenedGuiName then
+		setGuiVisible(lastOpenedGuiName, true)
 		updateReopenButton()
 	end
 end)
