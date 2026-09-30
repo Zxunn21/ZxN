@@ -41,6 +41,39 @@ stroke.Color = Color3.fromRGB(255, 255, 255)
 stroke.Transparency = 0.2
 stroke.Parent = button
 
+-- Label informasi speed di atas tombol
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Size = UDim2.new(0, 80, 0, 20)
+speedLabel.Position = UDim2.new(0.5, 0, 0, -5)
+speedLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+speedLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "10"
+speedLabel.TextColor3 = Color3.new(1, 1, 1)
+speedLabel.TextSize = 13
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.Parent = button
+
+local labelCorner = Instance.new("UICorner")
+labelCorner.CornerRadius = UDim.new(0, 5)
+labelCorner.Parent = speedLabel
+
+local labelStroke = Instance.new("UIStroke")
+labelStroke.Thickness = 1
+labelStroke.Color = Color3.fromRGB(100, 100, 100)
+labelStroke.Transparency = 0.3
+labelStroke.Parent = speedLabel
+
+-- Update label dengan WalkSpeed karakter saat ini
+local function updateSpeedLabel()
+	local character = player.Character
+	if not character then return end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	speedLabel.Text = tostring(math.floor(humanoid.WalkSpeed))
+end
+
 -- Aktifkan mode lari: simpan kecepatan saat ini, lalu kalikan
 local function startRun()
 	local character = player.Character
@@ -53,6 +86,7 @@ local function startRun()
 	savedWalkSpeed = humanoid.WalkSpeed
 	humanoid.WalkSpeed = savedWalkSpeed * RUN_MULTIPLIER
 	button.BackgroundColor3 = Color3.fromRGB(60, 170, 80)
+	updateSpeedLabel()
 end
 
 -- Kembalikan kecepatan ke nilai yang tersimpan
@@ -68,6 +102,7 @@ local function stopRun()
 		savedWalkSpeed = nil
 	end
 	button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	updateSpeedLabel()
 end
 
 -- Saat tombol ditekan: simpan & kalkulasi kecepatan
@@ -81,6 +116,18 @@ button.MouseLeave:Connect(stopRun)
 
 -- Reset speed saat karakter respawn
 player.CharacterAdded:Connect(function(character)
-	character:WaitForChild("Humanoid").WalkSpeed = 16
+	local humanoid = character:WaitForChild("Humanoid")
+	humanoid.WalkSpeed = 16
 	savedWalkSpeed = nil
+	humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(updateSpeedLabel)
+	updateSpeedLabel()
 end)
+
+-- Update label untuk player yang sudah ada
+if player.Character then
+	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(updateSpeedLabel)
+		updateSpeedLabel()
+	end
+end
