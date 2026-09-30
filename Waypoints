@@ -14,7 +14,6 @@ local WAYPOINTS = {
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local UNIVERSE_ID = game.GameId
@@ -529,13 +528,16 @@ create("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, scrollList)
 
--- TextBox untuk menyalin data secara manual (fallback mobile,
--- karena SetClipboard tidak bekerja di perangkat mobile)
+-- ===================== Copy Waypoints Frame =====================
+-- Pola salin clipboard mobile: cek setclipboard (executor API),
+-- jika tidak ada maka fokuskan TextBox + seleksi semua teks agar
+-- bisa disalin manual (Ctrl+C di desktop / tekan lama di mobile).
+
 local copyHint = create("TextLabel", {
 	Name = "CopyHint",
 	Size = UDim2.new(1, 0, 0, 18),
 	BackgroundTransparency = 1,
-	Text = "Tekan lama teks di bawah lalu pilih Copy/Salin:",
+	Text = "Tekan tombol Salin di bawah, lalu Ctrl+C (atau tekan lama lalu Copy di mobile):",
 	TextColor3 = COLORS.SubText,
 	Font = FONT,
 	TextSize = 12,
@@ -544,7 +546,7 @@ local copyHint = create("TextLabel", {
 
 local copyDataBox = create("TextBox", {
 	Name = "CopyDataBox",
-	Size = UDim2.new(1, 0, 1, -26),
+	Size = UDim2.new(1, 0, 1, -96),
 	Position = UDim2.new(0, 0, 0, 22),
 	BackgroundColor3 = COLORS.Input,
 	Text = "",
@@ -565,6 +567,54 @@ create("UIPadding", {
 	PaddingBottom = UDim.new(0, 8),
 }, copyDataBox)
 
+-- Tombol Salin Teks (meniru pola salin clipboard mobile)
+local copyDataButton = create("TextButton", {
+	Name = "CopyDataButton",
+	Size = UDim2.new(1, 0, 0, 44),
+	Position = UDim2.new(0, 0, 1, -50),
+	BackgroundColor3 = COLORS.Button,
+	Text = "Salin Teks",
+	TextColor3 = COLORS.Text,
+	Font = FONT,
+	TextSize = 15,
+}, copyContent)
+create("UICorner", { CornerRadius = UDim.new(0, 8) }, copyDataButton)
+
+local function resetCopyDataButton()
+	copyDataButton.Text = "Salin Teks"
+	copyDataButton.BackgroundColor3 = COLORS.Button
+end
+
+copyDataButton.Activated:Connect(function()
+	local textToCopy = copyDataBox.Text
+
+	if textToCopy == "" then
+		copyDataButton.Text = "Teks Masih Kosong!"
+		copyDataButton.BackgroundColor3 = COLORS.Danger
+
+		task.delay(1.5, resetCopyDataButton)
+		return
+	end
+
+	-- Memeriksa dukungan setclipboard (Executor API)
+	if setclipboard then
+		setclipboard(textToCopy)
+		copyDataButton.Text = "Tersalin!"
+		copyDataButton.BackgroundColor3 = COLORS.Success
+	else
+		-- Jika di Roblox Studio/Client Resmi:
+		-- fokuskan TextBox dan seleksi semua teks,
+		-- lalu pengguna menyalin manual (Ctrl+C / tekan lama di mobile)
+		copyDataBox:CaptureFocus()
+		copyDataBox.SelectionStart = 1
+		copyDataBox.CursorPosition = #textToCopy + 1
+		copyDataButton.Text = "Tekan Ctrl+C untuk menyalin!"
+		copyDataButton.BackgroundColor3 = Color3.fromRGB(255, 193, 7)
+	end
+
+	task.delay(2, resetCopyDataButton)
+end)
+
 local copyAllButton = create("TextButton", {
 	Name = "CopyAllButton",
 	Size = UDim2.new(1, 0, 0, 44),
@@ -579,13 +629,11 @@ create("UICorner", { CornerRadius = UDim.new(0, 8) }, copyAllButton)
 addHover(copyAllButton, COLORS.Success, COLORS.SuccessHover)
 
 copyAllButton.Activated:Connect(function()
+	-- Tampilkan seluruh data waypoint (helper + baru) di frame copy,
+	-- lalu langsung fokuskan dan seleksi semua teksnya
 	local data = serializeAllWaypoints()
-
-	-- SetClipboard hanya bekerja di desktop.
-	-- Di mobile, data ditampilkan di TextBox yang sudah ter-seleksi
-	-- semua agar tinggal tekan lama lalu Copy/Salin.
-	StarterGui:SetClipboard(data)
 	copyDataBox.Text = data
+	resetCopyDataButton()
 	showWindow(copyFrame)
 
 	task.defer(function()
