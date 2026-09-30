@@ -981,8 +981,20 @@ local function anyRegisteredGuiVisible()
 	return false
 end
 
-trigger.Activated:Connect(function()
-	-- Langkah 1: pastikan semua GUI dalam list guiToHide di-hide
+-- === Logika tombol trigger (hold vs tap) ===
+-- Hold >= 0.5 detik : buka main menu
+-- Tap cepat (< 0.5 detik) : hide semua GUI + main frame
+
+local function openMainMenu()
+	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+	menuOpen = true
+	menuFrame.Visible = true
+end
+
+local function hideAllGuisAndFrames()
+	-- Hide semua GUI terdaftar
 	hideAllRegisteredGuis()
 
 	-- Sinkronkan status tombol fitur menjadi OFF, karena GUI-nya
@@ -993,22 +1005,62 @@ trigger.Activated:Connect(function()
 		turnOff()
 	end
 
-	-- Langkah 2: buka mainmenu hanya jika tidak ada GUI dalam list
-	-- yg sedang eksis (terlihat)
-	if anyRegisteredGuiVisible() then
-		-- Masih ada GUI yg eksis -> tutup semua frame, jangan buka menu
-		menuFrame.Visible = false
-		menuOpen = false
-		frameRideAPet.Visible = false
-		teleportFrame.Visible = false
-		frameOpen = false
-	else
-		-- Tidak ada GUI yg eksis -> buka mainmenu
-		frameRideAPet.Visible = false
-		teleportFrame.Visible = false
-		frameOpen = false
-		menuOpen = true
-		menuFrame.Visible = true
+	-- Tutup semua frame
+	menuFrame.Visible = false
+	menuOpen = false
+	frameRideAPet.Visible = false
+	teleportFrame.Visible = false
+	frameOpen = false
+end
+
+local HOLD_DURATION = 0.5
+local isHoldingTrigger = false
+local triggerPressStart = nil
+local triggerDragged = false
+
+trigger.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		isHoldingTrigger = true
+		triggerDragged = false
+		triggerPressStart = input.Position
+
+		-- Jika hold mencapai HOLD_DURATION tanpa dilepas dan tanpa drag -> buka menu
+		task.delay(HOLD_DURATION, function()
+			if isHoldingTrigger and not triggerDragged then
+				isHoldingTrigger = false
+				openMainMenu()
+			end
+		end)
+	end
+end)
+
+trigger.InputChanged:Connect(function(input)
+	if (input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch)
+		and triggerPressStart then
+
+		-- Jika tombol digeser cukup jauh, anggap sebagai drag (bukan tap/hold)
+		local delta = input.Position - triggerPressStart
+		if math.abs(delta.X) > 8 or math.abs(delta.Y) > 8 then
+			triggerDragged = true
+		end
+	end
+end)
+
+trigger.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		if isHoldingTrigger then
+			-- Dilepas sebelum 0.5 detik -> tap cepat -> hide semua GUI + frame
+			isHoldingTrigger = false
+			if not triggerDragged then
+				hideAllGuisAndFrames()
+			end
+		end
+		triggerPressStart = nil
 	end
 end)
 
