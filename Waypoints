@@ -1,4 +1,4 @@
--- ============================================================
+2-- ============================================================
 --  Waypoints (LocalScript)
 --  GUI untuk membuat, melihat, dan mengelola waypoint.
 -- ============================================================
@@ -7,6 +7,7 @@
 -- Format data waypoint:
 local WAYPOINTS = {
 	{ universe = 10761375767, name = "ujung", emoji = "📍", position = Vector3.new(-2221.02, 8, -17.97) },
+	{ universe = 10035204815, name = "basecamp", emoji = "⛺", position = Vector3.new(155.1, 40341.95, 899.21) },
 }
 -- ============================================================
 
