@@ -934,11 +934,10 @@ local function updateTeleportList()
 end
 
 -- Main menu
--- === Pendekatan baru tombol trigger (toggle dua langkah) ===
--- Tekan pertama : menutup semua GUI, termasuk menjalankan semua
---                 fungsi guiToHide (semua GUI terdaftar yg eksis di-hide).
--- Tekan lagi    : membuka menu (mainframe).
-local triggerGuiOpen = false
+-- === Logika tombol trigger ===
+-- 1. Pastikan hide semua GUI yg ada dalam list guiToHide.
+-- 2. Syarat membuka frame mainmenu: tidak ada GUI dalam list
+--    yg sedang eksis (terlihat).
 
 -- Kumpulkan semua nama GUI terdaftar dari gameLinkFeatures dan linkFeatures
 local registeredGuis = {}
@@ -959,27 +958,45 @@ local function hideAllRegisteredGuis()
 	end
 end
 
--- Sinkronisasi state: jika menu ditutup/dibuka lewat jalur lain
--- (tombol x, Restart, tombol fitur, tombol ‹), ikuti perubahan itu
--- agar siklus tekan tetap konsisten.
-menuFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-	triggerGuiOpen = menuFrame.Visible
-end)
+-- Periksa apakah ada GUI dalam list yg sedang eksis (terlihat)
+local function anyRegisteredGuiVisible()
+	if not playerGui then
+		return false
+	end
+	for _, guiName in ipairs(registeredGuis) do
+		for _, descendant in ipairs(playerGui:GetDescendants()) do
+			if descendant.Name == guiName then
+				if descendant:IsA("ScreenGui") then
+					if descendant.Enabled then
+						return true
+					end
+				elseif descendant:IsA("GuiObject") then
+					if descendant.Visible then
+						return true
+					end
+				end
+			end
+			end
+		end
+	end
+	return false
+end
 
 trigger.Activated:Connect(function()
-	if triggerGuiOpen then
-		-- Tekan pertama: tutup semua GUI
-		-- (semua frame + semua GUI terdaftar yg eksis di-hide)
-		triggerGuiOpen = false
+	-- Langkah 1: pastikan semua GUI dalam list guiToHide di-hide
+	hideAllRegisteredGuis()
+
+	-- Langkah 2: buka mainmenu hanya jika tidak ada GUI dalam list
+	-- yg sedang eksis (terlihat)
+	if anyRegisteredGuiVisible() then
+		-- Masih ada GUI yg eksis -> tutup semua frame, jangan buka menu
 		menuFrame.Visible = false
 		menuOpen = false
 		frameRideAPet.Visible = false
 		teleportFrame.Visible = false
 		frameOpen = false
-		hideAllRegisteredGuis()
 	else
-		-- Tekan lagi: buka menu
-		triggerGuiOpen = true
+		-- Tidak ada GUI yg eksis -> buka mainmenu
 		frameRideAPet.Visible = false
 		teleportFrame.Visible = false
 		frameOpen = false
