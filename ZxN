@@ -934,21 +934,36 @@ local function updateTeleportList()
 end
 
 -- Main menu
+-- === Pendekatan baru tombol trigger (toggle dua langkah) ===
+-- Tekan pertama : menutup GUI (semua frame).
+-- Tekan lagi    : membuka menu (mainframe).
+local triggerGuiOpen = false
+
+-- Sinkronisasi state: jika menu ditutup/dibuka lewat jalur lain
+-- (tombol x, Restart, tombol fitur, tombol ‹), ikuti perubahan itu
+-- agar siklus tekan tetap konsisten.
+menuFrame:GetPropertyChangedSignal("Visible"):Connect(function()
+	triggerGuiOpen = menuFrame.Visible
+end)
+
 trigger.Activated:Connect(function()
-	-- Jika ada frame yang sedang terbuka, cukup tutup semua frame saja
-	-- (tidak membuka mainframe berisi menu)
-	if menuFrame.Visible or frameRideAPet.Visible or teleportFrame.Visible then
+	if triggerGuiOpen then
+		-- Tekan pertama: tutup semua GUI
+		triggerGuiOpen = false
 		menuFrame.Visible = false
 		menuOpen = false
 		frameRideAPet.Visible = false
 		teleportFrame.Visible = false
 		frameOpen = false
-		return
+	else
+		-- Tekan lagi: buka menu
+		triggerGuiOpen = true
+		frameRideAPet.Visible = false
+		teleportFrame.Visible = false
+		frameOpen = false
+		menuOpen = true
+		menuFrame.Visible = true
 	end
-
-	-- Tidak ada frame yang terbuka -> buka main frame
-	menuOpen = true
-	menuFrame.Visible = true
 end)
 
 mainCloseButton.Activated:Connect(function()
