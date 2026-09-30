@@ -935,9 +935,29 @@ end
 
 -- Main menu
 -- === Pendekatan baru tombol trigger (toggle dua langkah) ===
--- Tekan pertama : menutup GUI (semua frame).
+-- Tekan pertama : menutup semua GUI, termasuk menjalankan semua
+--                 fungsi guiToHide (semua GUI terdaftar yg eksis di-hide).
 -- Tekan lagi    : membuka menu (mainframe).
 local triggerGuiOpen = false
+
+-- Kumpulkan semua nama GUI terdaftar dari gameLinkFeatures dan linkFeatures
+local registeredGuis = {}
+for _, feature in ipairs(gameLinkFeatures) do
+	if feature.guiToHide then
+		table.insert(registeredGuis, feature.guiToHide)
+	end
+end
+for _, feature in ipairs(linkFeatures) do
+	if feature.guiToHide then
+		table.insert(registeredGuis, feature.guiToHide)
+	end
+end
+
+local function hideAllRegisteredGuis()
+	for _, guiName in ipairs(registeredGuis) do
+		setGuiVisible(guiName, false)
+	end
+end
 
 -- Sinkronisasi state: jika menu ditutup/dibuka lewat jalur lain
 -- (tombol x, Restart, tombol fitur, tombol ‹), ikuti perubahan itu
@@ -949,12 +969,14 @@ end)
 trigger.Activated:Connect(function()
 	if triggerGuiOpen then
 		-- Tekan pertama: tutup semua GUI
+		-- (semua frame + semua GUI terdaftar yg eksis di-hide)
 		triggerGuiOpen = false
 		menuFrame.Visible = false
 		menuOpen = false
 		frameRideAPet.Visible = false
 		teleportFrame.Visible = false
 		frameOpen = false
+		hideAllRegisteredGuis()
 	else
 		-- Tekan lagi: buka menu
 		triggerGuiOpen = true
