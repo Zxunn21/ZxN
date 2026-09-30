@@ -935,24 +935,18 @@ end
 
 -- Main menu
 trigger.Activated:Connect(function()
-	-- Jika main frame sedang terbuka, tutup saja (toggle)
-	if menuOpen and menuFrame.Visible then
+	-- Jika ada frame yang sedang terbuka, cukup tutup semua frame saja
+	-- (tidak membuka mainframe berisi menu)
+	if menuFrame.Visible or frameRideAPet.Visible or teleportFrame.Visible then
 		menuFrame.Visible = false
 		menuOpen = false
+		frameRideAPet.Visible = false
+		teleportFrame.Visible = false
+		frameOpen = false
 		return
 	end
 
-	-- Tutup semua frame lain yang sedang terbuka
-	frameRideAPet.Visible = false
-	teleportFrame.Visible = false
-	frameOpen = false
-
-	-- Matikan semua feature (tombol jadi OFF) karena frame ditutup
-	for _, turnOff in ipairs(featureStateRefs) do
-		turnOff()
-	end
-
-	-- Buka main frame
+	-- Tidak ada frame yang terbuka -> buka main frame
 	menuOpen = true
 	menuFrame.Visible = true
 end)
