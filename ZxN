@@ -976,7 +976,6 @@ local function anyRegisteredGuiVisible()
 					end
 				end
 			end
-			end
 		end
 	end
 	return false
@@ -985,6 +984,14 @@ end
 trigger.Activated:Connect(function()
 	-- Langkah 1: pastikan semua GUI dalam list guiToHide di-hide
 	hideAllRegisteredGuis()
+
+	-- Sinkronkan status tombol fitur menjadi OFF, karena GUI-nya
+	-- sudah di-hide. Tanpa ini, tombol masih "ON" sehingga saat
+	-- ditekan lagi malah berpindah ke OFF dan GUI tidak pernah
+	-- bisa ditampilkan kembali.
+	for _, turnOff in ipairs(featureStateRefs) do
+		turnOff()
+	end
 
 	-- Langkah 2: buka mainmenu hanya jika tidak ada GUI dalam list
 	-- yg sedang eksis (terlihat)
