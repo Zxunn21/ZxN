@@ -50,6 +50,33 @@ triggerStroke.Thickness = 2
 triggerStroke.Color = Color3.fromRGB(255, 255, 255)
 triggerStroke.Parent = trigger
 
+-- Tombol "<<" : membuka kembali frame terakhir yang ditutup.
+-- Hanya muncul ketika semua frame tertutup. Gaya sama seperti trigger.
+local reopenButton = Instance.new("TextButton")
+reopenButton.Name = "ReopenButton"
+reopenButton.Size = UDim2.fromOffset(40, 40)
+reopenButton.Position = UDim2.new(0.8, -8, 0, 10)
+reopenButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+reopenButton.BorderSizePixel = 0
+reopenButton.Text = "<<"
+reopenButton.TextColor3 = Color3.new(1, 1, 1)
+reopenButton.TextSize = 14
+reopenButton.Font = Enum.Font.GothamBold
+reopenButton.AutoButtonColor = true
+reopenButton.Active = true
+reopenButton.ZIndex = 1000
+reopenButton.Visible = false
+reopenButton.Parent = gui
+
+local reopenCorner = Instance.new("UICorner")
+reopenCorner.CornerRadius = UDim.new(1, 0)
+reopenCorner.Parent = reopenButton
+
+local reopenStroke = Instance.new("UIStroke")
+reopenStroke.Thickness = 2
+reopenStroke.Color = Color3.fromRGB(255, 255, 255)
+reopenStroke.Parent = reopenButton
+
 -- Menu
 local menuFrame = Instance.new("Frame")
 menuFrame.Name = "GameMenu"
@@ -1046,6 +1073,55 @@ local function makeDraggable(object)
 end
 
 makeDraggable(trigger)
+makeDraggable(reopenButton)
+
+-- === Logika tombol "<<" (buka kembali frame terakhir yang ditutup) ===
+-- Semua frame yang dilacak: menu utama, control frame, dan teleport frame.
+local trackedFrames = {
+	{ frame = menuFrame, onOpen = function() menuOpen = true end },
+	{ frame = frameRideAPet, onOpen = function() frameOpen = true end },
+	{ frame = teleportFrame },
+}
+
+local lastClosedFrame = nil
+local lastClosedOnOpen = nil
+
+local function updateReopenButton()
+	local allClosed = true
+	for _, entry in ipairs(trackedFrames) do
+		if entry.frame.Visible then
+			allClosed = false
+			break
+		end
+	end
+	-- Tombol hanya muncul jika semua frame tertutup
+	-- dan ada frame yang pernah ditutup
+	reopenButton.Visible = allClosed and lastClosedFrame ~= nil
+end
+
+for _, entry in ipairs(trackedFrames) do
+	entry.frame:GetPropertyChangedSignal("Visible"):Connect(function()
+		if entry.frame.Visible then
+			updateReopenButton()
+		else
+			-- Catat frame ini sebagai frame terakhir yang ditutup
+			lastClosedFrame = entry.frame
+			lastClosedOnOpen = entry.onOpen
+			-- Defer agar rangkaian perubahan (mis. buka frame lain) selesai dulu
+			task.defer(updateReopenButton)
+		end
+	end)
+end
+
+reopenButton.Activated:Connect(function()
+	if lastClosedFrame and lastClosedFrame.Parent then
+		lastClosedFrame.Visible = true
+		if lastClosedOnOpen then
+			lastClosedOnOpen()
+		end
+		updateReopenButton()
+	end
+end)
 
 -- Instant ProximityPrompt
 local function makePromptInstant(prompt)
