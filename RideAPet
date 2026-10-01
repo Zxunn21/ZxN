@@ -323,7 +323,7 @@ sortButton.Size = UDim2.fromOffset(110, 26)
 sortButton.Position = UDim2.new(0.9, -4, 0, 5)
 sortButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 sortButton.BorderSizePixel = 0
-sortButton.Text = "Sort: Luck"
+sortButton.Text = "Sort: Rarity"
 sortButton.TextColor3 = Color3.new(1, 1, 1)
 sortButton.TextSize = 13
 sortButton.Font = Enum.Font.GothamBold
@@ -334,55 +334,7 @@ local sortButtonCorner = Instance.new("UICorner")
 sortButtonCorner.CornerRadius = UDim.new(0, 6)
 sortButtonCorner.Parent = sortButton
 
-local sortDropdown = Instance.new("Frame")
-sortDropdown.Name = "SortDropdown"
-sortDropdown.Size = UDim2.fromOffset(110, 98)
-sortDropdown.Position = UDim2.new(0.8, 0, 0, 36)
-sortDropdown.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-sortDropdown.BorderSizePixel = 0
-sortDropdown.Visible = false
-sortDropdown.ZIndex = 705
-sortDropdown.Parent = eggListTopBar
-
-local sortDropdownCorner = Instance.new("UICorner")
-sortDropdownCorner.CornerRadius = UDim.new(0, 6)
-sortDropdownCorner.Parent = sortDropdown
-
-local sortDropdownStroke = Instance.new("UIStroke")
-sortDropdownStroke.Thickness = 1
-sortDropdownStroke.Color = Color3.fromRGB(100, 100, 100)
-sortDropdownStroke.Parent = sortDropdown
-
-local sortDropdownLayout = Instance.new("UIListLayout")
-sortDropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
-sortDropdownLayout.Padding = UDim.new(0, 4)
-sortDropdownLayout.Parent = sortDropdown
-
-local sortDropdownPadding = Instance.new("UIPadding")
-sortDropdownPadding.PaddingTop = UDim.new(0, 4)
-sortDropdownPadding.PaddingLeft = UDim.new(0, 4)
-sortDropdownPadding.PaddingRight = UDim.new(0, 4)
-sortDropdownPadding.Parent = sortDropdown
-
-local sortOptions = { "Luck", "Size", "Name" }
-for index, optionName in ipairs(sortOptions) do
-	local optionButton = Instance.new("TextButton")
-	optionButton.Name = optionName
-	optionButton.Size = UDim2.new(1, 0, 0, 26)
-	optionButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	optionButton.BorderSizePixel = 0
-	optionButton.Text = optionName
-	optionButton.TextColor3 = Color3.new(1, 1, 1)
-	optionButton.TextSize = 13
-	optionButton.Font = Enum.Font.GothamBold
-	optionButton.LayoutOrder = index
-	optionButton.ZIndex = 706
-	optionButton.Parent = sortDropdown
-
-	local optionCorner = Instance.new("UICorner")
-	optionCorner.CornerRadius = UDim.new(0, 6)
-	optionCorner.Parent = optionButton
-end
+-- (Dropdown sort dihapus: sort diganti dengan klik toggle Rarity / Size)
 
 -- Tombol close List Egg (pojok kanan topbar)
 local eggListCloseButton = Instance.new("TextButton")
@@ -734,7 +686,7 @@ local function getSizeText(model)
 end
 
 -- ===================== SORT =====================
-local sortMode = "Luck" -- default: Luck
+local sortMode = "Rarity" -- default: Rarity (berdasarkan nilai luck)
 
 -- Ubah teks luck seperti "20B", "1.5M", "500K" menjadi angka
 -- (B = Milyar, M = Juta, K = Ribu, dst)
@@ -848,6 +800,19 @@ local function tweenThroughPositions(positions, speed)
 	volcanoMoving = false
 end
 
+-- Teleport pemain ke posisi egg
+local function teleportToEgg(model)
+	local part = getEggPart(model)
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	if not part or not hrp then
+		return
+	end
+
+	-- Posisikan sedikit di atas egg supaya tidak menembus part
+	hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, part.Size.Y / 2 + 3, 0))
+end
+
 local function createEggRow(model, order)
 	local row = Instance.new("Frame")
 	row.Name = model.Name
@@ -864,7 +829,7 @@ local function createEggRow(model, order)
 
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "EggName"
-	nameLabel.Size = UDim2.new(0.32, -10, 1, 0)
+	nameLabel.Size = UDim2.new(0.26, -10, 1, 0)
 	nameLabel.Position = UDim2.fromOffset(10, 0)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = model.Name
@@ -878,8 +843,8 @@ local function createEggRow(model, order)
 
 	local luckLabel = Instance.new("TextLabel")
 	luckLabel.Name = "Luck"
-	luckLabel.Size = UDim2.new(0.24, 0, 1, 0)
-	luckLabel.Position = UDim2.new(0.32, 0, 0, 0)
+	luckLabel.Size = UDim2.new(0.20, 0, 1, 0)
+	luckLabel.Position = UDim2.new(0.26, 0, 0, 0)
 	luckLabel.BackgroundTransparency = 1
 	luckLabel.Text = "luck: " .. getLuckText(model)
 	luckLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
@@ -892,8 +857,8 @@ local function createEggRow(model, order)
 
 	local sizeLabel = Instance.new("TextLabel")
 	sizeLabel.Name = "Size"
-	sizeLabel.Size = UDim2.new(0.18, 0, 1, 0)
-	sizeLabel.Position = UDim2.new(0.56, 0, 0, 0)
+	sizeLabel.Size = UDim2.new(0.16, 0, 1, 0)
+	sizeLabel.Position = UDim2.new(0.46, 0, 0, 0)
 	sizeLabel.BackgroundTransparency = 1
 	sizeLabel.Text = "size: " .. getSizeText(model)
 	sizeLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
@@ -903,6 +868,27 @@ local function createEggRow(model, order)
 	sizeLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	sizeLabel.ZIndex = 702
 	sizeLabel.Parent = row
+
+	local teleportButton = Instance.new("TextButton")
+	teleportButton.Name = "TeleportButton"
+	teleportButton.Size = UDim2.fromOffset(70, 30)
+	teleportButton.Position = UDim2.new(1, -158, 0.5, -15)
+	teleportButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	teleportButton.BorderSizePixel = 0
+	teleportButton.Text = "Teleport"
+	teleportButton.TextColor3 = Color3.new(1, 1, 1)
+	teleportButton.TextSize = 14
+	teleportButton.Font = Enum.Font.GothamBold
+	teleportButton.ZIndex = 702
+	teleportButton.Parent = row
+
+	local teleportButtonCorner = Instance.new("UICorner")
+	teleportButtonCorner.CornerRadius = UDim.new(0, 7)
+	teleportButtonCorner.Parent = teleportButton
+
+	teleportButton.Activated:Connect(function()
+		teleportToEgg(model)
+	end)
 
 	local lineButton = Instance.new("TextButton")
 	lineButton.Name = "LineButton"
@@ -1061,17 +1047,13 @@ local function refreshEggList()
 	end
 
 	-- Urutkan sesuai mode sort
-	if sortMode == "Luck" then
+	if sortMode == "Rarity" then
 		table.sort(models, function(a, b)
 			return getLuckValue(a) > getLuckValue(b)
 		end)
-	elseif sortMode == "Size" then
+	else -- Size
 		table.sort(models, function(a, b)
 			return getSizeValue(a) > getSizeValue(b)
-		end)
-	else -- Name
-		table.sort(models, function(a, b)
-			return string.lower(a.Name) < string.lower(b.Name)
 		end)
 	end
 
@@ -1140,7 +1122,6 @@ end)
 -- Tombol close List Egg: tutup list, kembalikan MainFrame RideAPetGui
 eggListCloseButton.Activated:Connect(function()
 	eggListFrame.Visible = false
-	sortDropdown.Visible = false
 	local rideFrame = gui:FindFirstChild("MainFrame")
 	if rideFrame then
 		rideFrame.Visible = true
@@ -1148,44 +1129,19 @@ eggListCloseButton.Activated:Connect(function()
 	updateListEggToggle()
 end)
 
--- Interaksi dropdown sort
-local function updateSortOptionHighlight()
-	for _, child in ipairs(sortDropdown:GetChildren()) do
-		if child:IsA("TextButton") then
-			if child.Name == sortMode then
-				child.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-			else
-				child.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-			end
-		end
+-- Interaksi tombol sort: klik untuk toggle antara Rarity / Size
+sortButton.Activated:Connect(function()
+	if sortMode == "Rarity" then
+		sortMode = "Size"
+	else
+		sortMode = "Rarity"
 	end
-end
-
-local function selectSort(mode)
-	sortMode = mode
-	sortButton.Text = "Sort: " .. mode
-	sortDropdown.Visible = false
-	updateSortOptionHighlight()
+	sortButton.Text = "Sort: " .. sortMode
 
 	if eggListFrame.Visible then
 		refreshEggList()
 	end
-end
-
-sortButton.Activated:Connect(function()
-	sortDropdown.Visible = not sortDropdown.Visible
-	if sortDropdown.Visible then
-		updateSortOptionHighlight()
-	end
 end)
-
-for _, child in ipairs(sortDropdown:GetChildren()) do
-	if child:IsA("TextButton") then
-		child.Activated:Connect(function()
-			selectSort(child.Name)
-		end)
-	end
-end
 
 -- ===================== FRAME WAYPOINT =====================
 local wayPointFrame = Instance.new("Frame")
