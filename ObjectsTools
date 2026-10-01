@@ -188,7 +188,7 @@ local objectStartAttachments = {}
 local objectHighlights = {}
 local objectBillboards = {}
 local currentTargets = nil -- daftar target: { { type = "P"/"M"/"F", name = "..." }, ... }
-local modelHistory = {}     -- map: objectName (lowercase) -> originalName (model & part)
+local modelHistory = {}     -- map: objectName (lowercase) -> { name = ..., kind = "M"/"P" }
 local listExclusions = {}   -- set: objectName (lowercase) -> true
 local listFrame = nil       -- reference ke frame daftar model
 local listAllBtn = nil       -- reference ke tombol All di list frame
@@ -269,6 +269,23 @@ local function findObjects(targetType, targetName)
 	return results
 end
 
+-- Cek apakah part berada langsung dalam struktur container (bukan di dalam Model)
+-- Dipakai agar part loose di dalam folder (kedalaman berapa pun) masuk list,
+-- tapi part internal model (mis. Handle) tidak ikut
+local function isLoosePart(part, container)
+	if not part:IsA("BasePart") then return false end
+
+	local current = part.Parent
+	while current and current ~= container do
+		if current:IsA("Model") then
+			return false
+		end
+		current = current.Parent
+	end
+
+	return current == container
+end
+
 -- Ambil kandidat objek dari satu entri input
 -- Tipe entri: "P" = part, "M" = model, "MIF" = model in folder
 -- entry.exclude (opsional) = nama model yang dikecualikan (Exc)
@@ -283,7 +300,8 @@ local function getEntryTargets(entry)
 			local isContainer = obj:IsA("Folder") or obj:IsA("Model")
 			if isContainer and string.find(string.lower(obj.Name), wanted, 1, true) then
 				for _, descendant in ipairs(obj:GetDescendants()) do
-					if descendant:IsA("Model") then
+					if descendant:IsA("Model")
+						or (descendant:IsA("BasePart") and isLoosePart(descendant, obj)) then
 						table.insert(candidates, descendant)
 					end
 				end
@@ -517,7 +535,7 @@ local function scanModelHistory(targetList)
 			for _, obj in ipairs(findObjects(entry.type, entry.name)) do
 				local lowerName = string.lower(obj.Name)
 				if not modelHistory[lowerName] then
-					modelHistory[lowerName] = obj.Name
+					modelHistory[lowerName] = { name = obj.Name, kind = entry.type }
 					changed = true
 				end
 			end
@@ -527,10 +545,11 @@ local function scanModelHistory(targetList)
 				local isContainer = obj:IsA("Folder") or obj:IsA("Model")
 				if isContainer and string.find(string.lower(obj.Name), wanted, 1, true) then
 					for _, descendant in ipairs(obj:GetDescendants()) do
-						if descendant:IsA("Model") then
+						if descendant:IsA("Model")
+							or (descendant:IsA("BasePart") and isLoosePart(descendant, obj)) then
 							local lowerName = string.lower(descendant.Name)
 							if not modelHistory[lowerName] then
-								modelHistory[lowerName] = descendant.Name
+								modelHistory[lowerName] = { name = descendant.Name, kind = descendant:IsA("Model") and "M" or "P" }
 								changed = true
 							end
 						end
@@ -556,8 +575,10 @@ local function refreshListFrame()
 
 	-- Urutkan berdasarkan abjad
 	local names = {}
-	for lowerName, originalName in pairs(modelHistory) do
-		table.insert(names, { lower = lowerName, original = originalName })
+	for lowerName, info in pairs(modelHistory) do
+				local kind = (type(info) == "table" and info.kind) or "M"
+		local original = (type(info) == "table" and info.name) or info
+		table.insert(names, { lower = lowerName, original = original, kind = kind })
 	end
 	table.sort(names, function(a, b)
 		return a.lower < b.lower
@@ -575,8 +596,32 @@ local function refreshListFrame()
 		btn.TextSize = 12
 		btn.Font = Enum.Font.GothamBold
 		btn.TextXAlignment = Enum.TextXAlignment.Left
+		btn.TextTruncate = Enum.TextTruncate.AtEnd
 		btn.ZIndex = 11
 		btn.Parent = scroll
+
+		-- Badge [M] / [P] di sebelah kanan tiap item list
+		local badge = Instance.new("TextLabel")
+		badge.Name = "KindBadge"
+		badge.AnchorPoint = Vector2.new(1, 0.5)
+		badge.Position = UDim2.new(1, -8, 0.5, 0)
+		badge.Size = UDim2.new(0, 30, 0, 16)
+		badge.BorderSizePixel = 0
+		if info.kind == "P" then
+			badge.BackgroundColor3 = Color3.fromRGB(40, 130, 80)
+		else
+			badge.BackgroundColor3 = Color3.fromRGB(50, 100, 180)
+		end
+		badge.Text = "[" .. info.kind .. "]"
+		badge.TextColor3 = Color3.new(1, 1, 1)
+		badge.TextSize = 11
+		badge.Font = Enum.Font.GothamBold
+		badge.ZIndex = 12
+		badge.Parent = btn
+
+		local badgeCorner = Instance.new("UICorner")
+		badgeCorner.CornerRadius = UDim.new(0, 4)
+		badgeCorner.Parent = badge
 
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
@@ -940,6 +985,7 @@ local touchInterestEnabled = false
 local touchModelEnabled = false
 local touchHighlightModelEnabled = false
 local touchInterestHighlights = {}
+local touchInterestBillboards = {}
 local touchInterestModelHighlights = {}
 local touchInterestModelBillboards = {}
 
@@ -1014,6 +1060,99 @@ local function clearTouchInterestHighlights()
 	table.clear(touchInterestHighlights)
 end
 
+-- Helper: adornee yang aman untuk billboard model
+local function getModelBillboardAdornee(model)
+	return model.PrimaryPart
+		or model:FindFirstChildWhichIsA("BasePart", true)
+		or model
+end
+
+-- Helper: apakah model masih punya part dengan TouchInterest
+local function modelStillHasTouchInterest(model, ignorePart)
+	for _, d in ipairs(model:GetDescendants()) do
+		if d ~= ignorePart and hasTouchInterest(d) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Billboard nama untuk individual parts (ESP dengan nama part)
+local function addTouchInterestBillboard(part)
+	if not hasTouchInterest(part) then return end
+
+	local existing = touchInterestBillboards[part]
+	if existing then
+		if existing.Parent then
+			existing.Adornee = part
+			existing.Enabled = true
+			return
+		end
+		touchInterestBillboards[part] = nil
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ObjekTools_TouchInterestESP"
+	billboard.Adornee = part
+	billboard.Size = UDim2.new(0, 200, 0, 36)
+	billboard.StudsOffset = Vector3.new(0, 2, 0)
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.Parent = screenGui
+
+	-- Nama part (utama)
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "PartName"
+	nameLabel.Size = UDim2.new(1, 0, 0, 20)
+	nameLabel.Position = UDim2.fromOffset(0, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = part.Name
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextSize = 15
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+	nameLabel.Parent = billboard
+
+	-- Nama model induk (jika part ada di dalam model)
+	local model = findModelFromPart(part)
+	if model then
+		local modelLabel = Instance.new("TextLabel")
+		modelLabel.Name = "ModelName"
+		modelLabel.Size = UDim2.new(1, 0, 0, 14)
+		modelLabel.Position = UDim2.fromOffset(0, 21)
+		modelLabel.BackgroundTransparency = 1
+		modelLabel.Text = model.Name
+		modelLabel.TextColor3 = Color3.fromRGB(255, 180, 120)
+		modelLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+		modelLabel.TextStrokeTransparency = 0
+		modelLabel.TextSize = 12
+		modelLabel.Font = Enum.Font.Gotham
+		modelLabel.TextYAlignment = Enum.TextYAlignment.Center
+		modelLabel.Parent = billboard
+	end
+
+	touchInterestBillboards[part] = billboard
+end
+
+local function removeTouchInterestBillboard(part)
+	local billboard = touchInterestBillboards[part]
+	if billboard then
+		billboard:Destroy()
+	end
+	touchInterestBillboards[part] = nil
+end
+
+local function clearTouchInterestBillboards()
+	for part, billboard in pairs(touchInterestBillboards) do
+		if billboard then
+			billboard:Destroy()
+		end
+	end
+	table.clear(touchInterestBillboards)
+end
+
 -- Highlight untuk models
 local function addTouchInterestModelHighlight(model)
 	if touchInterestModelHighlights[model] then
@@ -1059,7 +1198,7 @@ local function addTouchInterestModelBillboard(model)
 	if touchInterestModelBillboards[model] then
 		local b = touchInterestModelBillboards[model]
 		if b and b.Parent then
-			b.Adornee = model
+			b.Adornee = getModelBillboardAdornee(model)
 			b.Enabled = true
 			return
 		end
@@ -1067,7 +1206,7 @@ local function addTouchInterestModelBillboard(model)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ObjekTools_TouchInterestModelESP"
-	billboard.Adornee = model
+	billboard.Adornee = getModelBillboardAdornee(model)
 	billboard.Size = UDim2.new(0, 200, 0, 50)
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
 	billboard.AlwaysOnTop = true
@@ -1130,10 +1269,11 @@ end
 local function applyTouchInterestESP()
 	if not touchInterestEnabled then return end
 
-	-- Highlight individual parts
+	-- Highlight + billboard nama untuk individual parts
 	for _, descendant in ipairs(workspace:GetDescendants()) do
 		if hasTouchInterest(descendant) then
 			addTouchInterestHighlight(descendant)
+			addTouchInterestBillboard(descendant)
 		end
 	end
 
@@ -1156,6 +1296,7 @@ local function setTouchInterestESP(state)
 		applyTouchInterestESP()
 	else
 		clearTouchInterestHighlights()
+		clearTouchInterestBillboards()
 		clearTouchInterestModelHighlights()
 		clearTouchInterestModelBillboards()
 	end
@@ -1206,6 +1347,7 @@ workspace.DescendantAdded:Connect(function(descendant)
 		local part = descendant.Parent
 		if part and part:IsA("BasePart") then
 			addTouchInterestHighlight(part)
+			addTouchInterestBillboard(part)
 			local model = findModelFromPart(part)
 			if model then
 				if touchHighlightModelEnabled then
@@ -1218,6 +1360,7 @@ workspace.DescendantAdded:Connect(function(descendant)
 		end
 	elseif hasTouchInterest(descendant) then
 		addTouchInterestHighlight(descendant)
+		addTouchInterestBillboard(descendant)
 		local model = findModelFromPart(descendant)
 		if model then
 			if touchHighlightModelEnabled then
