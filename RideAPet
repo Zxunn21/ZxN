@@ -1053,7 +1053,15 @@ local function refreshEggList()
 		end)
 	else -- Size
 		table.sort(models, function(a, b)
-			return getSizeValue(a) > getSizeValue(b)
+			local sizeA = getSizeValue(a)
+			local sizeB = getSizeValue(b)
+			-- Egg tanpa nilai size ("-", value -1) didahulukan paling atas
+			if sizeA == -1 and sizeB ~= -1 then
+				return true
+			elseif sizeB == -1 and sizeA ~= -1 then
+				return false
+			end
+			return sizeA > sizeB
 		end)
 	end
 
