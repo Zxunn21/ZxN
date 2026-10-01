@@ -162,7 +162,7 @@ local objectLineToggleCorner = Instance.new("UICorner")
 objectLineToggleCorner.CornerRadius = UDim.new(0, 8)
 objectLineToggleCorner.Parent = objectLineToggle
 
--- Tombol List (menampilkan daftar model yg pernah muncul di folder MIF)
+-- Tombol List (menampilkan daftar objek [model & part] yg pernah muncul)
 local objectListButton = Instance.new("TextButton")
 objectListButton.Name = "ObjectListButton"
 objectListButton.Size = UDim2.new(0, 50, 0, 40)
@@ -186,9 +186,10 @@ local objectBeams = {}
 local objectTargetParts = {}
 local objectStartAttachments = {}
 local objectHighlights = {}
-local currentTargets = nil -- daftar target: { { type = "P"/"M", name = "..." }, ... }
-local modelHistory = {}     -- map: modelName (lowercase) -> originalName
-local listExclusions = {}   -- set: modelName (lowercase) -> true
+local objectBillboards = {}
+local currentTargets = nil -- daftar target: { { type = "P"/"M"/"F", name = "..." }, ... }
+local modelHistory = {}     -- map: objectName (lowercase) -> originalName (model & part)
+local listExclusions = {}   -- set: objectName (lowercase) -> true
 local listFrame = nil       -- reference ke frame daftar model
 local listAllBtn = nil       -- reference ke tombol All di list frame
 
@@ -234,6 +235,11 @@ local function clearObjectLines()
 		if highlight and highlight.Parent then highlight:Destroy() end
 	end
 	table.clear(objectHighlights)
+
+	for _, billboard in ipairs(objectBillboards) do
+		if billboard and billboard.Parent then billboard:Destroy() end
+	end
+	table.clear(objectBillboards)
 end
 
 local function findObjects(targetType, targetName)
@@ -359,6 +365,29 @@ local function createObjectLines(targetList)
 			highlight.Parent = screenGui
 			table.insert(objectHighlights, highlight)
 
+			-- ESP nama objek (billboard di atas target)
+			local billboard = Instance.new("BillboardGui")
+			billboard.Name = "ObjekTools_ObjectLineESP"
+			billboard.Adornee = target
+			billboard.Size = UDim2.new(0, 200, 0, 30)
+			billboard.StudsOffset = Vector3.new(0, 3, 0)
+			billboard.AlwaysOnTop = true
+			billboard.LightInfluence = 0
+			billboard.Parent = screenGui
+			table.insert(objectBillboards, billboard)
+
+			local nameLabel = Instance.new("TextLabel")
+			nameLabel.Name = "ObjectESPName"
+			nameLabel.Size = UDim2.new(1, 0, 1, 0)
+			nameLabel.BackgroundTransparency = 1
+			nameLabel.Text = target.Name
+			nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+			nameLabel.TextStrokeTransparency = 0
+			nameLabel.TextSize = 16
+			nameLabel.Font = Enum.Font.GothamBold
+			nameLabel.Parent = billboard
+
 			local targetPart = Instance.new("Part")
 			targetPart.Name = "ObjectLineTarget"
 			targetPart.Anchored = true
@@ -479,11 +508,20 @@ objectLineToggle.Activated:Connect(function()
 	end
 end)
 
--- === FUNGSI LIST MODEL ===
+-- === FUNGSI LIST OBJEK (model + part) ===
 local function scanModelHistory(targetList)
 	local changed = false
 	for _, entry in ipairs(targetList or {}) do
-		if entry.type == "F" then
+		if entry.type == "P" or entry.type == "M" then
+			-- Part/model hasil pencarian input p/m juga masuk list
+			for _, obj in ipairs(findObjects(entry.type, entry.name)) do
+				local lowerName = string.lower(obj.Name)
+				if not modelHistory[lowerName] then
+					modelHistory[lowerName] = obj.Name
+					changed = true
+				end
+			end
+		elseif entry.type == "F" then
 			local wanted = string.lower(entry.name)
 			for _, obj in ipairs(workspace:GetDescendants()) do
 				local isContainer = obj:IsA("Folder") or obj:IsA("Model")
@@ -616,7 +654,7 @@ local function toggleListFrame()
 	titleLabel.Size = UDim2.new(0, 70, 0, 30)
 	titleLabel.Position = UDim2.fromOffset(5, 0)
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "Model List"
+	titleLabel.Text = "Object List"
 	titleLabel.TextColor3 = Color3.new(1, 1, 1)
 	titleLabel.TextSize = 14
 	titleLabel.Font = Enum.Font.GothamBold
