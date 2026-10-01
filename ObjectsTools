@@ -22,7 +22,7 @@ screenGui.Parent = playerGui
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.Size = UDim2.new(0.6, 0, 0.7, 0)
+mainFrame.Size = UDim2.new(0.6, 0, 0.8, 0)
 mainFrame.Position = UDim2.new(0.5, 0, 0.4, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.5
@@ -36,7 +36,7 @@ mainFrameCorner.Parent = mainFrame
 -- Topbar draggable
 local topBar = Instance.new("Frame")
 topBar.Name = "TopBar"
-topBar.Size = UDim2.new(1, 0, 0, 40)
+topBar.Size = UDim2.new(1, 0, 0, 30)
 topBar.Position = UDim2.new(0, 0, 0, 0)
 topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 topBar.BackgroundTransparency = 0.3
@@ -99,7 +99,7 @@ end)
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Name = "Content"
 contentFrame.Size = UDim2.new(1, -20, 1, -50)
-contentFrame.Position = UDim2.fromOffset(10, 45)
+contentFrame.Position = UDim2.fromOffset(10, 35)
 contentFrame.BackgroundTransparency = 1
 contentFrame.ScrollBarThickness = 6
 contentFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
@@ -127,7 +127,7 @@ objectInput.Position = UDim2.fromOffset(130, 5)
 objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 objectInput.BorderSizePixel = 0
 objectInput.Text = ""
-objectInput.PlaceholderText = "m snail, mif render exc basic + gold + fire"
+objectInput.PlaceholderText = "m snail, f render"
 objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 objectInput.TextColor3 = Color3.new(1, 1, 1)
 objectInput.TextSize = 13
@@ -190,6 +190,7 @@ local currentTargets = nil -- daftar target: { { type = "P"/"M", name = "..." },
 local modelHistory = {}     -- map: modelName (lowercase) -> originalName
 local listExclusions = {}   -- set: modelName (lowercase) -> true
 local listFrame = nil       -- reference ke frame daftar model
+local listAllBtn = nil       -- reference ke tombol All di list frame
 
 local function getObjectPosition(object)
 	if not object or not object.Parent then
@@ -268,7 +269,7 @@ end
 local function getEntryTargets(entry)
 	local candidates = {}
 
-	if entry.type == "MIF" then
+	if entry.type == "F" then
 		-- Model In Folder: semua model di dalam folder yang namanya cocok
 		local wanted = string.lower(entry.name)
 
@@ -284,34 +285,6 @@ local function getEntryTargets(entry)
 		end
 	else
 		candidates = findObjects(entry.type, entry.name)
-	end
-
-	-- Filter Exc: buang objek yang namanya cocok dengan salah satu kata kecuali
-	if entry.exclude then
-		local excluded = {}
-		for _, name in ipairs(entry.exclude) do
-			local trimmed = name:match("^%s*(.-)%s*$")
-			if trimmed ~= "" then
-				table.insert(excluded, string.lower(trimmed))
-			end
-		end
-		local filtered = {}
-
-		for _, obj in ipairs(candidates) do
-			local objName = string.lower(obj.Name)
-			local shouldExclude = false
-			for _, excl in ipairs(excluded) do
-				if string.find(objName, excl, 1, true) then
-					shouldExclude = true
-					break
-				end
-			end
-			if not shouldExclude then
-				table.insert(filtered, obj)
-			end
-		end
-
-		candidates = filtered
 	end
 
 	-- Filter list exclusions (dari tombol List UI)
@@ -439,9 +412,8 @@ local function parseObjectInput()
 	end
 
 	-- Support multi input dipisah koma, contoh: "m snail, m tiger, p block"
-	-- Format tiap entri: <tipe> <nama> [Exc <kecuali>]
-	-- tipe: p = part, m = model, mif = model in folder
-	-- Exc = kecualikan objek yang namanya cocok (contoh: "mif Rendere Exc goldeg")
+	-- Format tiap entri: <tipe> <nama>
+	-- tipe: p = part, m = model, f = model in folder
 	local targetList = {}
 	local validCount = 0
 
@@ -450,32 +422,12 @@ local function parseObjectInput()
 		if firstToken then
 			local entryType = string.lower(firstToken)
 			local mainName = rest
-			local excludeName = nil
 
-			-- Pisahkan bagian "Exc <nama>" jika ada
-			-- Exc mendukung multiple exclude dipisah "+", contoh: "mif render exc basic + gold + fire"
-			local mainPart, excPart = rest:match("^(.-)%s+[Ee][Xx][Cc]%s+(.+)%s*$")
-			if mainPart and mainPart ~= "" and excPart and excPart ~= "" then
-				mainName = mainPart
-				-- Split excPart by "+" untuk dapat multiple exclude names
-				local excludeList = {}
-				for excName in excPart:gmatch("[^+]+") do
-					local trimmed = excName:match("^%s*(.-)%s*$")
-					if trimmed ~= "" then
-						table.insert(excludeList, trimmed)
-					end
-				end
-				if #excludeList > 0 then
-					excludeName = excludeList
-				end
-			end
-
-			if (entryType == "p" or entryType == "m" or entryType == "mif") and mainName ~= "" then
+			if (entryType == "p" or entryType == "m" or entryType == "f") and mainName ~= "" then
 				validCount += 1
 				targetList[validCount] = {
 					type = string.upper(entryType),
 					name = mainName,
-					exclude = excludeName,
 				}
 			end
 		end
@@ -531,7 +483,7 @@ end)
 local function scanModelHistory(targetList)
 	local changed = false
 	for _, entry in ipairs(targetList or {}) do
-		if entry.type == "MIF" then
+		if entry.type == "F" then
 			local wanted = string.lower(entry.name)
 			for _, obj in ipairs(workspace:GetDescendants()) do
 				local isContainer = obj:IsA("Folder") or obj:IsA("Model")
@@ -614,6 +566,24 @@ local function refreshListFrame()
 		yOffset = yOffset + 35
 	end
 
+	-- Update All button text based on current state
+	if listAllBtn and listAllBtn.Parent then
+		local allExcluded = true
+		local hasAny = false
+		for lowerName in pairs(modelHistory) do
+			hasAny = true
+			if not listExclusions[lowerName] then
+				allExcluded = false
+				break
+			end
+		end
+		if hasAny and allExcluded then
+			listAllBtn.Text = "None"
+		else
+			listAllBtn.Text = "All"
+		end
+	end
+
 	scroll.CanvasSize = UDim2.new(0, 0, 0, yOffset)
 end
 
@@ -643,7 +613,7 @@ local function toggleListFrame()
 	frameCorner.Parent = listFrame
 
 	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(1, -40, 0, 30)
+	titleLabel.Size = UDim2.new(0, 70, 0, 30)
 	titleLabel.Position = UDim2.fromOffset(5, 0)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.Text = "Model List"
@@ -676,10 +646,84 @@ local function toggleListFrame()
 		listFrame.Visible = false
 	end)
 
+	-- Tombol Invers (invert selection)
+	local inversBtn = Instance.new("TextButton")
+	inversBtn.Size = UDim2.new(0, 90, 0, 30)
+	inversBtn.Position = UDim2.fromOffset(5, 30)
+	inversBtn.BackgroundColor3 = Color3.fromRGB(100, 80, 160)
+	inversBtn.BorderSizePixel = 0
+	inversBtn.Text = "Invers"
+	inversBtn.TextColor3 = Color3.new(1, 1, 1)
+	inversBtn.TextSize = 13
+	inversBtn.Font = Enum.Font.GothamBold
+	inversBtn.ZIndex = 11
+	inversBtn.Parent = listFrame
+
+	local inversCorner = Instance.new("UICorner")
+	inversCorner.CornerRadius = UDim.new(0, 6)
+	inversCorner.Parent = inversBtn
+
+	inversBtn.Activated:Connect(function()
+		for lowerName in pairs(modelHistory) do
+			if listExclusions[lowerName] then
+				listExclusions[lowerName] = nil
+			else
+				listExclusions[lowerName] = true
+			end
+		end
+		refreshListFrame()
+		if objectLineEnabled and currentTargets then
+			createObjectLines(currentTargets)
+		end
+	end)
+
+	-- Tombol All (select all / deselect all)
+	local allBtn = Instance.new("TextButton")
+	allBtn.Size = UDim2.new(0, 90, 0, 30)
+	allBtn.Position = UDim2.fromOffset(100, 30)
+	allBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 180)
+	allBtn.BorderSizePixel = 0
+	allBtn.Text = "All"
+	allBtn.TextColor3 = Color3.new(1, 1, 1)
+	allBtn.TextSize = 13
+	allBtn.Font = Enum.Font.GothamBold
+	allBtn.ZIndex = 11
+	allBtn.Parent = listFrame
+
+	local allCorner = Instance.new("UICorner")
+	allCorner.CornerRadius = UDim.new(0, 6)
+	allCorner.Parent = allBtn
+
+	listAllBtn = allBtn
+
+	allBtn.Activated:Connect(function()
+		local allExcluded = true
+		local hasAny = false
+		for lowerName in pairs(modelHistory) do
+			hasAny = true
+			if not listExclusions[lowerName] then
+				allExcluded = false
+				break
+			end
+		end
+
+		if hasAny and allExcluded then
+			table.clear(listExclusions)
+		else
+			for lowerName in pairs(modelHistory) do
+				listExclusions[lowerName] = true
+			end
+		end
+		refreshListFrame()
+		if objectLineEnabled and currentTargets then
+			createObjectLines(currentTargets)
+		end
+	end)
+
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "ListScroll"
-	scroll.Size = UDim2.new(1, -10, 1, -35)
-	scroll.Position = UDim2.fromOffset(5, 30)
+	scroll.Size = UDim2.new(1, -10, 1, -70)
+	scroll.Position = UDim2.fromOffset(5, 65)
 	scroll.BackgroundTransparency = 1
 	scroll.ScrollBarThickness = 4
 	scroll.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
