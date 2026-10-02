@@ -1377,37 +1377,28 @@ end)
 workspace.DescendantRemoving:Connect(function(descendant)
 	if descendant:IsA("TouchInterest") then
 		local part = descendant.Parent
-		if part then
-			removeTouchInterestHighlight(part)
-			if not part:FindFirstChild("TouchInterest") then
+		if part and part:IsA("BasePart") then
+			-- Cek dengan task.defer agar TouchInterest benar-benar sudah terhapus
+			task.defer(function()
+				if touchInterestEnabled and hasTouchInterest(part) then
+					return
+				end
+				removeTouchInterestHighlight(part)
+				removeTouchInterestBillboard(part)
 				local model = findModelFromPart(part)
-				if model then
-					local stillHas = false
-					for _, d in ipairs(model:GetDescendants()) do
-						if hasTouchInterest(d) then
-							stillHas = true
-							break
-						end
-					end
-					if not stillHas then
-						removeTouchInterestModelHighlight(model)
-						removeTouchInterestModelBillboard(model)
-					end
+				if model and not modelStillHasTouchInterest(model) then
+					removeTouchInterestModelHighlight(model)
+					removeTouchInterestModelBillboard(model)
 				end
-			end
+			end)
 		end
-	elseif touchInterestHighlights[descendant] then
-		removeTouchInterestHighlight(descendant)
-		local model = findModelFromPart(descendant)
-		if model then
-			local stillHas = false
-			for _, d in ipairs(model:GetDescendants()) do
-				if hasTouchInterest(d) then
-					stillHas = true
-					break
-				end
-			end
-			if not stillHas then
+	elseif descendant:IsA("BasePart") then
+		-- Part dengan ESP sedang dihapus
+		if touchInterestHighlights[descendant] or touchInterestBillboards[descendant] then
+			removeTouchInterestHighlight(descendant)
+			removeTouchInterestBillboard(descendant)
+			local model = findModelFromPart(descendant)
+			if model and not modelStillHasTouchInterest(model, descendant) then
 				removeTouchInterestModelHighlight(model)
 				removeTouchInterestModelBillboard(model)
 			end
