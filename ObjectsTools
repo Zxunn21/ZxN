@@ -180,6 +180,49 @@ local objectListButtonCorner = Instance.new("UICorner")
 objectListButtonCorner.CornerRadius = UDim.new(0, 8)
 objectListButtonCorner.Parent = objectListButton
 
+-- Input jarak scan Line to Object (studs; kosong = seluruh map)
+local objectDistanceInput = Instance.new("TextBox")
+objectDistanceInput.Name = "ObjectDistanceInput"
+objectDistanceInput.Size = UDim2.new(0, 60, 0, 40)
+objectDistanceInput.Position = UDim2.fromOffset(235, 5)
+objectDistanceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+objectDistanceInput.BorderSizePixel = 0
+objectDistanceInput.Text = ""
+objectDistanceInput.PlaceholderText = "Dist"
+objectDistanceInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+objectDistanceInput.TextColor3 = Color3.new(1, 1, 1)
+objectDistanceInput.TextSize = 13
+objectDistanceInput.Font = Enum.Font.GothamBold
+objectDistanceInput.ClearTextOnFocus = false
+objectDistanceInput.TextXAlignment = Enum.TextXAlignment.Center
+objectDistanceInput.Parent = contentFrame
+
+local objectDistanceInputCorner = Instance.new("UICorner")
+objectDistanceInputCorner.CornerRadius = UDim.new(0, 8)
+objectDistanceInputCorner.Parent = objectDistanceInput
+
+local objectDistanceInputStroke = Instance.new("UIStroke")
+objectDistanceInputStroke.Thickness = 2
+objectDistanceInputStroke.Color = Color3.fromRGB(210, 210, 210)
+objectDistanceInputStroke.Parent = objectDistanceInput
+
+-- Tombol Scan (on/off: list hanya menampilkan objek dalam radius jarak)
+local objectScanToggle = Instance.new("TextButton")
+objectScanToggle.Name = "ObjectScanToggle"
+objectScanToggle.Size = UDim2.new(0, 55, 0, 40)
+objectScanToggle.Position = UDim2.fromOffset(300, 5)
+objectScanToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+objectScanToggle.BorderSizePixel = 0
+objectScanToggle.Text = "Scan"
+objectScanToggle.TextColor3 = Color3.new(1, 1, 1)
+objectScanToggle.TextSize = 13
+objectScanToggle.Font = Enum.Font.GothamBold
+objectScanToggle.Parent = contentFrame
+
+local objectScanToggleCorner = Instance.new("UICorner")
+objectScanToggleCorner.CornerRadius = UDim.new(0, 8)
+objectScanToggleCorner.Parent = objectScanToggle
+
 -- LOGIKA LINE TO OBJECT
 local objectLineEnabled = false
 local objectBeams = {}
@@ -192,6 +235,8 @@ local modelHistory = {}     -- map: objectName (lowercase) -> { name = ..., kind
 local listExclusions = {}   -- set: objectName (lowercase) -> true
 local listFrame = nil       -- reference ke frame daftar model
 local listAllBtn = nil       -- reference ke tombol All di list frame
+local scanModeEnabled = false -- mode scan jarak (on/off)
+local scanNearbyNames = {}    -- set: nama objek (lowercase) yg dalam radius scan
 
 local function getObjectPosition(object)
 	if not object or not object.Parent then
@@ -576,9 +621,12 @@ local function refreshListFrame()
 	-- Urutkan berdasarkan abjad
 	local names = {}
 	for lowerName, info in pairs(modelHistory) do
+		-- Saat mode scan aktif, hanya tampilkan objek dalam radius scan
+		if not scanModeEnabled or scanNearbyNames[lowerName] then
 				local kind = (type(info) == "table" and info.kind) or "M"
-		local original = (type(info) == "table" and info.name) or info
-		table.insert(names, { lower = lowerName, original = original, kind = kind })
+			local original = (type(info) == "table" and info.name) or info
+			table.insert(names, { lower = lowerName, original = original, kind = kind })
+		end
 	end
 	table.sort(names, function(a, b)
 		return a.lower < b.lower
@@ -654,10 +702,12 @@ local function refreshListFrame()
 		local allExcluded = true
 		local hasAny = false
 		for lowerName in pairs(modelHistory) do
-			hasAny = true
-			if not listExclusions[lowerName] then
-				allExcluded = false
-				break
+			if not scanModeEnabled or scanNearbyNames[lowerName] then
+				hasAny = true
+				if not listExclusions[lowerName] then
+					allExcluded = false
+					break
+				end
 			end
 		end
 		if hasAny and allExcluded then
@@ -668,6 +718,82 @@ local function refreshListFrame()
 	end
 
 	scroll.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+end
+
+-- === MODE SCAN JARAK (Line to Object) ===
+-- Ambil jarak scan dari input (studs); kosong/0 = seluruh map
+local function getScanDistance()
+	local text = objectDistanceInput.Text:match("^%s*(.-)%s*$")
+	local num = tonumber(text)
+	if num and num > 0 then
+		return num
+	end
+	return nil
+end
+
+-- Cari semua model & part loose dalam radius dari pemain
+local function scanNearbyObjects()
+	local results = {}
+	local radius = getScanDistance()
+	local rootPart = getRootPart()
+	local character = player.Character
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		-- Lewati karakter pemain sendiri
+		if obj ~= character and not (character and obj:IsDescendantOf(character)) then
+			local isCandidate = obj:IsA("Model")
+				or (obj:IsA("BasePart") and isLoosePart(obj, workspace))
+
+			if isCandidate then
+				local position = getObjectPosition(obj)
+				if position then
+					local inRange = true
+					if radius and rootPart then
+						inRange = (position - rootPart.Position).Magnitude <= radius
+					end
+					if inRange then
+						table.insert(results, obj)
+					end
+				end
+			end
+		end
+	end
+
+	return results
+end
+
+-- Perbarui set nama objek dalam radius + refresh list
+local function updateScanList()
+	if not scanModeEnabled then
+		return
+	end
+
+	local nearby = scanNearbyObjects()
+
+	table.clear(scanNearbyNames)
+	for _, obj in ipairs(nearby) do
+		local lowerName = string.lower(obj.Name)
+		scanNearbyNames[lowerName] = true
+
+		if not modelHistory[lowerName] then
+			modelHistory[lowerName] = {
+				name = obj.Name,
+				kind = obj:IsA("Model") and "M" or "P",
+			}
+		end
+	end
+
+	if listFrame and listFrame.Visible then
+		refreshListFrame()
+	end
+end
+
+local function updateScanButton()
+	if scanModeEnabled then
+		objectScanToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	else
+		objectScanToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	end
 end
 
 local function toggleListFrame()
@@ -748,10 +874,12 @@ local function toggleListFrame()
 
 	inversBtn.Activated:Connect(function()
 		for lowerName in pairs(modelHistory) do
-			if listExclusions[lowerName] then
-				listExclusions[lowerName] = nil
-			else
-				listExclusions[lowerName] = true
+			if not scanModeEnabled or scanNearbyNames[lowerName] then
+				if listExclusions[lowerName] then
+					listExclusions[lowerName] = nil
+				else
+					listExclusions[lowerName] = true
+				end
 			end
 		end
 		refreshListFrame()
@@ -783,18 +911,33 @@ local function toggleListFrame()
 		local allExcluded = true
 		local hasAny = false
 		for lowerName in pairs(modelHistory) do
-			hasAny = true
-			if not listExclusions[lowerName] then
-				allExcluded = false
-				break
+			if not scanModeEnabled or scanNearbyNames[lowerName] then
+				hasAny = true
+				if not listExclusions[lowerName] then
+					allExcluded = false
+					break
+				end
 			end
 		end
 
 		if hasAny and allExcluded then
-			table.clear(listExclusions)
+			-- Saat mode scan, hanya hapus exclusion objek yg tampil
+			if scanModeEnabled then
+				for lowerName in pairs(scanNearbyNames) do
+					listExclusions[lowerName] = nil
+				end
+			else
+				table.clear(listExclusions)
+			end
 		else
-			for lowerName in pairs(modelHistory) do
-				listExclusions[lowerName] = true
+			if scanModeEnabled then
+				for lowerName in pairs(scanNearbyNames) do
+					listExclusions[lowerName] = true
+				end
+			else
+				for lowerName in pairs(modelHistory) do
+					listExclusions[lowerName] = true
+				end
 			end
 		end
 		refreshListFrame()
@@ -820,6 +963,32 @@ end
 
 objectListButton.Activated:Connect(function()
 	toggleListFrame()
+end)
+
+objectScanToggle.Activated:Connect(function()
+	scanModeEnabled = not scanModeEnabled
+	updateScanButton()
+
+	if scanModeEnabled then
+		-- Pastikan list frame tampil
+		if not listFrame or not listFrame.Parent then
+			toggleListFrame() -- buat + tampilkan list
+		elseif not listFrame.Visible then
+			listFrame.Visible = true
+		end
+		updateScanList()
+	else
+		table.clear(scanNearbyNames)
+		if listFrame and listFrame.Parent then
+			refreshListFrame()
+		end
+	end
+end)
+
+objectDistanceInput.FocusLost:Connect(function()
+	if scanModeEnabled then
+		updateScanList()
+	end
 end)
 
 objectInput.FocusLost:Connect(function()
@@ -869,9 +1038,16 @@ end
 task.spawn(function()
 	local RESCAN_INTERVAL = 1 -- detik, interval pemindaian ulang part/model baru
 	local lastRescan = os.clock()
+	local lastScanRescan = os.clock()
 
 	while objectInput and objectInput.Parent do
 		task.wait(0.1)
+
+		-- Mode scan jarak: pindai ulang objek dalam radius secara berkala
+		if scanModeEnabled and (os.clock() - lastScanRescan) >= RESCAN_INTERVAL then
+			lastScanRescan = os.clock()
+			updateScanList()
+		end
 
 		if objectLineEnabled and currentTargets then
 			local needsRefresh = false
@@ -914,6 +1090,7 @@ task.spawn(function()
 end)
 
 updateObjectLineButton()
+updateScanButton()
 
 -- === TOUCHINTEREST ESP ===
 local touchInterestLabel = Instance.new("TextLabel")
