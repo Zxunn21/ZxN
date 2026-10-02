@@ -103,7 +103,7 @@ contentFrame.Position = UDim2.fromOffset(10, 35)
 contentFrame.BackgroundTransparency = 1
 contentFrame.ScrollBarThickness = 6
 contentFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
-contentFrame.CanvasSize = UDim2.new(0, 0, 0, 240)
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 280)
 contentFrame.Parent = mainFrame
 
 -- === LINE TO OBJECT ===
@@ -127,7 +127,7 @@ objectInput.Position = UDim2.fromOffset(130, 5)
 objectInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 objectInput.BorderSizePixel = 0
 objectInput.Text = ""
-objectInput.PlaceholderText = "m snail, f render"
+objectInput.PlaceholderText = "M, P, F"
 objectInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 objectInput.TextColor3 = Color3.new(1, 1, 1)
 objectInput.TextSize = 13
@@ -1157,32 +1157,6 @@ local touchLineToggleCorner = Instance.new("UICorner")
 touchLineToggleCorner.CornerRadius = UDim.new(0, 8)
 touchLineToggleCorner.Parent = touchLineToggle
 
--- Input jarak scan (studs, jarak sekeliling pemain; kosong/0 = seluruh map)
-local touchDistanceInput = Instance.new("TextBox")
-touchDistanceInput.Name = "TouchDistanceInput"
-touchDistanceInput.Size = UDim2.new(0, 60, 0, 40)
-touchDistanceInput.Position = UDim2.fromOffset(325, 50)
-touchDistanceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-touchDistanceInput.BorderSizePixel = 0
-touchDistanceInput.Text = ""
-touchDistanceInput.PlaceholderText = "Dist"
-touchDistanceInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-touchDistanceInput.TextColor3 = Color3.new(1, 1, 1)
-touchDistanceInput.TextSize = 13
-touchDistanceInput.Font = Enum.Font.GothamBold
-touchDistanceInput.ClearTextOnFocus = false
-touchDistanceInput.TextXAlignment = Enum.TextXAlignment.Center
-touchDistanceInput.Parent = contentFrame
-
-local touchDistanceInputCorner = Instance.new("UICorner")
-touchDistanceInputCorner.CornerRadius = UDim.new(0, 8)
-touchDistanceInputCorner.Parent = touchDistanceInput
-
-local touchDistanceInputStroke = Instance.new("UIStroke")
-touchDistanceInputStroke.Thickness = 2
-touchDistanceInputStroke.Color = Color3.fromRGB(210, 210, 210)
-touchDistanceInputStroke.Parent = touchDistanceInput
-
 -- Tombol Highlight
 local touchHighlightToggle = Instance.new("TextButton")
 touchHighlightToggle.Name = "TouchHighlightToggle"
@@ -1204,13 +1178,10 @@ touchHighlightToggleCorner.Parent = touchHighlightToggle
 local touchInterestEnabled = false
 local touchNameEnabled = false
 local touchLineEnabled = false
-local touchHighlightModelEnabled = false
-local touchDistance = 0 -- 0 = tanpa batas (seluruh map)
+local touchHighlightEnabled = false
 local touchInterestHighlights = {}
 local touchInterestBillboards = {}
 local touchInterestLines = {}
-local touchInterestModelHighlights = {}
-local touchInterestModelBillboards = {}
 
 local function hasTouchInterest(part)
 	if not part or not part.Parent then return false end
@@ -1218,48 +1189,9 @@ local function hasTouchInterest(part)
 	return part:FindFirstChild("TouchInterest") ~= nil
 end
 
--- Cek jarak part dari pemain (filter jarak scan dalam studs)
-local function isWithinTouchDistance(part)
-	if touchDistance <= 0 then
-		return true
-	end
-
-	local rootPart = getRootPart()
-	if not rootPart then
-		return true
-	end
-
-	return (part.Position - rootPart.Position).Magnitude <= touchDistance
-end
-
-local function findModelFromPart(part)
-	local current = part.Parent
-	while current do
-		if current:IsA("Model") then
-			return current
-		end
-		current = current.Parent
-	end
-	return nil
-end
-
-local function getModelsFromTouchInterest()
-	local models = {}
-	for _, descendant in ipairs(workspace:GetDescendants()) do
-		if hasTouchInterest(descendant) then
-			local model = findModelFromPart(descendant)
-			if model then
-				models[model] = true
-			end
-		end
-	end
-	return models
-end
-
 -- Highlight untuk individual parts
 local function addTouchInterestHighlight(part)
 	if not hasTouchInterest(part) then return end
-	if not isWithinTouchDistance(part) then return end
 	if touchInterestHighlights[part] then
 		local h = touchInterestHighlights[part]
 		if h and h.Parent then
@@ -1298,27 +1230,9 @@ local function clearTouchInterestHighlights()
 	table.clear(touchInterestHighlights)
 end
 
--- Helper: adornee yang aman untuk billboard model
-local function getModelBillboardAdornee(model)
-	return model.PrimaryPart
-		or model:FindFirstChildWhichIsA("BasePart", true)
-		or model
-end
-
--- Helper: apakah model masih punya part dengan TouchInterest
-local function modelStillHasTouchInterest(model, ignorePart)
-	for _, d in ipairs(model:GetDescendants()) do
-		if d ~= ignorePart and hasTouchInterest(d) then
-			return true
-		end
-	end
-	return false
-end
-
 -- Billboard nama untuk individual parts (ESP dengan nama part)
 local function addTouchInterestBillboard(part)
 	if not hasTouchInterest(part) then return end
-	if not isWithinTouchDistance(part) then return end
 
 	local existing = touchInterestBillboards[part]
 	if existing then
@@ -1354,24 +1268,6 @@ local function addTouchInterestBillboard(part)
 	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
 	nameLabel.Parent = billboard
 
-	-- Nama model induk (jika part ada di dalam model)
-	local model = findModelFromPart(part)
-	if model then
-		local modelLabel = Instance.new("TextLabel")
-		modelLabel.Name = "ModelName"
-		modelLabel.Size = UDim2.new(1, 0, 0, 14)
-		modelLabel.Position = UDim2.fromOffset(0, 21)
-		modelLabel.BackgroundTransparency = 1
-		modelLabel.Text = model.Name
-		modelLabel.TextColor3 = Color3.fromRGB(255, 180, 120)
-		modelLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-		modelLabel.TextStrokeTransparency = 0
-		modelLabel.TextSize = 12
-		modelLabel.Font = Enum.Font.Gotham
-		modelLabel.TextYAlignment = Enum.TextYAlignment.Center
-		modelLabel.Parent = billboard
-	end
-
 	touchInterestBillboards[part] = billboard
 end
 
@@ -1395,7 +1291,6 @@ end
 -- Line (beam) dari pemain ke part TouchInterest
 local function addTouchInterestLine(part)
 	if not hasTouchInterest(part) then return end
-	if not isWithinTouchDistance(part) then return end
 
 	local rootPart = getRootPart()
 	if not rootPart then return end
@@ -1473,97 +1368,6 @@ local function clearTouchInterestLines()
 	table.clear(touchInterestLines)
 end
 
--- Highlight untuk models
-local function addTouchInterestModelHighlight(model)
-	if touchInterestModelHighlights[model] then
-		local h = touchInterestModelHighlights[model]
-		if h and h.Parent then
-			h.Adornee = model
-			h.Enabled = true
-			return
-		end
-	end
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "ObjekTools_TouchInterestModelHighlight"
-	highlight.Adornee = model
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.FillColor = Color3.fromRGB(255, 150, 50)
-	highlight.FillTransparency = 0.72
-	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-	highlight.OutlineTransparency = 0
-	highlight.Parent = screenGui
-	touchInterestModelHighlights[model] = highlight
-end
-
-local function removeTouchInterestModelHighlight(model)
-	local highlight = touchInterestModelHighlights[model]
-	if highlight then
-		highlight:Destroy()
-	end
-	touchInterestModelHighlights[model] = nil
-end
-
-local function clearTouchInterestModelHighlights()
-	for model, highlight in pairs(touchInterestModelHighlights) do
-		if highlight then
-			highlight:Destroy()
-		end
-	end
-	table.clear(touchInterestModelHighlights)
-end
-
--- Billboard untuk models
-local function addTouchInterestModelBillboard(model)
-	if touchInterestModelBillboards[model] then
-		local b = touchInterestModelBillboards[model]
-		if b and b.Parent then
-			b.Adornee = getModelBillboardAdornee(model)
-			b.Enabled = true
-			return
-		end
-	end
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "ObjekTools_TouchInterestModelESP"
-	billboard.Adornee = getModelBillboardAdornee(model)
-	billboard.Size = UDim2.new(0, 200, 0, 50)
-	billboard.StudsOffset = Vector3.new(0, 3, 0)
-	billboard.AlwaysOnTop = true
-	billboard.LightInfluence = 0
-	billboard.Parent = screenGui
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = model.Name
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-	label.TextStrokeTransparency = 0
-	label.TextSize = 18
-	label.Font = Enum.Font.GothamBold
-	label.Parent = billboard
-
-	touchInterestModelBillboards[model] = billboard
-end
-
-local function removeTouchInterestModelBillboard(model)
-	local billboard = touchInterestModelBillboards[model]
-	if billboard then
-		billboard:Destroy()
-	end
-	touchInterestModelBillboards[model] = nil
-end
-
-local function clearTouchInterestModelBillboards()
-	for model, billboard in pairs(touchInterestModelBillboards) do
-		if billboard then
-			billboard:Destroy()
-		end
-	end
-	table.clear(touchInterestModelBillboards)
-end
-
 local function updateTouchInterestButtons()
 	if touchNameEnabled then
 		touchNameToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -1577,7 +1381,7 @@ local function updateTouchInterestButtons()
 		touchLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 
-	if touchHighlightModelEnabled then
+	if touchHighlightEnabled then
 		touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
 		touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
@@ -1595,40 +1399,26 @@ end
 local function applyTouchInterestESP()
 	if not touchInterestEnabled then return end
 
-	-- Highlight + billboard nama + line untuk individual parts (hanya dalam jarak scan)
+	-- Highlight + billboard nama + line untuk BasePart dengan TouchInterest
 	for _, descendant in ipairs(workspace:GetDescendants()) do
 		if hasTouchInterest(descendant) then
-			if isWithinTouchDistance(descendant) then
+			if touchHighlightEnabled then
 				addTouchInterestHighlight(descendant)
-
-				if touchNameEnabled then
-					addTouchInterestBillboard(descendant)
-				else
-					removeTouchInterestBillboard(descendant)
-				end
-
-				if touchLineEnabled then
-					addTouchInterestLine(descendant)
-				else
-					removeTouchInterestLine(descendant)
-				end
 			else
-				-- Di luar jarak scan: hapus ESP agar tidak menumpuk
 				removeTouchInterestHighlight(descendant)
+			end
+
+			if touchNameEnabled then
+				addTouchInterestBillboard(descendant)
+			else
 				removeTouchInterestBillboard(descendant)
+			end
+
+			if touchLineEnabled then
+				addTouchInterestLine(descendant)
+			else
 				removeTouchInterestLine(descendant)
 			end
-		end
-	end
-
-	-- Highlight dan billboard untuk models
-	local models = getModelsFromTouchInterest()
-	for model in pairs(models) do
-		if touchHighlightModelEnabled then
-			addTouchInterestModelHighlight(model)
-		end
-		if touchNameEnabled then
-			addTouchInterestModelBillboard(model)
 		end
 	end
 end
@@ -1642,18 +1432,9 @@ local function setTouchInterestESP(state)
 		clearTouchInterestHighlights()
 		clearTouchInterestBillboards()
 		clearTouchInterestLines()
-		clearTouchInterestModelHighlights()
-		clearTouchInterestModelBillboards()
 	end
 
 	updateTouchInterestButtons()
-end
-
-local function refreshTouchInterestESP()
-	if not touchInterestEnabled then return end
-	clearTouchInterestModelHighlights()
-	clearTouchInterestModelBillboards()
-	applyTouchInterestESP()
 end
 
 -- Master toggle
@@ -1666,7 +1447,6 @@ touchNameToggle.Activated:Connect(function()
 	touchNameEnabled = not touchNameEnabled
 	if not touchNameEnabled then
 		clearTouchInterestBillboards()
-		clearTouchInterestModelBillboards()
 	end
 	if touchInterestEnabled then
 		applyTouchInterestESP()
@@ -1686,41 +1466,13 @@ touchLineToggle.Activated:Connect(function()
 	updateTouchInterestButtons()
 end)
 
--- Input jarak scan (studs, jarak sekeliling pemain yang di-scan)
-local function parseTouchDistance()
-	local text = touchDistanceInput.Text:match("^%s*(.-)%s*$")
-	if text == "" then
-		touchDistance = 0
-	else
-		local num = tonumber(text)
-		touchDistance = (num and num > 0) and num or 0
-	end
-end
-
-touchDistanceInput.FocusLost:Connect(function()
-	parseTouchDistance()
-	if touchInterestEnabled then
-		applyTouchInterestESP()
-	end
-end)
-
--- Rescan berkala agar filter jarak mengikuti posisi pemain
-task.spawn(function()
-	while screenGui.Parent do
-		task.wait(1)
-		if touchInterestEnabled then
-			applyTouchInterestESP()
-		end
-	end
-end)
-
--- Highlight model sub-toggle
+-- Highlight sub-toggle
 touchHighlightToggle.Activated:Connect(function()
-	touchHighlightModelEnabled = not touchHighlightModelEnabled
-	if not touchHighlightModelEnabled then
-		clearTouchInterestModelHighlights()
+	touchHighlightEnabled = not touchHighlightEnabled
+	if not touchHighlightEnabled then
+		clearTouchInterestHighlights()
 	end
-	if touchInterestEnabled and touchHighlightModelEnabled then
+	if touchInterestEnabled then
 		applyTouchInterestESP()
 	end
 	updateTouchInterestButtons()
@@ -1731,7 +1483,7 @@ workspace.DescendantAdded:Connect(function(descendant)
 	if not touchInterestEnabled then return end
 	if descendant:IsA("TouchInterest") then
 		local part = descendant.Parent
-		if part and part:IsA("BasePart") and isWithinTouchDistance(part) then
+		if part and part:IsA("BasePart") then
 			addTouchInterestHighlight(part)
 			if touchNameEnabled then
 				addTouchInterestBillboard(part)
@@ -1739,32 +1491,14 @@ workspace.DescendantAdded:Connect(function(descendant)
 			if touchLineEnabled then
 				addTouchInterestLine(part)
 			end
-			local model = findModelFromPart(part)
-			if model then
-				if touchHighlightModelEnabled then
-					addTouchInterestModelHighlight(model)
-				end
-				if touchNameEnabled then
-					addTouchInterestModelBillboard(model)
-				end
-			end
 		end
-	elseif hasTouchInterest(descendant) and isWithinTouchDistance(descendant) then
+	elseif descendant:IsA("BasePart") and hasTouchInterest(descendant) then
 		addTouchInterestHighlight(descendant)
 		if touchNameEnabled then
 			addTouchInterestBillboard(descendant)
 		end
 		if touchLineEnabled then
 			addTouchInterestLine(descendant)
-		end
-		local model = findModelFromPart(descendant)
-		if model then
-			if touchHighlightModelEnabled then
-				addTouchInterestModelHighlight(model)
-			end
-			if touchNameEnabled then
-				addTouchInterestModelBillboard(model)
-			end
 		end
 	end
 end)
@@ -1782,11 +1516,6 @@ workspace.DescendantRemoving:Connect(function(descendant)
 				removeTouchInterestHighlight(part)
 				removeTouchInterestBillboard(part)
 				removeTouchInterestLine(part)
-				local model = findModelFromPart(part)
-				if model and not modelStillHasTouchInterest(model) then
-					removeTouchInterestModelHighlight(model)
-					removeTouchInterestModelBillboard(model)
-				end
 			end)
 		end
 	elseif descendant:IsA("BasePart") then
@@ -1795,15 +1524,7 @@ workspace.DescendantRemoving:Connect(function(descendant)
 			removeTouchInterestHighlight(descendant)
 			removeTouchInterestBillboard(descendant)
 			removeTouchInterestLine(descendant)
-			local model = findModelFromPart(descendant)
-			if model and not modelStillHasTouchInterest(model, descendant) then
-				removeTouchInterestModelHighlight(model)
-				removeTouchInterestModelBillboard(model)
-			end
 		end
-	elseif descendant:IsA("Model") then
-		removeTouchInterestModelHighlight(descendant)
-		removeTouchInterestModelBillboard(descendant)
 	end
 end)
 
@@ -2660,3 +2381,120 @@ task.spawn(function()
 end)
 
 updateProximityToggleButtons()
+
+-- === DELATE FAR OBJECTS ===
+local delateFarLabel = Instance.new("TextLabel")
+delateFarLabel.Name = "DelateFarLabel"
+delateFarLabel.Size = UDim2.new(0, 120, 0, 40)
+delateFarLabel.Position = UDim2.fromOffset(5, 230)
+delateFarLabel.BackgroundTransparency = 1
+delateFarLabel.Text = "Delate Far Objects"
+delateFarLabel.TextColor3 = Color3.new(1, 1, 1)
+delateFarLabel.TextSize = 14
+delateFarLabel.Font = Enum.Font.GothamBold
+delateFarLabel.TextXAlignment = Enum.TextXAlignment.Left
+delateFarLabel.TextYAlignment = Enum.TextYAlignment.Center
+delateFarLabel.Parent = contentFrame
+
+-- Input jarak maksimum (studs); objek lebih jauh dari ini akan dihapus
+local delateFarInput = Instance.new("TextBox")
+delateFarInput.Name = "DelateFarInput"
+delateFarInput.Size = UDim2.new(0, 60, 0, 40)
+delateFarInput.Position = UDim2.fromOffset(130, 230)
+delateFarInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+delateFarInput.BorderSizePixel = 0
+delateFarInput.Text = "500"
+delateFarInput.PlaceholderText = "Dist"
+delateFarInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+delateFarInput.TextColor3 = Color3.new(1, 1, 1)
+delateFarInput.TextSize = 13
+delateFarInput.Font = Enum.Font.GothamBold
+delateFarInput.ClearTextOnFocus = false
+delateFarInput.TextXAlignment = Enum.TextXAlignment.Center
+delateFarInput.Parent = contentFrame
+
+local delateFarInputCorner = Instance.new("UICorner")
+delateFarInputCorner.CornerRadius = UDim.new(0, 8)
+delateFarInputCorner.Parent = delateFarInput
+
+local delateFarInputStroke = Instance.new("UIStroke")
+delateFarInputStroke.Thickness = 2
+delateFarInputStroke.Color = Color3.fromRGB(210, 210, 210)
+delateFarInputStroke.Parent = delateFarInput
+
+-- Tombol Delate (hapus objek yang lebih jauh dari jarak input)
+local delateFarButton = Instance.new("TextButton")
+delateFarButton.Name = "DelateFarButton"
+delateFarButton.Size = UDim2.new(0, 60, 0, 40)
+delateFarButton.AnchorPoint = Vector2.new(1, 0)
+delateFarButton.Position = UDim2.new(1, -5, 0, 230)
+delateFarButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+delateFarButton.BorderSizePixel = 0
+delateFarButton.Text = "Delate"
+delateFarButton.TextColor3 = Color3.new(1, 1, 1)
+delateFarButton.TextSize = 13
+delateFarButton.Font = Enum.Font.GothamBold
+delateFarButton.Parent = contentFrame
+
+local delateFarButtonCorner = Instance.new("UICorner")
+delateFarButtonCorner.CornerRadius = UDim.new(0, 8)
+delateFarButtonCorner.Parent = delateFarButton
+
+-- LOGIKA DELATE FAR OBJECTS
+delateFarButton.Activated:Connect(function()
+	local character = player.Character
+	if not character then return end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local maxDistance = tonumber(delateFarInput.Text)
+	if not maxDistance or maxDistance < 0 then
+		delateFarInput.Text = ""
+		delateFarInput.PlaceholderText = "Masukkan angka!"
+		return
+	end
+
+	local origin = root.Position
+	local deleted = 0
+
+	for _, object in ipairs(workspace:GetDescendants()) do
+		if object:IsA("BasePart") or object:IsA("Model") then
+			if not object:IsDescendantOf(character) then
+				local position
+
+				if object:IsA("BasePart") then
+					position = object.Position
+				elseif object:IsA("Model") then
+					local primary = object.PrimaryPart
+
+					if primary then
+						position = primary.Position
+					else
+						local part = object:FindFirstChildWhichIsA("BasePart", true)
+						if part then
+							position = part.Position
+						end
+					end
+				end
+
+				if position then
+					local distance = (position - origin).Magnitude
+
+					if distance > maxDistance then
+						object:Destroy()
+						deleted += 1
+					end
+				end
+			end
+		end
+	end
+
+	delateFarButton.Text = "Del: " .. deleted
+
+	task.delay(1.5, function()
+		if delateFarButton and delateFarButton.Parent then
+			delateFarButton.Text = "Delate"
+		end
+	end)
+end)
