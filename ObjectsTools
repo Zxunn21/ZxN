@@ -946,71 +946,28 @@ local touchInterestToggleCorner = Instance.new("UICorner")
 touchInterestToggleCorner.CornerRadius = UDim.new(0, 8)
 touchInterestToggleCorner.Parent = touchInterestToggle
 
--- Tombol Name (ESP nama part)
-local touchNameToggle = Instance.new("TextButton")
-touchNameToggle.Name = "TouchNameToggle"
-touchNameToggle.Size = UDim2.new(0, 55, 0, 40)
-touchNameToggle.Position = UDim2.fromOffset(130, 50)
-touchNameToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-touchNameToggle.BorderSizePixel = 0
-touchNameToggle.Text = "Name"
-touchNameToggle.TextColor3 = Color3.new(1, 1, 1)
-touchNameToggle.TextSize = 13
-touchNameToggle.Font = Enum.Font.GothamBold
-touchNameToggle.Parent = contentFrame
+-- Tombol Model (ESP nama model)
+local touchModelToggle = Instance.new("TextButton")
+touchModelToggle.Name = "TouchModelToggle"
+touchModelToggle.Size = UDim2.new(0, 60, 0, 40)
+touchModelToggle.Position = UDim2.fromOffset(130, 50)
+touchModelToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+touchModelToggle.BorderSizePixel = 0
+touchModelToggle.Text = "Model"
+touchModelToggle.TextColor3 = Color3.new(1, 1, 1)
+touchModelToggle.TextSize = 13
+touchModelToggle.Font = Enum.Font.GothamBold
+touchModelToggle.Parent = contentFrame
 
-local touchNameToggleCorner = Instance.new("UICorner")
-touchNameToggleCorner.CornerRadius = UDim.new(0, 8)
-touchNameToggleCorner.Parent = touchNameToggle
-
--- Tombol Line (garis dari pemain ke part)
-local touchLineToggle = Instance.new("TextButton")
-touchLineToggle.Name = "TouchLineToggle"
-touchLineToggle.Size = UDim2.new(0, 55, 0, 40)
-touchLineToggle.Position = UDim2.fromOffset(190, 50)
-touchLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-touchLineToggle.BorderSizePixel = 0
-touchLineToggle.Text = "Line"
-touchLineToggle.TextColor3 = Color3.new(1, 1, 1)
-touchLineToggle.TextSize = 13
-touchLineToggle.Font = Enum.Font.GothamBold
-touchLineToggle.Parent = contentFrame
-
-local touchLineToggleCorner = Instance.new("UICorner")
-touchLineToggleCorner.CornerRadius = UDim.new(0, 8)
-touchLineToggleCorner.Parent = touchLineToggle
-
--- Input jarak scan (studs, jarak sekeliling pemain; kosong/0 = seluruh map)
-local touchDistanceInput = Instance.new("TextBox")
-touchDistanceInput.Name = "TouchDistanceInput"
-touchDistanceInput.Size = UDim2.new(0, 60, 0, 40)
-touchDistanceInput.Position = UDim2.fromOffset(325, 50)
-touchDistanceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-touchDistanceInput.BorderSizePixel = 0
-touchDistanceInput.Text = ""
-touchDistanceInput.PlaceholderText = "Dist"
-touchDistanceInput.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
-touchDistanceInput.TextColor3 = Color3.new(1, 1, 1)
-touchDistanceInput.TextSize = 13
-touchDistanceInput.Font = Enum.Font.GothamBold
-touchDistanceInput.ClearTextOnFocus = false
-touchDistanceInput.TextXAlignment = Enum.TextXAlignment.Center
-touchDistanceInput.Parent = contentFrame
-
-local touchDistanceInputCorner = Instance.new("UICorner")
-touchDistanceInputCorner.CornerRadius = UDim.new(0, 8)
-touchDistanceInputCorner.Parent = touchDistanceInput
-
-local touchDistanceInputStroke = Instance.new("UIStroke")
-touchDistanceInputStroke.Thickness = 2
-touchDistanceInputStroke.Color = Color3.fromRGB(210, 210, 210)
-touchDistanceInputStroke.Parent = touchDistanceInput
+local touchModelToggleCorner = Instance.new("UICorner")
+touchModelToggleCorner.CornerRadius = UDim.new(0, 8)
+touchModelToggleCorner.Parent = touchModelToggle
 
 -- Tombol Highlight
 local touchHighlightToggle = Instance.new("TextButton")
 touchHighlightToggle.Name = "TouchHighlightToggle"
 touchHighlightToggle.Size = UDim2.new(0, 70, 0, 40)
-touchHighlightToggle.Position = UDim2.fromOffset(250, 50)
+touchHighlightToggle.Position = UDim2.fromOffset(195, 50)
 touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 touchHighlightToggle.BorderSizePixel = 0
 touchHighlightToggle.Text = "Highlight"
@@ -1025,13 +982,10 @@ touchHighlightToggleCorner.Parent = touchHighlightToggle
 
 -- LOGIKA TOUCHINTEREST ESP
 local touchInterestEnabled = false
-local touchNameEnabled = false
-local touchLineEnabled = false
+local touchModelEnabled = false
 local touchHighlightModelEnabled = false
-local touchDistance = 0 -- 0 = tanpa batas (seluruh map)
 local touchInterestHighlights = {}
 local touchInterestBillboards = {}
-local touchInterestLines = {}
 local touchInterestModelHighlights = {}
 local touchInterestModelBillboards = {}
 
@@ -1039,20 +993,6 @@ local function hasTouchInterest(part)
 	if not part or not part.Parent then return false end
 	if not part:IsA("BasePart") then return false end
 	return part:FindFirstChild("TouchInterest") ~= nil
-end
-
--- Cek jarak part dari pemain (filter jarak scan dalam studs)
-local function isWithinTouchDistance(part)
-	if touchDistance <= 0 then
-		return true
-	end
-
-	local rootPart = getRootPart()
-	if not rootPart then
-		return true
-	end
-
-	return (part.Position - rootPart.Position).Magnitude <= touchDistance
 end
 
 local function findModelFromPart(part)
@@ -1082,7 +1022,6 @@ end
 -- Highlight untuk individual parts
 local function addTouchInterestHighlight(part)
 	if not hasTouchInterest(part) then return end
-	if not isWithinTouchDistance(part) then return end
 	if touchInterestHighlights[part] then
 		local h = touchInterestHighlights[part]
 		if h and h.Parent then
@@ -1141,7 +1080,6 @@ end
 -- Billboard nama untuk individual parts (ESP dengan nama part)
 local function addTouchInterestBillboard(part)
 	if not hasTouchInterest(part) then return end
-	if not isWithinTouchDistance(part) then return end
 
 	local existing = touchInterestBillboards[part]
 	if existing then
@@ -1213,87 +1151,6 @@ local function clearTouchInterestBillboards()
 		end
 	end
 	table.clear(touchInterestBillboards)
-end
-
--- Line (beam) dari pemain ke part TouchInterest
-local function addTouchInterestLine(part)
-	if not hasTouchInterest(part) then return end
-	if not isWithinTouchDistance(part) then return end
-
-	local rootPart = getRootPart()
-	if not rootPart then return end
-
-	-- Cegah duplikat: jika line sudah ada dan masih valid, cukup update posisi
-	local existing = touchInterestLines[part]
-	if existing then
-		if existing.beam and existing.beam.Parent
-			and existing.anchor and existing.anchor.Parent
-			and existing.startAtt and existing.startAtt.Parent then
-			existing.anchor.Position = part.Position
-			return
-		end
-		touchInterestLines[part] = nil
-	end
-
-	local anchor = Instance.new("Part")
-	anchor.Name = "TouchInterestLineAnchor"
-	anchor.Anchored = true
-	anchor.CanCollide = false
-	anchor.CanTouch = false
-	anchor.CanQuery = false
-	anchor.CastShadow = false
-	anchor.Transparency = 1
-	anchor.Size = Vector3.new(0.1, 0.1, 0.1)
-	anchor.Position = part.Position
-	anchor.Parent = workspace
-
-	local startAtt = Instance.new("Attachment")
-	startAtt.Name = "TouchInterestLineStart"
-	startAtt.Parent = rootPart
-
-	local endAtt = Instance.new("Attachment")
-	endAtt.Name = "TouchInterestLineEnd"
-	endAtt.Parent = anchor
-
-	local beam = Instance.new("Beam")
-	beam.Name = "TouchInterestLineBeam"
-	beam.Attachment0 = startAtt
-	beam.Attachment1 = endAtt
-	beam.Width0 = 0.3
-	beam.Width1 = 0.3
-	beam.Color = ColorSequence.new(Color3.fromRGB(255, 100, 255))
-	beam.Transparency = NumberSequence.new(0)
-	beam.FaceCamera = true
-	beam.LightEmission = 1
-	beam.Segments = 1
-	beam.Parent = anchor
-
-	touchInterestLines[part] = {
-		anchor = anchor,
-		beam = beam,
-		startAtt = startAtt,
-		endAtt = endAtt,
-	}
-end
-
-local function removeTouchInterestLine(part)
-	local data = touchInterestLines[part]
-	if data then
-		if data.anchor and data.anchor.Parent then
-			data.anchor:Destroy()
-		end
-		if data.startAtt and data.startAtt.Parent then
-			data.startAtt:Destroy()
-		end
-		touchInterestLines[part] = nil
-	end
-end
-
-local function clearTouchInterestLines()
-	for part in pairs(touchInterestLines) do
-		removeTouchInterestLine(part)
-	end
-	table.clear(touchInterestLines)
 end
 
 -- Highlight untuk models
@@ -1388,16 +1245,10 @@ local function clearTouchInterestModelBillboards()
 end
 
 local function updateTouchInterestButtons()
-	if touchNameEnabled then
-		touchNameToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
+	if touchModelEnabled then
+		touchModelToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
-		touchNameToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-	end
-
-	if touchLineEnabled then
-		touchLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
-	else
-		touchLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		touchModelToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 
 	if touchHighlightModelEnabled then
@@ -1418,29 +1269,11 @@ end
 local function applyTouchInterestESP()
 	if not touchInterestEnabled then return end
 
-	-- Highlight + billboard nama + line untuk individual parts (hanya dalam jarak scan)
+	-- Highlight + billboard nama untuk individual parts
 	for _, descendant in ipairs(workspace:GetDescendants()) do
 		if hasTouchInterest(descendant) then
-			if isWithinTouchDistance(descendant) then
-				addTouchInterestHighlight(descendant)
-
-				if touchNameEnabled then
-					addTouchInterestBillboard(descendant)
-				else
-					removeTouchInterestBillboard(descendant)
-				end
-
-				if touchLineEnabled then
-					addTouchInterestLine(descendant)
-				else
-					removeTouchInterestLine(descendant)
-				end
-			else
-				-- Di luar jarak scan: hapus ESP agar tidak menumpuk
-				removeTouchInterestHighlight(descendant)
-				removeTouchInterestBillboard(descendant)
-				removeTouchInterestLine(descendant)
-			end
+			addTouchInterestHighlight(descendant)
+			addTouchInterestBillboard(descendant)
 		end
 	end
 
@@ -1450,7 +1283,7 @@ local function applyTouchInterestESP()
 		if touchHighlightModelEnabled then
 			addTouchInterestModelHighlight(model)
 		end
-		if touchNameEnabled then
+		if touchModelEnabled then
 			addTouchInterestModelBillboard(model)
 		end
 	end
@@ -1464,7 +1297,6 @@ local function setTouchInterestESP(state)
 	else
 		clearTouchInterestHighlights()
 		clearTouchInterestBillboards()
-		clearTouchInterestLines()
 		clearTouchInterestModelHighlights()
 		clearTouchInterestModelBillboards()
 	end
@@ -1484,57 +1316,16 @@ touchInterestToggle.Activated:Connect(function()
 	setTouchInterestESP(not touchInterestEnabled)
 end)
 
--- Name sub-toggle (ESP nama part)
-touchNameToggle.Activated:Connect(function()
-	touchNameEnabled = not touchNameEnabled
-	if not touchNameEnabled then
-		clearTouchInterestBillboards()
+-- Model sub-toggle
+touchModelToggle.Activated:Connect(function()
+	touchModelEnabled = not touchModelEnabled
+	if not touchModelEnabled then
 		clearTouchInterestModelBillboards()
 	end
-	if touchInterestEnabled then
+	if touchInterestEnabled and touchModelEnabled then
 		applyTouchInterestESP()
 	end
 	updateTouchInterestButtons()
-end)
-
--- Line sub-toggle (garis dari pemain ke part)
-touchLineToggle.Activated:Connect(function()
-	touchLineEnabled = not touchLineEnabled
-	if not touchLineEnabled then
-		clearTouchInterestLines()
-	end
-	if touchInterestEnabled then
-		applyTouchInterestESP()
-	end
-	updateTouchInterestButtons()
-end)
-
--- Input jarak scan (studs, jarak sekeliling pemain yang di-scan)
-local function parseTouchDistance()
-	local text = touchDistanceInput.Text:match("^%s*(.-)%s*$")
-	if text == "" then
-		touchDistance = 0
-	else
-		local num = tonumber(text)
-		touchDistance = (num and num > 0) and num or 0
-	end
-end
-
-touchDistanceInput.FocusLost:Connect(function()
-	parseTouchDistance()
-	if touchInterestEnabled then
-		applyTouchInterestESP()
-	end
-end)
-
--- Rescan berkala agar filter jarak mengikuti posisi pemain
-task.spawn(function()
-	while screenGui.Parent do
-		task.wait(1)
-		if touchInterestEnabled then
-			applyTouchInterestESP()
-		end
-	end
 end)
 
 -- Highlight model sub-toggle
@@ -1554,38 +1345,28 @@ workspace.DescendantAdded:Connect(function(descendant)
 	if not touchInterestEnabled then return end
 	if descendant:IsA("TouchInterest") then
 		local part = descendant.Parent
-		if part and part:IsA("BasePart") and isWithinTouchDistance(part) then
+		if part and part:IsA("BasePart") then
 			addTouchInterestHighlight(part)
-			if touchNameEnabled then
-				addTouchInterestBillboard(part)
-			end
-			if touchLineEnabled then
-				addTouchInterestLine(part)
-			end
+			addTouchInterestBillboard(part)
 			local model = findModelFromPart(part)
 			if model then
 				if touchHighlightModelEnabled then
 					addTouchInterestModelHighlight(model)
 				end
-				if touchNameEnabled then
+				if touchModelEnabled then
 					addTouchInterestModelBillboard(model)
 				end
 			end
 		end
-	elseif hasTouchInterest(descendant) and isWithinTouchDistance(descendant) then
+	elseif hasTouchInterest(descendant) then
 		addTouchInterestHighlight(descendant)
-		if touchNameEnabled then
-			addTouchInterestBillboard(descendant)
-		end
-		if touchLineEnabled then
-			addTouchInterestLine(descendant)
-		end
+		addTouchInterestBillboard(descendant)
 		local model = findModelFromPart(descendant)
 		if model then
 			if touchHighlightModelEnabled then
 				addTouchInterestModelHighlight(model)
 			end
-			if touchNameEnabled then
+			if touchModelEnabled then
 				addTouchInterestModelBillboard(model)
 			end
 		end
@@ -1604,7 +1385,6 @@ workspace.DescendantRemoving:Connect(function(descendant)
 				end
 				removeTouchInterestHighlight(part)
 				removeTouchInterestBillboard(part)
-				removeTouchInterestLine(part)
 				local model = findModelFromPart(part)
 				if model and not modelStillHasTouchInterest(model) then
 					removeTouchInterestModelHighlight(model)
@@ -1614,10 +1394,9 @@ workspace.DescendantRemoving:Connect(function(descendant)
 		end
 	elseif descendant:IsA("BasePart") then
 		-- Part dengan ESP sedang dihapus
-		if touchInterestHighlights[descendant] or touchInterestBillboards[descendant] or touchInterestLines[descendant] then
+		if touchInterestHighlights[descendant] or touchInterestBillboards[descendant] then
 			removeTouchInterestHighlight(descendant)
 			removeTouchInterestBillboard(descendant)
-			removeTouchInterestLine(descendant)
 			local model = findModelFromPart(descendant)
 			if model and not modelStillHasTouchInterest(model, descendant) then
 				removeTouchInterestModelHighlight(model)
