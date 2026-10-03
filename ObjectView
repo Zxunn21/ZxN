@@ -1,0 +1,441 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local targets = {}
+local currentIndex = 0
+local searchPosition = nil
+local searchType = "Part"
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ObjectFinder"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.AnchorPoint = Vector2.new(0.5, 1)
+main.Position = UDim2.new(0.5, 0, 0.95, 0)
+main.Size = UDim2.new(0.35, 0, 0, 90)
+main.BackgroundTransparency = 1
+main.Parent = gui
+
+local teleport = Instance.new("TextButton")
+teleport.Name = "Teleport"
+teleport.AnchorPoint = Vector2.new(0.5, 0)
+teleport.Position = UDim2.new(0.5, 10, 0, 0)
+teleport.Size = UDim2.new(0, 100, 0, 30)
+teleport.Text = "Teleport"
+teleport.TextSize = 14
+teleport.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+teleport.TextColor3 = Color3.new(1, 1, 1)
+teleport.Parent = main
+
+local findBtn = Instance.new("TextButton")
+findBtn.Name = "Find"
+findBtn.AnchorPoint = Vector2.new(0.5, 0)
+findBtn.Position = UDim2.new(0.5, 115, 0, 0)
+findBtn.Size = UDim2.new(0, 70, 0, 30)
+findBtn.Text = "Find"
+findBtn.TextSize = 14
+findBtn.BackgroundColor3 = Color3.fromRGB(50, 160, 80)
+findBtn.TextColor3 = Color3.new(1, 1, 1)
+findBtn.Parent = main
+
+local findCorner = Instance.new("UICorner")
+findCorner.CornerRadius = UDim.new(0, 6)
+findCorner.Parent = findBtn
+
+local partButton = Instance.new("TextButton")
+partButton.Name = "Part"
+partButton.Position = UDim2.new(0.5, -200, 0, 0)
+partButton.Size = UDim2.new(0, 70, 0, 30)
+partButton.Text = "Part"
+partButton.TextSize = 14
+partButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
+partButton.TextColor3 = Color3.new(1, 1, 1)
+partButton.Parent = main
+
+local modelButton = Instance.new("TextButton")
+modelButton.Name = "Model"
+modelButton.Position = UDim2.new(0.5, -120, 0, 0)
+modelButton.Size = UDim2.new(0, 70, 0, 30)
+modelButton.Text = "Model"
+modelButton.TextSize = 14
+modelButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+modelButton.TextColor3 = Color3.new(1, 1, 1)
+modelButton.Parent = main
+
+local left = Instance.new("TextButton")
+left.Name = "Left"
+left.AnchorPoint = Vector2.new(1, 0)
+left.Position = UDim2.new(0, -5, 0, 38)
+left.Size = UDim2.new(0, 35, 0, 35)
+left.Text = "<"
+left.TextSize = 20
+left.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+left.TextColor3 = Color3.new(1, 1, 1)
+left.Parent = main
+
+local right = Instance.new("TextButton")
+right.Name = "Right"
+right.Position = UDim2.new(1, 5, 0, 38)
+right.Size = UDim2.new(0, 35, 0, 35)
+right.Text = ">"
+right.TextSize = 20
+right.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+right.TextColor3 = Color3.new(1, 1, 1)
+right.Parent = main
+
+local box = Instance.new("TextBox")
+box.Name = "SearchBox"
+box.AnchorPoint = Vector2.new(0.5, 0)
+box.Position = UDim2.new(0.5, 0, 0, 38)
+box.Size = UDim2.new(0.6, 0, 0, 35)
+box.PlaceholderText = "Nama object..."
+box.Text = ""
+box.TextSize = 15
+box.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+box.TextColor3 = Color3.new(1, 1, 1)
+box.PlaceholderColor3 = Color3.fromRGB(170, 170, 170)
+box.ClearTextOnFocus = false
+box.Parent = main
+
+local corner1 = Instance.new("UICorner")
+corner1.CornerRadius = UDim.new(0, 6)
+corner1.Parent = box
+
+local corner2 = Instance.new("UICorner")
+corner2.CornerRadius = UDim.new(0, 6)
+corner2.Parent = teleport
+
+local corner3 = Instance.new("UICorner")
+corner3.CornerRadius = UDim.new(0, 6)
+corner3.Parent = partButton
+
+local corner4 = Instance.new("UICorner")
+corner4.CornerRadius = UDim.new(0, 6)
+corner4.Parent = modelButton
+
+local corner5 = Instance.new("UICorner")
+corner5.CornerRadius = UDim.new(0, 6)
+corner5.Parent = left
+
+local corner6 = Instance.new("UICorner")
+corner6.CornerRadius = UDim.new(0, 6)
+corner6.Parent = right
+
+local function getCharacterPosition()
+	local character = player.Character
+	if not character then
+		return nil
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+
+	return root.Position
+end
+
+local function getObjectPosition(object)
+	if object:IsA("BasePart") then
+		return object.Position
+	end
+
+	if object:IsA("Model") then
+		return object:GetPivot().Position
+	end
+
+	return nil
+end
+
+local function clearTargets()
+	table.clear(targets)
+	currentIndex = 0
+end
+
+local spectateActive = false
+local spectateObject = nil
+local spectateYaw = 0
+local spectatePitch = math.rad(-15)
+local spectateDistance = 30
+local isDragging = false
+local smoothedPosition = nil
+
+local function getSmoothedPosition(object)
+	if object:IsA("BasePart") then
+		return object.Position
+	end
+
+	if object:IsA("Model") then
+		return object:GetPivot().Position
+	end
+
+	return nil
+end
+
+local function cameraToTarget(object)
+	if not object then
+		return
+	end
+
+	local position = getSmoothedPosition(object)
+	if not position then
+		return
+	end
+
+	camera.CameraType = Enum.CameraType.Scriptable
+
+	local camPos = camera.CFrame.Position
+	local diff = camPos - position
+
+	if diff.Magnitude > 0.5 then
+		spectateYaw = math.atan2(diff.X, diff.Z)
+		spectatePitch = math.atan2(diff.Y, math.sqrt(diff.X * diff.X + diff.Z * diff.Z))
+		spectateDistance = math.clamp(diff.Magnitude, 10, 300)
+	else
+		spectateYaw = 0
+		spectatePitch = math.rad(-15)
+		spectateDistance = 30
+	end
+
+	spectateObject = object
+	spectateActive = true
+	smoothedPosition = position
+
+	local offset = CFrame.fromOrientation(spectatePitch, spectateYaw, 0) * CFrame.new(0, 0, spectateDistance)
+	camera.CFrame = CFrame.new(position) * offset
+end
+
+local function resetCamera()
+	spectateActive = false
+	spectateObject = nil
+	isDragging = false
+	smoothedPosition = nil
+	UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+	camera.CameraType = Enum.CameraType.Custom
+end
+
+RunService.RenderStepped:Connect(function()
+	if not spectateActive or not spectateObject then
+		return
+	end
+
+	if not spectateObject.Parent then
+		resetCamera()
+		return
+	end
+
+	local position = getSmoothedPosition(spectateObject)
+	if not position then
+		return
+	end
+
+	-- Smooth the object position so camera follows moving objects nicely
+	smoothedPosition = smoothedPosition:Lerp(position, 0.15)
+
+	spectatePitch = math.clamp(spectatePitch, math.rad(-80), math.rad(80))
+	spectateDistance = math.clamp(spectateDistance, 5, 1000)
+
+	-- Apply rotation directly (no lerp) so mouse control feels instant
+	local offset = CFrame.fromOrientation(spectatePitch, spectateYaw, 0) * CFrame.new(0, 0, spectateDistance)
+	camera.CFrame = CFrame.new(smoothedPosition) * offset
+end)
+
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+	if not spectateActive then
+		return
+	end
+
+	if input.UserInputType == Enum.UserInputType.MouseMovement and isDragging then
+		spectateYaw = spectateYaw - input.Delta.X * 0.008
+		spectatePitch = math.clamp(spectatePitch + input.Delta.Y * 0.008, math.rad(-80), math.rad(80))
+	elseif input.UserInputType == Enum.UserInputType.MouseWheel then
+		spectateDistance = math.clamp(spectateDistance - input.Position.Z * 5, 5, 1000)
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if not spectateActive then
+		return
+	end
+
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		isDragging = true
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		isDragging = false
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+	end
+end)
+
+local function searchObjects()
+	clearTargets()
+
+	local name = box.Text
+
+	if name == "" then
+		return
+	end
+
+	searchPosition = getCharacterPosition()
+
+	if not searchPosition then
+		return
+	end
+
+	local lowerName = string.lower(name)
+
+	for _, object in ipairs(workspace:GetDescendants()) do
+		local valid = false
+
+		if searchType == "Part" then
+			valid = object:IsA("BasePart")
+		elseif searchType == "Model" then
+			valid = object:IsA("Model")
+		end
+
+		if valid and string.lower(object.Name) == lowerName then
+			local position = getObjectPosition(object)
+
+			if position then
+				local distance = (position - searchPosition).Magnitude
+
+				table.insert(targets, {
+					Object = object,
+					Distance = distance
+				})
+			end
+		end
+	end
+
+	table.sort(targets, function(a, b)
+		return a.Distance < b.Distance
+	end)
+
+	if #targets > 0 then
+		currentIndex = 1
+		cameraToTarget(targets[currentIndex].Object)
+	end
+end
+
+local function setFindMode(isFinding)
+	if isFinding then
+		findBtn.Text = "Find"
+		findBtn.BackgroundColor3 = Color3.fromRGB(50, 160, 80)
+	else
+		findBtn.Text = "Reset"
+		findBtn.BackgroundColor3 = Color3.fromRGB(160, 120, 50)
+	end
+end
+
+local function selectTarget(index)
+	if #targets == 0 then
+		return
+	end
+
+	if index < 1 then
+		index = #targets
+	elseif index > #targets then
+		index = 1
+	end
+
+	currentIndex = index
+
+	local target = targets[currentIndex]
+
+	if target and target.Object then
+		cameraToTarget(target.Object)
+	end
+end
+
+partButton.MouseButton1Click:Connect(function()
+	searchType = "Part"
+
+	partButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
+	modelButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+
+	searchObjects()
+end)
+
+modelButton.MouseButton1Click:Connect(function()
+	searchType = "Model"
+
+	modelButton.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
+	partButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+
+	searchObjects()
+end)
+
+box.FocusLost:Connect(function()
+	searchObjects()
+	if #targets > 0 then
+		setFindMode(false)
+	end
+end)
+
+findBtn.MouseButton1Click:Connect(function()
+	if findBtn.Text == "Find" then
+		searchObjects()
+		if #targets > 0 then
+			setFindMode(false)
+		end
+	else
+		resetCamera()
+		clearTargets()
+		setFindMode(true)
+	end
+end)
+
+right.MouseButton1Click:Connect(function()
+	selectTarget(currentIndex + 1)
+end)
+
+left.MouseButton1Click:Connect(function()
+	selectTarget(currentIndex - 1)
+end)
+
+teleport.MouseButton1Click:Connect(function()
+	local target = targets[currentIndex]
+
+	if not target or not target.Object then
+		return
+	end
+
+	local position = getObjectPosition(target.Object)
+
+	if not position then
+		return
+	end
+
+	local character = player.Character
+
+	if not character then
+		return
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not root then
+		return
+	end
+
+	root.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
+end)
+
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+
+	if #targets > 0 and currentIndex > 0 then
+		cameraToTarget(targets[currentIndex].Object)
+	end
+end)
