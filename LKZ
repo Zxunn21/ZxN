@@ -21,6 +21,7 @@ local scripts = {
     ["Multiply"] = {
         ids = {
             107778070777162,
+            10753751277,
             -- tambahkan ID lain di sini
             -- 123456789,
             -- 987654321,
