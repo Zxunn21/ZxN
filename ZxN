@@ -521,6 +521,7 @@ local linkFeatures = {
 	{ description = "Root Object",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RootObject",         		guiToHide = "RootObjectGui" },
 	{ description = "Remote Event",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RemoteEvent",         		guiToHide = "RemoteEventGui" },
 	{ description = "Waypoints",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Waypoints",         		guiToHide = "WaypointsGui" },
+	{ description = "LKZ",						url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/LKZ",         				guiToHide = "" },
 }
 
 local function createLinkFeature(index, feature)
