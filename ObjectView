@@ -11,7 +11,7 @@ local searchPosition = nil
 local searchType = "Part"
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "ObjectFinder"
+gui.Name = "ObjectViewGui"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
