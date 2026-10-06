@@ -1,0 +1,584 @@
+-- GrowAForestGui - LocalScript
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--==================================================
+-- SETTINGS
+--==================================================
+
+local FOLDER_NAMES = {
+	"Trees",
+	"Tree",
+	"Forest",
+	"Pohon"
+}
+
+local MAX_RESULTS = 20
+
+--==================================================
+-- GUI
+--==================================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "GrowAForestGui"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+--==================================================
+-- HELPERS
+--==================================================
+
+local function makeCorner(obj, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = obj
+end
+
+local function makeStroke(obj)
+	local s = Instance.new("UIStroke")
+	s.Thickness = 1
+	s.Transparency = 0.4
+	s.Parent = obj
+end
+
+local function makeDraggable(frame, dragBar)
+
+	local dragging = false
+	local dragStart
+	local startPos
+
+	dragBar.InputBegan:Connect(function(input)
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+
+			input.Changed:Connect(function()
+
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+
+			end)
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+
+		if not dragging then
+			return
+		end
+
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement
+			and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+
+		local delta = input.Position - dragStart
+
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end)
+end
+
+--==================================================
+-- MAIN FRAME
+--==================================================
+
+local main = Instance.new("Frame")
+main.Name = "MainFrame"
+main.Size = UDim2.fromScale(0.6, 0.8)
+main.Position = UDim2.fromScale(0.2, 0.1)
+main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+makeCorner(main, 10)
+makeStroke(main)
+
+--==================================================
+-- TOPBAR
+--==================================================
+
+local topbar = Instance.new("Frame")
+topbar.Name = "Topbar"
+topbar.Size = UDim2.new(1, 0, 0, 42)
+topbar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+topbar.BorderSizePixel = 0
+topbar.Parent = main
+
+makeCorner(topbar, 10)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 1, 0)
+title.Position = UDim2.fromOffset(12, 0)
+title.BackgroundTransparency = 1
+title.Text = "🌳 Grow A Forest"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = topbar
+
+local closeMain = Instance.new("TextButton")
+closeMain.Size = UDim2.fromOffset(36, 36)
+closeMain.Position = UDim2.new(1, -40, 0, 3)
+closeMain.BackgroundTransparency = 1
+closeMain.Text = "✕"
+closeMain.TextColor3 = Color3.fromRGB(255, 100, 100)
+closeMain.TextSize = 18
+closeMain.Font = Enum.Font.GothamBold
+closeMain.Parent = topbar
+
+closeMain.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
+
+makeDraggable(main, topbar)
+
+--==================================================
+-- TREE MENU
+--==================================================
+
+local treeRow = Instance.new("Frame")
+treeRow.Size = UDim2.new(1, -20, 0, 55)
+treeRow.Position = UDim2.fromOffset(10, 55)
+treeRow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+treeRow.BorderSizePixel = 0
+treeRow.Parent = main
+
+makeCorner(treeRow, 8)
+
+local treeText = Instance.new("TextLabel")
+treeText.Size = UDim2.new(1, -100, 1, 0)
+treeText.Position = UDim2.fromOffset(12, 0)
+treeText.BackgroundTransparency = 1
+treeText.Text = "🌲 Pohon Tertinggi"
+treeText.TextColor3 = Color3.new(1, 1, 1)
+treeText.TextSize = 16
+treeText.Font = Enum.Font.GothamSemibold
+treeText.TextXAlignment = Enum.TextXAlignment.Left
+treeText.Parent = treeRow
+
+local openButton = Instance.new("TextButton")
+openButton.Size = UDim2.fromOffset(70, 35)
+openButton.Position = UDim2.new(1, -78, 0.5, -17)
+openButton.BackgroundColor3 = Color3.fromRGB(60, 150, 80)
+openButton.Text = "OPEN"
+openButton.TextColor3 = Color3.new(1, 1, 1)
+openButton.TextSize = 13
+openButton.Font = Enum.Font.GothamBold
+openButton.Parent = treeRow
+
+makeCorner(openButton, 7)
+
+--==================================================
+-- FIND FOLDER
+--==================================================
+
+local function findTreeFolders()
+
+	local folders = {}
+
+	for _, name in ipairs(FOLDER_NAMES) do
+
+		local obj = workspace:FindFirstChild(name, true)
+
+		if obj and obj:IsA("Folder") then
+			table.insert(folders, obj)
+		end
+
+	end
+
+	return folders
+end
+
+--==================================================
+-- GET MODEL HEIGHT
+--==================================================
+
+local function getModelHeight(model)
+
+	local success, cf, size = pcall(function()
+		return model:GetBoundingBox()
+	end)
+
+	if success and size then
+		return size.Y
+	end
+
+	return 0
+end
+
+--==================================================
+-- LINE SYSTEM
+--==================================================
+
+local activeLines = {}
+
+local function removeLine(model)
+
+	local data = activeLines[model]
+
+	if not data then
+		return
+	end
+
+	if data.beam then
+		data.beam:Destroy()
+	end
+
+	if data.playerAttachment then
+		data.playerAttachment:Destroy()
+	end
+
+	if data.objectAttachment then
+		data.objectAttachment:Destroy()
+	end
+
+	activeLines[model] = nil
+end
+
+local function createLine(model)
+
+	if activeLines[model] then
+		removeLine(model)
+		return false
+	end
+
+	local character = player.Character
+
+	if not character then
+		return false
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not root then
+		return false
+	end
+
+	local targetPart
+
+	if model:IsA("BasePart") then
+		targetPart = model
+	else
+		targetPart = model.PrimaryPart
+
+		if not targetPart then
+			targetPart = model:FindFirstChildWhichIsA(
+				"BasePart",
+				true
+			)
+		end
+	end
+
+	if not targetPart then
+		return false
+	end
+
+	local playerAttachment = Instance.new("Attachment")
+	playerAttachment.Name = "GrowAForest_PlayerLine"
+	playerAttachment.Parent = root
+
+	local objectAttachment = Instance.new("Attachment")
+	objectAttachment.Name = "GrowAForest_ObjectLine"
+	objectAttachment.Parent = targetPart
+
+	local beam = Instance.new("Beam")
+	beam.Name = "GrowAForest_Line"
+	beam.Attachment0 = playerAttachment
+	beam.Attachment1 = objectAttachment
+
+	beam.Width0 = 0.08
+	beam.Width1 = 0.08
+
+	beam.FaceCamera = true
+	beam.LightEmission = 1
+	beam.LightInfluence = 0
+
+	beam.Parent = root
+
+	activeLines[model] = {
+		beam = beam,
+		playerAttachment = playerAttachment,
+		objectAttachment = objectAttachment
+	}
+
+	return true
+end
+
+--==================================================
+-- RESULT FRAME
+--==================================================
+
+local resultFrame = Instance.new("Frame")
+resultFrame.Name = "TreeListFrame"
+resultFrame.Size = UDim2.fromScale(0.6, 0.8)
+resultFrame.Position = UDim2.fromScale(0.2, 0.1)
+resultFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+resultFrame.BorderSizePixel = 0
+resultFrame.Visible = false
+resultFrame.Parent = gui
+
+makeCorner(resultFrame, 10)
+makeStroke(resultFrame)
+
+--==================================================
+-- RESULT TOPBAR
+--==================================================
+
+local resultTopbar = Instance.new("Frame")
+resultTopbar.Size = UDim2.new(1, 0, 0, 42)
+resultTopbar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+resultTopbar.BorderSizePixel = 0
+resultTopbar.Parent = resultFrame
+
+makeCorner(resultTopbar, 10)
+
+local resultTitle = Instance.new("TextLabel")
+resultTitle.Size = UDim2.new(1, -80, 1, 0)
+resultTitle.Position = UDim2.fromOffset(12, 0)
+resultTitle.BackgroundTransparency = 1
+resultTitle.Text = "🌲 20 Pohon Tertinggi"
+resultTitle.TextColor3 = Color3.new(1, 1, 1)
+resultTitle.TextSize = 17
+resultTitle.Font = Enum.Font.GothamBold
+resultTitle.TextXAlignment = Enum.TextXAlignment.Left
+resultTitle.Parent = resultTopbar
+
+local backButton = Instance.new("TextButton")
+backButton.Size = UDim2.fromOffset(65, 32)
+backButton.Position = UDim2.new(1, -72, 0, 5)
+backButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+backButton.Text = "BACK"
+backButton.TextColor3 = Color3.new(1, 1, 1)
+backButton.TextSize = 12
+backButton.Font = Enum.Font.GothamBold
+backButton.Parent = resultTopbar
+
+makeCorner(backButton, 6)
+
+makeDraggable(resultFrame, resultTopbar)
+
+--==================================================
+-- SCROLL LIST
+--==================================================
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "TreeList"
+scroll.Size = UDim2.new(1, -12, 1, -52)
+scroll.Position = UDim2.fromOffset(6, 48)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 5
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.Parent = resultFrame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = scroll
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 4)
+padding.PaddingBottom = UDim.new(0, 5)
+padding.PaddingLeft = UDim.new(0, 3)
+padding.PaddingRight = UDim.new(0, 3)
+padding.Parent = scroll
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+
+	scroll.CanvasSize = UDim2.new(
+		0,
+		0,
+		0,
+		layout.AbsoluteContentSize.Y + 10
+	)
+
+end)
+
+--==================================================
+-- CLEAR LIST
+--==================================================
+
+local function clearList()
+
+	for _, child in ipairs(scroll:GetChildren()) do
+
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+
+	end
+
+end
+
+--==================================================
+-- CREATE RESULT ROW
+--==================================================
+
+local function createRow(index, model, height)
+
+	local row = Instance.new("Frame")
+	row.Name = "Tree_" .. index
+	row.Size = UDim2.new(1, -8, 0, 48)
+	row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = index
+	row.Parent = scroll
+
+	makeCorner(row, 7)
+
+	local number = Instance.new("TextLabel")
+	number.Size = UDim2.fromOffset(35, 48)
+	number.BackgroundTransparency = 1
+	number.Text = "#" .. index
+	number.TextColor3 = Color3.fromRGB(150, 150, 150)
+	number.TextSize = 13
+	number.Font = Enum.Font.GothamBold
+	number.Parent = row
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, -145, 0, 25)
+	nameLabel.Position = UDim2.fromOffset(38, 3)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = model.Name
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextSize = 14
+	nameLabel.Font = Enum.Font.GothamSemibold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLabel.Parent = row
+
+	local heightLabel = Instance.new("TextLabel")
+	heightLabel.Size = UDim2.new(1, -145, 0, 18)
+	heightLabel.Position = UDim2.fromOffset(38, 25)
+	heightLabel.BackgroundTransparency = 1
+	heightLabel.Text = string.format("Height: %.2f studs", height)
+	heightLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
+	heightLabel.TextSize = 11
+	heightLabel.Font = Enum.Font.Gotham
+	heightLabel.TextXAlignment = Enum.TextXAlignment.Left
+	heightLabel.Parent = row
+
+	local lineButton = Instance.new("TextButton")
+	lineButton.Size = UDim2.fromOffset(75, 32)
+	lineButton.Position = UDim2.new(1, -82, 0.5, -16)
+	lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
+	lineButton.Text = "LINE"
+	lineButton.TextColor3 = Color3.new(1, 1, 1)
+	lineButton.TextSize = 12
+	lineButton.Font = Enum.Font.GothamBold
+	lineButton.Parent = row
+
+	makeCorner(lineButton, 6)
+
+	lineButton.MouseButton1Click:Connect(function()
+
+		local active = createLine(model)
+
+		if active then
+			lineButton.Text = "UNLINE"
+			lineButton.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+		else
+			lineButton.Text = "LINE"
+			lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
+		end
+
+	end)
+
+end
+
+--==================================================
+-- LOAD TREES
+--==================================================
+
+local function loadTrees()
+
+	clearList()
+
+	local folders = findTreeFolders()
+
+	local models = {}
+
+	for _, folder in ipairs(folders) do
+
+		for _, obj in ipairs(folder:GetChildren()) do
+
+			if obj:IsA("Model") then
+
+				local height = getModelHeight(obj)
+
+				table.insert(models, {
+					model = obj,
+					height = height
+				})
+
+			end
+
+		end
+
+	end
+
+	table.sort(models, function(a, b)
+		return a.height > b.height
+	end)
+
+	local amount = math.min(MAX_RESULTS, #models)
+
+	for i = 1, amount do
+
+		createRow(
+			i,
+			models[i].model,
+			models[i].height
+		)
+
+	end
+
+	if amount == 0 then
+
+		local empty = Instance.new("TextLabel")
+		empty.Size = UDim2.new(1, -10, 0, 50)
+		empty.BackgroundTransparency = 1
+		empty.Text = "Tidak ditemukan Model.\nCek FOLDER_NAMES."
+		empty.TextColor3 = Color3.fromRGB(200, 200, 200)
+		empty.TextSize = 14
+		empty.Font = Enum.Font.Gotham
+		empty.Parent = scroll
+
+	end
+
+end
+
+--==================================================
+-- BUTTON EVENTS
+--==================================================
+
+openButton.MouseButton1Click:Connect(function()
+
+	main.Visible = false
+	resultFrame.Visible = true
+
+	loadTrees()
+
+end)
+
+backButton.MouseButton1Click:Connect(function()
+
+	resultFrame.Visible = false
+	main.Visible = true
+
+end)
