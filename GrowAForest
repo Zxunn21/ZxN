@@ -21,6 +21,8 @@ local FOLDER_NAMES = {
 	"Ocean"
 }
 
+local UPDATE_INTERVAL = 1
+
 --==================================================
 -- GUI
 --==================================================
@@ -211,6 +213,10 @@ end
 --==================================================
 
 local function getModelHeight(model)
+
+	if not model or not model.Parent then
+		return 0
+	end
 
 	local success, cf, size = pcall(function()
 		return model:GetBoundingBox()
@@ -411,29 +417,19 @@ layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 --==================================================
--- CLEAR LIST
+-- ROW DATA
 --==================================================
 
-local function clearList()
-
-	for _, child in ipairs(scroll:GetChildren()) do
-
-		if child:IsA("Frame") or child:IsA("TextLabel") then
-			child:Destroy()
-		end
-
-	end
-
-end
+local rows = {}
 
 --==================================================
--- CREATE RESULT ROW
+-- CREATE ROW
 --==================================================
 
-local function createRow(index, folder, model, height)
+local function createRow(index)
 
 	local row = Instance.new("Frame")
-	row.Name = "Tree_" .. index
+	row.Name = "TreeRow_" .. index
 	row.Size = UDim2.new(1, -8, 0, 55)
 	row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 	row.BorderSizePixel = 0
@@ -442,7 +438,6 @@ local function createRow(index, folder, model, height)
 
 	makeCorner(row, 7)
 
-	-- Ranking
 	local number = Instance.new("TextLabel")
 	number.Size = UDim2.fromOffset(35, 55)
 	number.BackgroundTransparency = 1
@@ -452,24 +447,20 @@ local function createRow(index, folder, model, height)
 	number.Font = Enum.Font.GothamBold
 	number.Parent = row
 
-	-- Folder name
 	local folderLabel = Instance.new("TextLabel")
 	folderLabel.Size = UDim2.new(1, -145, 0, 20)
 	folderLabel.Position = UDim2.fromOffset(38, 3)
 	folderLabel.BackgroundTransparency = 1
-	folderLabel.Text = folder.Name
 	folderLabel.TextColor3 = Color3.fromRGB(120, 200, 120)
 	folderLabel.TextSize = 11
 	folderLabel.Font = Enum.Font.GothamBold
 	folderLabel.TextXAlignment = Enum.TextXAlignment.Left
 	folderLabel.Parent = row
 
-	-- Model name
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Size = UDim2.new(1, -145, 0, 20)
 	nameLabel.Position = UDim2.fromOffset(38, 20)
 	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = model.Name
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.TextSize = 13
 	nameLabel.Font = Enum.Font.GothamSemibold
@@ -477,19 +468,16 @@ local function createRow(index, folder, model, height)
 	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	nameLabel.Parent = row
 
-	-- Height
 	local heightLabel = Instance.new("TextLabel")
 	heightLabel.Size = UDim2.new(1, -145, 0, 15)
 	heightLabel.Position = UDim2.fromOffset(38, 38)
 	heightLabel.BackgroundTransparency = 1
-	heightLabel.Text = string.format("%.2f studs", height)
 	heightLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
 	heightLabel.TextSize = 10
 	heightLabel.Font = Enum.Font.Gotham
 	heightLabel.TextXAlignment = Enum.TextXAlignment.Left
 	heightLabel.Parent = row
 
-	-- LINE button
 	local lineButton = Instance.new("TextButton")
 	lineButton.Size = UDim2.fromOffset(75, 32)
 	lineButton.Position = UDim2.new(1, -82, 0.5, -16)
@@ -502,7 +490,22 @@ local function createRow(index, folder, model, height)
 
 	makeCorner(lineButton, 6)
 
+	local rowData = {
+		row = row,
+		folderLabel = folderLabel,
+		nameLabel = nameLabel,
+		heightLabel = heightLabel,
+		lineButton = lineButton,
+		model = nil
+	}
+
 	lineButton.MouseButton1Click:Connect(function()
+
+		if not rowData.model then
+			return
+		end
+
+		local model = rowData.model
 
 		local active = createLine(model)
 
@@ -520,15 +523,16 @@ local function createRow(index, folder, model, height)
 
 	end)
 
+	rows[index] = rowData
+
+	return rowData
 end
 
 --==================================================
--- LOAD HIGHEST MODEL FROM EACH FOLDER
+-- FIND HIGHEST MODEL PER FOLDER
 --==================================================
 
-local function loadTrees()
-
-	clearList()
+local function getHighestModels()
 
 	local folders = findTreeFolders()
 
@@ -568,36 +572,118 @@ local function loadTrees()
 
 	end
 
-	-- Urutkan perwakilan folder berdasarkan tinggi
 	table.sort(results, function(a, b)
 		return a.height > b.height
 	end)
 
-	-- Tampilkan 1 pohon tertinggi dari setiap folder
+	return results
+end
+
+--==================================================
+-- UPDATE LIST
+--==================================================
+
+local lastResultsKey = ""
+
+local function updateList()
+
+	local results = getHighestModels()
+
+	local resultKey = ""
+
+	for _, data in ipairs(results) do
+
+		resultKey = resultKey
+			.. data.folder:GetFullName()
+			.. "|"
+			.. data.model:GetFullName()
+			.. "|"
+			.. string.format("%.2f", data.height)
+			.. ";"
+
+	end
+
+	-- Tidak perlu update GUI jika tidak ada perubahan
+	if resultKey == lastResultsKey then
+		return
+	end
+
+	lastResultsKey = resultKey
+
+	-- Bersihkan row yang tidak digunakan
+	for index = #results + 1, #rows do
+
+		if rows[index] and rows[index].row then
+			rows[index].row:Destroy()
+		end
+
+		rows[index] = nil
+
+	end
+
+	-- Update / buat row
 	for index, data in ipairs(results) do
 
-		createRow(
-			index,
-			data.folder,
-			data.model,
-			data.height
-		)
+		local rowData = rows[index]
+
+		if not rowData then
+			rowData = createRow(index)
+		end
+
+		rowData.row.LayoutOrder = index
+
+		rowData.folderLabel.Text = data.folder.Name
+		rowData.nameLabel.Text = data.model.Name
+		rowData.heightLabel.Text =
+			string.format("Height: %.2f studs", data.height)
+
+		-- Jika model berubah, reset LINE
+		if rowData.model ~= data.model then
+
+			if rowData.model and activeLines[rowData.model] then
+				removeLine(rowData.model)
+			end
+
+			rowData.model = data.model
+
+			rowData.lineButton.Text = "LINE"
+			rowData.lineButton.BackgroundColor3 =
+				Color3.fromRGB(70, 100, 170)
+
+		end
 
 	end
 
-	if #results == 0 then
+	-- Hapus LINE untuk object yang sudah tidak ada
+	for model, data in pairs(activeLines) do
 
-		local empty = Instance.new("TextLabel")
-		empty.Name = "Empty"
-		empty.Size = UDim2.new(1, -10, 0, 50)
-		empty.BackgroundTransparency = 1
-		empty.Text = "Tidak ditemukan Model."
-		empty.TextColor3 = Color3.fromRGB(200, 200, 200)
-		empty.TextSize = 14
-		empty.Font = Enum.Font.Gotham
-		empty.Parent = scroll
+		if not model.Parent then
+			removeLine(model)
+		end
 
 	end
+
+end
+
+--==================================================
+-- EMPTY STATE
+--==================================================
+
+local function createEmptyState()
+
+	if scroll:FindFirstChild("EmptyState") then
+		return
+	end
+
+	local empty = Instance.new("TextLabel")
+	empty.Name = "EmptyState"
+	empty.Size = UDim2.new(1, -10, 0, 50)
+	empty.BackgroundTransparency = 1
+	empty.Text = "Tidak ditemukan Model."
+	empty.TextColor3 = Color3.fromRGB(200, 200, 200)
+	empty.TextSize = 14
+	empty.Font = Enum.Font.Gotham
+	empty.Parent = scroll
 
 end
 
@@ -610,7 +696,8 @@ openButton.MouseButton1Click:Connect(function()
 	main.Visible = false
 	resultFrame.Visible = true
 
-	loadTrees()
+	lastResultsKey = ""
+	updateList()
 
 end)
 
@@ -618,5 +705,23 @@ backButton.MouseButton1Click:Connect(function()
 
 	resultFrame.Visible = false
 	main.Visible = true
+
+end)
+
+--==================================================
+-- AUTO UPDATE
+--==================================================
+
+task.spawn(function()
+
+	while gui.Parent do
+
+		if resultFrame.Visible then
+			updateList()
+		end
+
+		task.wait(UPDATE_INTERVAL)
+
+	end
 
 end)
