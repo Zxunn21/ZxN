@@ -376,6 +376,7 @@ end
 
 local gameLinkFeatures = {
 	{ description = "Ride A Pet", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet", guiToHide = "RideAPetGui", universeId = 10035204815 },
+	{ description = "Grow A Forest", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/GrowAForest", guiToHide = "GrowAForestGui", universeId = 10766217938 },
 }
 
 local gameFeatureEnableFns = {}
