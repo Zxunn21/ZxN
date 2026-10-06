@@ -21,8 +21,6 @@ local FOLDER_NAMES = {
 	"Ocean"
 }
 
-local MAX_RESULTS = 20
-
 --==================================================
 -- GUI
 --==================================================
@@ -112,7 +110,7 @@ makeCorner(main, 10)
 makeStroke(main)
 
 --==================================================
--- TOPBAR
+-- MAIN TOPBAR
 --==================================================
 
 local topbar = Instance.new("Frame")
@@ -188,7 +186,7 @@ openButton.Parent = treeRow
 makeCorner(openButton, 7)
 
 --==================================================
--- FIND FOLDER
+-- FIND FOLDERS
 --==================================================
 
 local function findTreeFolders()
@@ -278,6 +276,7 @@ local function createLine(model)
 	if model:IsA("BasePart") then
 		targetPart = model
 	else
+
 		targetPart = model.PrimaryPart
 
 		if not targetPart then
@@ -286,6 +285,7 @@ local function createLine(model)
 				true
 			)
 		end
+
 	end
 
 	if not targetPart then
@@ -304,14 +304,11 @@ local function createLine(model)
 	beam.Name = "GrowAForest_Line"
 	beam.Attachment0 = playerAttachment
 	beam.Attachment1 = objectAttachment
-
 	beam.Width0 = 0.08
 	beam.Width1 = 0.08
-
 	beam.FaceCamera = true
 	beam.LightEmission = 1
 	beam.LightInfluence = 0
-
 	beam.Parent = root
 
 	activeLines[model] = {
@@ -355,7 +352,7 @@ local resultTitle = Instance.new("TextLabel")
 resultTitle.Size = UDim2.new(1, -80, 1, 0)
 resultTitle.Position = UDim2.fromOffset(12, 0)
 resultTitle.BackgroundTransparency = 1
-resultTitle.Text = "🌲 20 Pohon Tertinggi"
+resultTitle.Text = "🌲 Pohon Tertinggi per Area"
 resultTitle.TextColor3 = Color3.new(1, 1, 1)
 resultTitle.TextSize = 17
 resultTitle.Font = Enum.Font.GothamBold
@@ -421,7 +418,7 @@ local function clearList()
 
 	for _, child in ipairs(scroll:GetChildren()) do
 
-		if child:IsA("Frame") then
+		if child:IsA("Frame") or child:IsA("TextLabel") then
 			child:Destroy()
 		end
 
@@ -433,11 +430,11 @@ end
 -- CREATE RESULT ROW
 --==================================================
 
-local function createRow(index, model, height)
+local function createRow(index, folder, model, height)
 
 	local row = Instance.new("Frame")
 	row.Name = "Tree_" .. index
-	row.Size = UDim2.new(1, -8, 0, 48)
+	row.Size = UDim2.new(1, -8, 0, 55)
 	row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 	row.BorderSizePixel = 0
 	row.LayoutOrder = index
@@ -445,8 +442,9 @@ local function createRow(index, model, height)
 
 	makeCorner(row, 7)
 
+	-- Ranking
 	local number = Instance.new("TextLabel")
-	number.Size = UDim2.fromOffset(35, 48)
+	number.Size = UDim2.fromOffset(35, 55)
 	number.BackgroundTransparency = 1
 	number.Text = "#" .. index
 	number.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -454,29 +452,44 @@ local function createRow(index, model, height)
 	number.Font = Enum.Font.GothamBold
 	number.Parent = row
 
+	-- Folder name
+	local folderLabel = Instance.new("TextLabel")
+	folderLabel.Size = UDim2.new(1, -145, 0, 20)
+	folderLabel.Position = UDim2.fromOffset(38, 3)
+	folderLabel.BackgroundTransparency = 1
+	folderLabel.Text = folder.Name
+	folderLabel.TextColor3 = Color3.fromRGB(120, 200, 120)
+	folderLabel.TextSize = 11
+	folderLabel.Font = Enum.Font.GothamBold
+	folderLabel.TextXAlignment = Enum.TextXAlignment.Left
+	folderLabel.Parent = row
+
+	-- Model name
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, -145, 0, 25)
-	nameLabel.Position = UDim2.fromOffset(38, 3)
+	nameLabel.Size = UDim2.new(1, -145, 0, 20)
+	nameLabel.Position = UDim2.fromOffset(38, 20)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = model.Name
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
-	nameLabel.TextSize = 14
+	nameLabel.TextSize = 13
 	nameLabel.Font = Enum.Font.GothamSemibold
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	nameLabel.Parent = row
 
+	-- Height
 	local heightLabel = Instance.new("TextLabel")
-	heightLabel.Size = UDim2.new(1, -145, 0, 18)
-	heightLabel.Position = UDim2.fromOffset(38, 25)
+	heightLabel.Size = UDim2.new(1, -145, 0, 15)
+	heightLabel.Position = UDim2.fromOffset(38, 38)
 	heightLabel.BackgroundTransparency = 1
-	heightLabel.Text = string.format("Height: %.2f studs", height)
+	heightLabel.Text = string.format("%.2f studs", height)
 	heightLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
-	heightLabel.TextSize = 11
+	heightLabel.TextSize = 10
 	heightLabel.Font = Enum.Font.Gotham
 	heightLabel.TextXAlignment = Enum.TextXAlignment.Left
 	heightLabel.Parent = row
 
+	-- LINE button
 	local lineButton = Instance.new("TextButton")
 	lineButton.Size = UDim2.fromOffset(75, 32)
 	lineButton.Position = UDim2.new(1, -82, 0.5, -16)
@@ -494,11 +507,15 @@ local function createRow(index, model, height)
 		local active = createLine(model)
 
 		if active then
+
 			lineButton.Text = "UNLINE"
 			lineButton.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+
 		else
+
 			lineButton.Text = "LINE"
 			lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
+
 		end
 
 	end)
@@ -506,7 +523,7 @@ local function createRow(index, model, height)
 end
 
 --==================================================
--- LOAD TREES
+-- LOAD HIGHEST MODEL FROM EACH FOLDER
 --==================================================
 
 local function loadTrees()
@@ -515,9 +532,12 @@ local function loadTrees()
 
 	local folders = findTreeFolders()
 
-	local models = {}
+	local results = {}
 
 	for _, folder in ipairs(folders) do
+
+		local highestModel = nil
+		local highestHeight = -math.huge
 
 		for _, obj in ipairs(folder:GetChildren()) do
 
@@ -525,39 +545,53 @@ local function loadTrees()
 
 				local height = getModelHeight(obj)
 
-				table.insert(models, {
-					model = obj,
-					height = height
-				})
+				if height > highestHeight then
+
+					highestHeight = height
+					highestModel = obj
+
+				end
 
 			end
 
 		end
 
+		if highestModel then
+
+			table.insert(results, {
+				folder = folder,
+				model = highestModel,
+				height = highestHeight
+			})
+
+		end
+
 	end
 
-	table.sort(models, function(a, b)
+	-- Urutkan perwakilan folder berdasarkan tinggi
+	table.sort(results, function(a, b)
 		return a.height > b.height
 	end)
 
-	local amount = math.min(MAX_RESULTS, #models)
-
-	for i = 1, amount do
+	-- Tampilkan 1 pohon tertinggi dari setiap folder
+	for index, data in ipairs(results) do
 
 		createRow(
-			i,
-			models[i].model,
-			models[i].height
+			index,
+			data.folder,
+			data.model,
+			data.height
 		)
 
 	end
 
-	if amount == 0 then
+	if #results == 0 then
 
 		local empty = Instance.new("TextLabel")
+		empty.Name = "Empty"
 		empty.Size = UDim2.new(1, -10, 0, 50)
 		empty.BackgroundTransparency = 1
-		empty.Text = "Tidak ditemukan Model.\nCek FOLDER_NAMES."
+		empty.Text = "Tidak ditemukan Model."
 		empty.TextColor3 = Color3.fromRGB(200, 200, 200)
 		empty.TextSize = 14
 		empty.Font = Enum.Font.Gotham
