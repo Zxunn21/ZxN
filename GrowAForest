@@ -31,7 +31,8 @@ local DEFAULT_DELETED = {
 	Candy = false,
 	Volcano = false,
 	Ocean = false,
-	BiomeDecor = true
+	BiomeDecor = true,
+	SafeZoneDecor = true
 }
 
 local UPDATE_INTERVAL = 1
