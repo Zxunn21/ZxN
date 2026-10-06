@@ -30,7 +30,8 @@ local DEFAULT_DELETED = {
 	Mushroom = true,
 	Candy = false,
 	Volcano = false,
-	Ocean = false
+	Ocean = false,
+	BiomeDecor = true
 }
 
 local UPDATE_INTERVAL = 1
