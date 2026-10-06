@@ -11,10 +11,14 @@ local playerGui = player:WaitForChild("PlayerGui")
 --==================================================
 
 local FOLDER_NAMES = {
-	"Trees",
-	"Tree",
 	"Forest",
-	"Pohon"
+	"Desert",
+	"Ice",
+	"Jungle",
+	"Mushroom",
+	"Candy",
+	"Volcano",
+	"Ocean"
 }
 
 local MAX_RESULTS = 20
