@@ -1,5 +1,4 @@
 -- GrowAForestGui - LocalScript
--- Highest Model per Folder + Recursive Scan + Line Fix
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -20,6 +19,18 @@ local FOLDER_NAMES = {
 	"Candy",
 	"Volcano",
 	"Ocean"
+}
+
+-- Biome yang langsung dihapus saat script mulai
+local DEFAULT_DELETED = {
+	Forest = true,
+	Desert = true,
+	Ice = true,
+	Jungle = true,
+	Mushroom = true,
+	Candy = false,
+	Volcano = false,
+	Ocean = false
 }
 
 local UPDATE_INTERVAL = 1
@@ -72,9 +83,7 @@ local function makeDraggable(frame, dragBar)
 				end
 
 			end)
-
 		end
-
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
@@ -98,6 +107,38 @@ local function makeDraggable(frame, dragBar)
 		)
 
 	end)
+end
+
+--==================================================
+-- DELETE BIOME SYSTEM
+--==================================================
+
+local deletedBiomes = {}
+
+local function findBiome(name)
+
+	return workspace:FindFirstChild(name, true)
+
+end
+
+local function deleteBiome(name)
+
+	local biome = findBiome(name)
+
+	if biome then
+		biome:Destroy()
+	end
+
+	deletedBiomes[name] = true
+
+end
+
+-- Hapus biome default
+for name, enabled in pairs(DEFAULT_DELETED) do
+
+	if enabled then
+		deleteBiome(name)
+	end
 
 end
 
@@ -193,6 +234,42 @@ openButton.Parent = treeRow
 makeCorner(openButton, 7)
 
 --==================================================
+-- DELETE BIOMES MENU BUTTON
+--==================================================
+
+local deleteRow = Instance.new("Frame")
+deleteRow.Size = UDim2.new(1, -20, 0, 55)
+deleteRow.Position = UDim2.fromOffset(10, 120)
+deleteRow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+deleteRow.BorderSizePixel = 0
+deleteRow.Parent = main
+
+makeCorner(deleteRow, 8)
+
+local deleteText = Instance.new("TextLabel")
+deleteText.Size = UDim2.new(1, -100, 1, 0)
+deleteText.Position = UDim2.fromOffset(12, 0)
+deleteText.BackgroundTransparency = 1
+deleteText.Text = "🗑️ Delete Biomes"
+deleteText.TextColor3 = Color3.new(1, 1, 1)
+deleteText.TextSize = 16
+deleteText.Font = Enum.Font.GothamSemibold
+deleteText.TextXAlignment = Enum.TextXAlignment.Left
+deleteText.Parent = deleteRow
+
+local deleteOpenButton = Instance.new("TextButton")
+deleteOpenButton.Size = UDim2.fromOffset(70, 35)
+deleteOpenButton.Position = UDim2.new(1, -78, 0.5, -17)
+deleteOpenButton.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+deleteOpenButton.Text = "OPEN"
+deleteOpenButton.TextColor3 = Color3.new(1, 1, 1)
+deleteOpenButton.TextSize = 13
+deleteOpenButton.Font = Enum.Font.GothamBold
+deleteOpenButton.Parent = deleteRow
+
+makeCorner(deleteOpenButton, 7)
+
+--==================================================
 -- FIND FOLDERS
 --==================================================
 
@@ -211,11 +288,10 @@ local function findTreeFolders()
 	end
 
 	return folders
-
 end
 
 --==================================================
--- GET ALL BASEPARTS
+-- GET BASEPARTS
 --==================================================
 
 local function getBaseParts(container)
@@ -239,11 +315,15 @@ local function getBaseParts(container)
 	end
 
 	return parts
-
 end
 
 --==================================================
--- GET MODEL HEIGHT
+-- NEW HEIGHT METHOD
+--==================================================
+-- Mengukur Y tertinggi dan Y terendah
+-- dari setiap BasePart di dalam model.
+--
+-- Tidak menggunakan GetBoundingBox().
 --==================================================
 
 local function getModelHeight(model)
@@ -252,70 +332,50 @@ local function getModelHeight(model)
 		return 0
 	end
 
-	-- Cara utama
 	local parts = getBaseParts(model)
 
 	if #parts == 0 then
 		return 0
 	end
 
-	-- Hitung bounding box berdasarkan posisi dunia
-	local minX = math.huge
-	local minY = math.huge
-	local minZ = math.huge
-
-	local maxX = -math.huge
-	local maxY = -math.huge
-	local maxZ = -math.huge
+	local lowestY = math.huge
+	local highestY = -math.huge
 
 	for _, part in ipairs(parts) do
 
 		if part:IsDescendantOf(workspace) then
 
-			local cf = part.CFrame
-			local size = part.Size
+			local position = part.Position
+			local halfY = part.Size.Y / 2
 
-			local half = size / 2
+			local bottomY = position.Y - halfY
+			local topY = position.Y + halfY
 
-			local corners = {
-				cf * Vector3.new(-half.X, -half.Y, -half.Z),
-				cf * Vector3.new(-half.X, -half.Y, half.Z),
-				cf * Vector3.new(-half.X, half.Y, -half.Z),
-				cf * Vector3.new(-half.X, half.Y, half.Z),
-				cf * Vector3.new(half.X, -half.Y, -half.Z),
-				cf * Vector3.new(half.X, -half.Y, half.Z),
-				cf * Vector3.new(half.X, half.Y, -half.Z),
-				cf * Vector3.new(half.X, half.Y, half.Z)
-			}
+			if bottomY < lowestY then
+				lowestY = bottomY
+			end
 
-			for _, point in ipairs(corners) do
-
-				minX = math.min(minX, point.X)
-				minY = math.min(minY, point.Y)
-				minZ = math.min(minZ, point.Z)
-
-				maxX = math.max(maxX, point.X)
-				maxY = math.max(maxY, point.Y)
-				maxZ = math.max(maxZ, point.Z)
-
+			if topY > highestY then
+				highestY = topY
 			end
 
 		end
 
 	end
 
-	if minY == math.huge or maxY == -math.huge then
+	if lowestY == math.huge
+		or highestY == -math.huge then
+
 		return 0
+
 	end
 
-	local height = maxY - minY
-
-	return height
+	return highestY - lowestY
 
 end
 
 --==================================================
--- FIND TARGET PART FOR LINE
+-- TARGET PART FOR LINE
 --==================================================
 
 local function getTargetPart(model)
@@ -324,7 +384,10 @@ local function getTargetPart(model)
 		return nil
 	end
 
-	-- PrimaryPart
+	if model:IsA("BasePart") then
+		return model
+	end
+
 	if model:IsA("Model") then
 
 		if model.PrimaryPart
@@ -336,33 +399,28 @@ local function getTargetPart(model)
 
 	end
 
-	-- Cari BasePart terbesar
 	local parts = getBaseParts(model)
 
 	if #parts == 0 then
 		return nil
 	end
 
-	local biggestPart = nil
-	local biggestVolume = -math.huge
+	-- Cari part yang paling tinggi
+	local highestPart = nil
+	local highestY = -math.huge
 
 	for _, part in ipairs(parts) do
 
-		local volume =
-			part.Size.X *
-			part.Size.Y *
-			part.Size.Z
+		if part.Position.Y > highestY then
 
-		if volume > biggestVolume then
-
-			biggestVolume = volume
-			biggestPart = part
+			highestY = part.Position.Y
+			highestPart = part
 
 		end
 
 	end
 
-	return biggestPart
+	return highestPart
 
 end
 
@@ -398,10 +456,12 @@ end
 
 local function createLine(model)
 
-	-- Jika sudah aktif, toggle OFF
 	if activeLines[model] then
+
 		removeLine(model)
+
 		return false
+
 	end
 
 	if not model or not model.Parent then
@@ -432,24 +492,17 @@ local function createLine(model)
 
 	local objectAttachment = Instance.new("Attachment")
 	objectAttachment.Name = "GrowAForest_ObjectLine"
-
-	-- Tempatkan attachment di tengah objek
-	objectAttachment.Position = Vector3.zero
 	objectAttachment.Parent = targetPart
 
 	local beam = Instance.new("Beam")
 	beam.Name = "GrowAForest_Line"
-
 	beam.Attachment0 = playerAttachment
 	beam.Attachment1 = objectAttachment
-
 	beam.Width0 = 0.08
 	beam.Width1 = 0.08
-
 	beam.FaceCamera = true
 	beam.LightEmission = 1
 	beam.LightInfluence = 0
-
 	beam.Parent = root
 
 	activeLines[model] = {
@@ -644,13 +697,7 @@ local function createRow(index)
 
 		local model = rowData.model
 
-		-- Pastikan target masih ada
 		if not model.Parent then
-
-			lineButton.Text = "LINE"
-			lineButton.BackgroundColor3 =
-				Color3.fromRGB(70, 100, 170)
-
 			return
 		end
 
@@ -679,19 +726,17 @@ local function createRow(index)
 end
 
 --==================================================
--- FIND MODEL CANDIDATES
+-- GET MODEL CANDIDATES
 --==================================================
 
 local function getModelCandidates(folder)
 
 	local candidates = {}
 
-	-- Model langsung
 	if folder:IsA("Model") then
 		table.insert(candidates, folder)
 	end
 
-	-- Semua Model di dalam folder
 	for _, obj in ipairs(folder:GetDescendants()) do
 
 		if obj:IsA("Model") then
@@ -705,7 +750,7 @@ local function getModelCandidates(folder)
 end
 
 --==================================================
--- FIND HIGHEST MODEL PER FOLDER
+-- FIND HIGHEST MODEL
 --==================================================
 
 local function getHighestModels()
@@ -738,8 +783,7 @@ local function getHighestModels()
 
 		end
 
-		-- Jika tidak ada Model,
-		-- coba cari BasePart sebagai fallback
+		-- Fallback jika folder hanya berisi Part
 		if not highestModel then
 
 			local parts = getBaseParts(folder)
@@ -779,7 +823,6 @@ local function getHighestModels()
 
 	end
 
-	-- Urutkan dari paling tinggi
 	table.sort(results, function(a, b)
 
 		return a.height > b.height
@@ -821,7 +864,6 @@ local function updateList()
 
 	lastResultsKey = resultKey
 
-	-- Hapus row berlebih
 	for index = #results + 1, #rows do
 
 		if rows[index] and rows[index].row then
@@ -832,7 +874,6 @@ local function updateList()
 
 	end
 
-	-- Update / buat row
 	for index, data in ipairs(results) do
 
 		local rowData = rows[index]
@@ -855,7 +896,6 @@ local function updateList()
 				data.height
 			)
 
-		-- Jika model berubah
 		if rowData.model ~= data.model then
 
 			if rowData.model
@@ -876,7 +916,6 @@ local function updateList()
 
 	end
 
-	-- Hapus line untuk objek yang sudah hilang
 	for model, data in pairs(activeLines) do
 
 		if not model
@@ -893,6 +932,185 @@ local function updateList()
 end
 
 --==================================================
+-- DELETE BIOMES FRAME
+--==================================================
+
+local biomeFrame = Instance.new("Frame")
+biomeFrame.Name = "DeleteBiomesFrame"
+biomeFrame.Size = UDim2.fromScale(0.6, 0.8)
+biomeFrame.Position = UDim2.fromScale(0.2, 0.1)
+biomeFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+biomeFrame.BorderSizePixel = 0
+biomeFrame.Visible = false
+biomeFrame.Parent = gui
+
+makeCorner(biomeFrame, 10)
+makeStroke(biomeFrame)
+
+--==================================================
+-- BIOME TOPBAR
+--==================================================
+
+local biomeTopbar = Instance.new("Frame")
+biomeTopbar.Size = UDim2.new(1, 0, 0, 42)
+biomeTopbar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+biomeTopbar.BorderSizePixel = 0
+biomeTopbar.Parent = biomeFrame
+
+makeCorner(biomeTopbar, 10)
+
+local biomeTitle = Instance.new("TextLabel")
+biomeTitle.Size = UDim2.new(1, -80, 1, 0)
+biomeTitle.Position = UDim2.fromOffset(12, 0)
+biomeTitle.BackgroundTransparency = 1
+biomeTitle.Text = "🗑️ Delete Biomes"
+biomeTitle.TextColor3 = Color3.new(1, 1, 1)
+biomeTitle.TextSize = 17
+biomeTitle.Font = Enum.Font.GothamBold
+biomeTitle.TextXAlignment = Enum.TextXAlignment.Left
+biomeTitle.Parent = biomeTopbar
+
+local biomeBack = Instance.new("TextButton")
+biomeBack.Size = UDim2.fromOffset(65, 32)
+biomeBack.Position = UDim2.new(1, -72, 0, 5)
+biomeBack.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+biomeBack.Text = "BACK"
+biomeBack.TextColor3 = Color3.new(1, 1, 1)
+biomeBack.TextSize = 12
+biomeBack.Font = Enum.Font.GothamBold
+biomeBack.Parent = biomeTopbar
+
+makeCorner(biomeBack, 6)
+makeDraggable(biomeFrame, biomeTopbar)
+
+--==================================================
+-- BIOME SCROLL
+--==================================================
+
+local biomeScroll = Instance.new("ScrollingFrame")
+biomeScroll.Size = UDim2.new(1, -12, 1, -52)
+biomeScroll.Position = UDim2.fromOffset(6, 48)
+biomeScroll.BackgroundTransparency = 1
+biomeScroll.BorderSizePixel = 0
+biomeScroll.ScrollBarThickness = 5
+biomeScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+biomeScroll.Parent = biomeFrame
+
+local biomeLayout = Instance.new("UIListLayout")
+biomeLayout.Padding = UDim.new(0, 5)
+biomeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+biomeLayout.Parent = biomeScroll
+
+local biomePadding = Instance.new("UIPadding")
+biomePadding.PaddingTop = UDim.new(0, 4)
+biomePadding.PaddingBottom = UDim.new(0, 5)
+biomePadding.PaddingLeft = UDim.new(0, 3)
+biomePadding.PaddingRight = UDim.new(0, 3)
+biomePadding.Parent = biomeScroll
+
+biomeLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+
+	biomeScroll.CanvasSize = UDim2.new(
+		0,
+		0,
+		0,
+		biomeLayout.AbsoluteContentSize.Y + 10
+	)
+
+end)
+
+--==================================================
+-- BIOME ROWS
+--==================================================
+
+local function createBiomeRow(name, index)
+
+	local row = Instance.new("Frame")
+	row.Name = "Biome_" .. name
+	row.Size = UDim2.new(1, -8, 0, 55)
+	row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = index
+	row.Parent = biomeScroll
+
+	makeCorner(row, 7)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -130, 1, 0)
+	label.Position = UDim2.fromOffset(12, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "🌍 " .. name
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextSize = 15
+	label.Font = Enum.Font.GothamSemibold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = row
+
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(90, 34)
+	button.Position = UDim2.new(1, -100, 0.5, -17)
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextSize = 11
+	button.Font = Enum.Font.GothamBold
+	button.Parent = row
+
+	makeCorner(button, 6)
+
+	local function refresh()
+
+		local biome = findBiome(name)
+
+		if not biome then
+
+			button.Text = "DELETED"
+			button.BackgroundColor3 =
+				Color3.fromRGB(90, 90, 90)
+
+			deletedBiomes[name] = true
+
+		else
+
+			button.Text = "DELETE"
+			button.BackgroundColor3 =
+				Color3.fromRGB(170, 70, 70)
+
+			deletedBiomes[name] = false
+
+		end
+
+	end
+
+	button.MouseButton1Click:Connect(function()
+
+		local biome = findBiome(name)
+
+		if biome then
+
+			biome:Destroy()
+
+			deletedBiomes[name] = true
+
+		end
+
+		refresh()
+
+		lastResultsKey = ""
+
+		updateList()
+
+	end)
+
+	refresh()
+
+	return row
+
+end
+
+for index, name in ipairs(FOLDER_NAMES) do
+	createBiomeRow(name, index)
+end
+
+--==================================================
 -- BUTTON EVENTS
 --==================================================
 
@@ -902,14 +1120,28 @@ openButton.MouseButton1Click:Connect(function()
 	resultFrame.Visible = true
 
 	lastResultsKey = ""
-
 	updateList()
+
+end)
+
+deleteOpenButton.MouseButton1Click:Connect(function()
+
+	main.Visible = false
+	resultFrame.Visible = false
+	biomeFrame.Visible = true
 
 end)
 
 backButton.MouseButton1Click:Connect(function()
 
 	resultFrame.Visible = false
+	main.Visible = true
+
+end)
+
+biomeBack.MouseButton1Click:Connect(function()
+
+	biomeFrame.Visible = false
 	main.Visible = true
 
 end)
@@ -923,9 +1155,7 @@ task.spawn(function()
 	while gui.Parent do
 
 		if resultFrame.Visible then
-
 			updateList()
-
 		end
 
 		task.wait(UPDATE_INTERVAL)
