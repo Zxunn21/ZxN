@@ -1,4 +1,5 @@
 -- GrowAForestGui - LocalScript
+-- Highest Model per Folder + Recursive Scan + Line Fix
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -71,7 +72,9 @@ local function makeDraggable(frame, dragBar)
 				end
 
 			end)
+
 		end
+
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
@@ -93,7 +96,9 @@ local function makeDraggable(frame, dragBar)
 			startPos.Y.Scale,
 			startPos.Y.Offset + delta.Y
 		)
+
 	end)
+
 end
 
 --==================================================
@@ -199,13 +204,42 @@ local function findTreeFolders()
 
 		local obj = workspace:FindFirstChild(name, true)
 
-		if obj and obj:IsA("Folder") then
+		if obj and (obj:IsA("Folder") or obj:IsA("Model")) then
 			table.insert(folders, obj)
 		end
 
 	end
 
 	return folders
+
+end
+
+--==================================================
+-- GET ALL BASEPARTS
+--==================================================
+
+local function getBaseParts(container)
+
+	local parts = {}
+
+	if not container then
+		return parts
+	end
+
+	if container:IsA("BasePart") then
+		table.insert(parts, container)
+	end
+
+	for _, obj in ipairs(container:GetDescendants()) do
+
+		if obj:IsA("BasePart") then
+			table.insert(parts, obj)
+		end
+
+	end
+
+	return parts
+
 end
 
 --==================================================
@@ -218,15 +252,118 @@ local function getModelHeight(model)
 		return 0
 	end
 
-	local success, cf, size = pcall(function()
-		return model:GetBoundingBox()
-	end)
+	-- Cara utama
+	local parts = getBaseParts(model)
 
-	if success and size then
-		return size.Y
+	if #parts == 0 then
+		return 0
 	end
 
-	return 0
+	-- Hitung bounding box berdasarkan posisi dunia
+	local minX = math.huge
+	local minY = math.huge
+	local minZ = math.huge
+
+	local maxX = -math.huge
+	local maxY = -math.huge
+	local maxZ = -math.huge
+
+	for _, part in ipairs(parts) do
+
+		if part:IsDescendantOf(workspace) then
+
+			local cf = part.CFrame
+			local size = part.Size
+
+			local half = size / 2
+
+			local corners = {
+				cf * Vector3.new(-half.X, -half.Y, -half.Z),
+				cf * Vector3.new(-half.X, -half.Y, half.Z),
+				cf * Vector3.new(-half.X, half.Y, -half.Z),
+				cf * Vector3.new(-half.X, half.Y, half.Z),
+				cf * Vector3.new(half.X, -half.Y, -half.Z),
+				cf * Vector3.new(half.X, -half.Y, half.Z),
+				cf * Vector3.new(half.X, half.Y, -half.Z),
+				cf * Vector3.new(half.X, half.Y, half.Z)
+			}
+
+			for _, point in ipairs(corners) do
+
+				minX = math.min(minX, point.X)
+				minY = math.min(minY, point.Y)
+				minZ = math.min(minZ, point.Z)
+
+				maxX = math.max(maxX, point.X)
+				maxY = math.max(maxY, point.Y)
+				maxZ = math.max(maxZ, point.Z)
+
+			end
+
+		end
+
+	end
+
+	if minY == math.huge or maxY == -math.huge then
+		return 0
+	end
+
+	local height = maxY - minY
+
+	return height
+
+end
+
+--==================================================
+-- FIND TARGET PART FOR LINE
+--==================================================
+
+local function getTargetPart(model)
+
+	if not model or not model.Parent then
+		return nil
+	end
+
+	-- PrimaryPart
+	if model:IsA("Model") then
+
+		if model.PrimaryPart
+			and model.PrimaryPart:IsA("BasePart") then
+
+			return model.PrimaryPart
+
+		end
+
+	end
+
+	-- Cari BasePart terbesar
+	local parts = getBaseParts(model)
+
+	if #parts == 0 then
+		return nil
+	end
+
+	local biggestPart = nil
+	local biggestVolume = -math.huge
+
+	for _, part in ipairs(parts) do
+
+		local volume =
+			part.Size.X *
+			part.Size.Y *
+			part.Size.Z
+
+		if volume > biggestVolume then
+
+			biggestVolume = volume
+			biggestPart = part
+
+		end
+
+	end
+
+	return biggestPart
+
 end
 
 --==================================================
@@ -256,12 +393,18 @@ local function removeLine(model)
 	end
 
 	activeLines[model] = nil
+
 end
 
 local function createLine(model)
 
+	-- Jika sudah aktif, toggle OFF
 	if activeLines[model] then
 		removeLine(model)
+		return false
+	end
+
+	if not model or not model.Parent then
 		return false
 	end
 
@@ -277,22 +420,7 @@ local function createLine(model)
 		return false
 	end
 
-	local targetPart
-
-	if model:IsA("BasePart") then
-		targetPart = model
-	else
-
-		targetPart = model.PrimaryPart
-
-		if not targetPart then
-			targetPart = model:FindFirstChildWhichIsA(
-				"BasePart",
-				true
-			)
-		end
-
-	end
+	local targetPart = getTargetPart(model)
 
 	if not targetPart then
 		return false
@@ -304,26 +432,35 @@ local function createLine(model)
 
 	local objectAttachment = Instance.new("Attachment")
 	objectAttachment.Name = "GrowAForest_ObjectLine"
+
+	-- Tempatkan attachment di tengah objek
+	objectAttachment.Position = Vector3.zero
 	objectAttachment.Parent = targetPart
 
 	local beam = Instance.new("Beam")
 	beam.Name = "GrowAForest_Line"
+
 	beam.Attachment0 = playerAttachment
 	beam.Attachment1 = objectAttachment
+
 	beam.Width0 = 0.08
 	beam.Width1 = 0.08
+
 	beam.FaceCamera = true
 	beam.LightEmission = 1
 	beam.LightInfluence = 0
+
 	beam.Parent = root
 
 	activeLines[model] = {
 		beam = beam,
 		playerAttachment = playerAttachment,
-		objectAttachment = objectAttachment
+		objectAttachment = objectAttachment,
+		targetPart = targetPart
 	}
 
 	return true
+
 end
 
 --==================================================
@@ -507,17 +644,29 @@ local function createRow(index)
 
 		local model = rowData.model
 
+		-- Pastikan target masih ada
+		if not model.Parent then
+
+			lineButton.Text = "LINE"
+			lineButton.BackgroundColor3 =
+				Color3.fromRGB(70, 100, 170)
+
+			return
+		end
+
 		local active = createLine(model)
 
 		if active then
 
 			lineButton.Text = "UNLINE"
-			lineButton.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+			lineButton.BackgroundColor3 =
+				Color3.fromRGB(170, 70, 70)
 
 		else
 
 			lineButton.Text = "LINE"
-			lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
+			lineButton.BackgroundColor3 =
+				Color3.fromRGB(70, 100, 170)
 
 		end
 
@@ -526,6 +675,33 @@ local function createRow(index)
 	rows[index] = rowData
 
 	return rowData
+
+end
+
+--==================================================
+-- FIND MODEL CANDIDATES
+--==================================================
+
+local function getModelCandidates(folder)
+
+	local candidates = {}
+
+	-- Model langsung
+	if folder:IsA("Model") then
+		table.insert(candidates, folder)
+	end
+
+	-- Semua Model di dalam folder
+	for _, obj in ipairs(folder:GetDescendants()) do
+
+		if obj:IsA("Model") then
+			table.insert(candidates, obj)
+		end
+
+	end
+
+	return candidates
+
 end
 
 --==================================================
@@ -543,18 +719,49 @@ local function getHighestModels()
 		local highestModel = nil
 		local highestHeight = -math.huge
 
-		for _, obj in ipairs(folder:GetChildren()) do
+		local candidates = getModelCandidates(folder)
 
-			if obj:IsA("Model") then
+		for _, model in ipairs(candidates) do
 
-				local height = getModelHeight(obj)
+			if model.Parent then
+
+				local height = getModelHeight(model)
 
 				if height > highestHeight then
 
 					highestHeight = height
-					highestModel = obj
+					highestModel = model
 
 				end
+
+			end
+
+		end
+
+		-- Jika tidak ada Model,
+		-- coba cari BasePart sebagai fallback
+		if not highestModel then
+
+			local parts = getBaseParts(folder)
+
+			local highestPart = nil
+			local highestPartHeight = -math.huge
+
+			for _, part in ipairs(parts) do
+
+				if part.Size.Y > highestPartHeight then
+
+					highestPartHeight = part.Size.Y
+					highestPart = part
+
+				end
+
+			end
+
+			if highestPart then
+
+				highestModel = highestPart
+				highestHeight = highestPartHeight
 
 			end
 
@@ -565,18 +772,22 @@ local function getHighestModels()
 			table.insert(results, {
 				folder = folder,
 				model = highestModel,
-				height = highestHeight
+				height = math.max(0, highestHeight)
 			})
 
 		end
 
 	end
 
+	-- Urutkan dari paling tinggi
 	table.sort(results, function(a, b)
+
 		return a.height > b.height
+
 	end)
 
 	return results
+
 end
 
 --==================================================
@@ -593,7 +804,8 @@ local function updateList()
 
 	for _, data in ipairs(results) do
 
-		resultKey = resultKey
+		resultKey =
+			resultKey
 			.. data.folder:GetFullName()
 			.. "|"
 			.. data.model:GetFullName()
@@ -603,14 +815,13 @@ local function updateList()
 
 	end
 
-	-- Tidak perlu update GUI jika tidak ada perubahan
 	if resultKey == lastResultsKey then
 		return
 	end
 
 	lastResultsKey = resultKey
 
-	-- Bersihkan row yang tidak digunakan
+	-- Hapus row berlebih
 	for index = #results + 1, #rows do
 
 		if rows[index] and rows[index].row then
@@ -632,21 +843,32 @@ local function updateList()
 
 		rowData.row.LayoutOrder = index
 
-		rowData.folderLabel.Text = data.folder.Name
-		rowData.nameLabel.Text = data.model.Name
-		rowData.heightLabel.Text =
-			string.format("Height: %.2f studs", data.height)
+		rowData.folderLabel.Text =
+			data.folder.Name
 
-		-- Jika model berubah, reset LINE
+		rowData.nameLabel.Text =
+			data.model.Name
+
+		rowData.heightLabel.Text =
+			string.format(
+				"Height: %.2f studs",
+				data.height
+			)
+
+		-- Jika model berubah
 		if rowData.model ~= data.model then
 
-			if rowData.model and activeLines[rowData.model] then
+			if rowData.model
+				and activeLines[rowData.model] then
+
 				removeLine(rowData.model)
+
 			end
 
 			rowData.model = data.model
 
 			rowData.lineButton.Text = "LINE"
+
 			rowData.lineButton.BackgroundColor3 =
 				Color3.fromRGB(70, 100, 170)
 
@@ -654,36 +876,19 @@ local function updateList()
 
 	end
 
-	-- Hapus LINE untuk object yang sudah tidak ada
+	-- Hapus line untuk objek yang sudah hilang
 	for model, data in pairs(activeLines) do
 
-		if not model.Parent then
+		if not model
+			or not model.Parent
+			or not data.targetPart
+			or not data.targetPart.Parent then
+
 			removeLine(model)
+
 		end
 
 	end
-
-end
-
---==================================================
--- EMPTY STATE
---==================================================
-
-local function createEmptyState()
-
-	if scroll:FindFirstChild("EmptyState") then
-		return
-	end
-
-	local empty = Instance.new("TextLabel")
-	empty.Name = "EmptyState"
-	empty.Size = UDim2.new(1, -10, 0, 50)
-	empty.BackgroundTransparency = 1
-	empty.Text = "Tidak ditemukan Model."
-	empty.TextColor3 = Color3.fromRGB(200, 200, 200)
-	empty.TextSize = 14
-	empty.Font = Enum.Font.Gotham
-	empty.Parent = scroll
 
 end
 
@@ -697,6 +902,7 @@ openButton.MouseButton1Click:Connect(function()
 	resultFrame.Visible = true
 
 	lastResultsKey = ""
+
 	updateList()
 
 end)
@@ -717,7 +923,9 @@ task.spawn(function()
 	while gui.Parent do
 
 		if resultFrame.Visible then
+
 			updateList()
+
 		end
 
 		task.wait(UPDATE_INTERVAL)
