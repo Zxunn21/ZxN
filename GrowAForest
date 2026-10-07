@@ -6,7 +6,9 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+--==================================================
 -- SETTINGS
+--==================================================
 
 local FOLDER_NAMES = {
 	"Forest",
@@ -37,14 +39,18 @@ local DEFAULT_DELETED = {
 
 local UPDATE_INTERVAL = 1
 
+--==================================================
 -- GUI
+--==================================================
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "GrowAForestGui"
 gui.ResetOnSpawn = false
 gui.Parent = playerGui
 
+--==================================================
 -- HELPERS
+--==================================================
 
 local function makeCorner(obj, radius)
 	local c = Instance.new("UICorner")
@@ -107,129 +113,42 @@ local function makeDraggable(frame, dragBar)
 	end)
 end
 
+--==================================================
 -- DELETE BIOME SYSTEM
+--==================================================
 
 local deletedBiomes = {}
 
 local function findBiome(name)
+
 	return workspace:FindFirstChild(name, true)
+
 end
 
---penentuan tinggi pohon
+local function deleteBiome(name)
 
-local function getTreeHighestY(model)
-	local highestY = -math.huge
-
-	if not model or not model.Parent then
-		return highestY
-	end
-
-	for _, obj in ipairs(model:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			if obj.Position.Y > highestY then
-				highestY = obj.Position.Y
-			end
-		end
-	end
-
-	if model:IsA("BasePart") and model.Position.Y > highestY then
-		highestY = model.Position.Y
-	end
-
-	return highestY
-end
-
---mencari model pohon utama
-
-local function getRootTreeModels(biome)
-	local trees = {}
-
-	if not biome then
-		return trees
-	end
-
-	for _, obj in ipairs(biome:GetDescendants()) do
-		if obj:IsA("Model") then
-			local parentModel = obj.Parent:FindFirstAncestorOfClass("Model")
-
-			if not parentModel or not parentModel:IsDescendantOf(biome) then
-				table.insert(trees, obj)
-			end
-		end
-	end
-
-	return trees
-end
-
---mencari pohon tertinggi
-
-local function getHighestTree(biome)
-	local highestModel = nil
-	local highestY = -math.huge
-
-	for _, model in ipairs(getRootTreeModels(biome)) do
-		if model.Parent then
-			local y = getTreeHighestY(model)
-
-			if y > highestY then
-				highestY = y
-				highestModel = model
-			end
-		end
-	end
-
-	return highestModel, highestY
-end
-
---menghapus semua model kecuali pohon tertinggi
-
-local function deleteBiomeModels(name)
 	local biome = findBiome(name)
 
-	if not biome then
-		deletedBiomes[name] = true
-		return
+	if biome then
+		biome:Destroy()
 	end
 
-	local highestTree = getHighestTree(biome)
+	deletedBiomes[name] = true
 
-	if not highestTree then
-		deletedBiomes[name] = false
-		return
-	end
-
-	for _, model in ipairs(getRootTreeModels(biome)) do
-		if model ~= highestTree and model.Parent then
-			model:Destroy()
-		end
-	end
-
-	deletedBiomes[name] = false
 end
 
---menghapus folder secara total
-
-local function deleteFolderCompletely(name)
-	local folder = findBiome(name)
-
-	if folder then
-		folder:Destroy()
-	end
-end
-
---hapus biome default
-
+-- Hapus biome default
 for name, enabled in pairs(DEFAULT_DELETED) do
+
 	if enabled then
-		if name == "BiomeDecor" then
-			deleteFolderCompletely(name)
-		elseif table.find(FOLDER_NAMES, name) then
-			deleteBiomeModels(name)
-		end
+		deleteBiome(name)
 	end
+
 end
 
+--==================================================
 -- MAIN FRAME
+--==================================================
 
 local main = Instance.new("Frame")
 main.Name = "MainFrame"
@@ -242,7 +161,9 @@ main.Parent = gui
 makeCorner(main, 10)
 makeStroke(main)
 
+--==================================================
 -- MAIN TOPBAR
+--==================================================
 
 local topbar = Instance.new("Frame")
 topbar.Name = "Topbar"
@@ -280,7 +201,9 @@ end)
 
 makeDraggable(main, topbar)
 
+--==================================================
 -- TREE MENU
+--==================================================
 
 local treeRow = Instance.new("Frame")
 treeRow.Size = UDim2.new(1, -20, 0, 55)
@@ -314,7 +237,9 @@ openButton.Parent = treeRow
 
 makeCorner(openButton, 7)
 
+--==================================================
 -- DELETE BIOMES MENU BUTTON
+--==================================================
 
 local deleteRow = Instance.new("Frame")
 deleteRow.Size = UDim2.new(1, -20, 0, 55)
@@ -348,7 +273,9 @@ deleteOpenButton.Parent = deleteRow
 
 makeCorner(deleteOpenButton, 7)
 
+--==================================================
 -- FIND FOLDERS
+--==================================================
 
 local function findTreeFolders()
 
@@ -367,7 +294,9 @@ local function findTreeFolders()
 	return folders
 end
 
+--==================================================
 -- GET BASEPARTS
+--==================================================
 
 local function getBaseParts(container)
 
@@ -392,7 +321,9 @@ local function getBaseParts(container)
 	return parts
 end
 
+--==================================================
 -- NEW HEIGHT METHOD
+--==================================================
 
 local function getModelHeight(model)
 
@@ -425,7 +356,9 @@ local function getModelHeight(model)
 	return highestY
 end
 
+--==================================================
 -- TARGET PART FOR LINE
+--==================================================
 
 local function getTargetPart(model)
 
@@ -473,7 +406,9 @@ local function getTargetPart(model)
 
 end
 
+--==================================================
 -- LINE SYSTEM
+--==================================================
 
 local activeLines = {}
 
@@ -563,7 +498,9 @@ local function createLine(model)
 
 end
 
+--==================================================
 -- RESULT FRAME
+--==================================================
 
 local resultFrame = Instance.new("Frame")
 resultFrame.Name = "TreeListFrame"
@@ -577,7 +514,9 @@ resultFrame.Parent = gui
 makeCorner(resultFrame, 10)
 makeStroke(resultFrame)
 
+--==================================================
 -- RESULT TOPBAR
+--==================================================
 
 local resultTopbar = Instance.new("Frame")
 resultTopbar.Size = UDim2.new(1, 0, 0, 42)
@@ -612,7 +551,9 @@ makeCorner(backButton, 6)
 
 makeDraggable(resultFrame, resultTopbar)
 
+--==================================================
 -- SCROLL LIST
+--==================================================
 
 local scroll = Instance.new("ScrollingFrame")
 scroll.Name = "TreeList"
@@ -647,11 +588,15 @@ layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 
 end)
 
+--==================================================
 -- ROW DATA
+--==================================================
 
 local rows = {}
 
+--==================================================
 -- CREATE ROW
+--==================================================
 
 local function createRow(index)
 
@@ -762,7 +707,9 @@ local function createRow(index)
 
 end
 
+--==================================================
 -- GET MODEL CANDIDATES
+--==================================================
 
 local function getModelCandidates(folder)
 
@@ -784,7 +731,9 @@ local function getModelCandidates(folder)
 
 end
 
+--==================================================
 -- FIND HIGHEST MODEL
+--==================================================
 
 local function getHighestModels()
 
@@ -864,7 +813,9 @@ local function getHighestModels()
 
 end
 
+--==================================================
 -- UPDATE LIST
+--==================================================
 
 local lastResultsKey = ""
 
@@ -960,7 +911,9 @@ local function updateList()
 
 end
 
+--==================================================
 -- DELETE BIOMES FRAME
+--==================================================
 
 local biomeFrame = Instance.new("Frame")
 biomeFrame.Name = "DeleteBiomesFrame"
@@ -974,7 +927,9 @@ biomeFrame.Parent = gui
 makeCorner(biomeFrame, 10)
 makeStroke(biomeFrame)
 
+--==================================================
 -- BIOME TOPBAR
+--==================================================
 
 local biomeTopbar = Instance.new("Frame")
 biomeTopbar.Size = UDim2.new(1, 0, 0, 42)
@@ -1008,7 +963,9 @@ biomeBack.Parent = biomeTopbar
 makeCorner(biomeBack, 6)
 makeDraggable(biomeFrame, biomeTopbar)
 
+--==================================================
 -- BIOME SCROLL
+--==================================================
 
 local biomeScroll = Instance.new("ScrollingFrame")
 biomeScroll.Size = UDim2.new(1, -12, 1, -52)
@@ -1042,7 +999,9 @@ biomeLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 
 end)
 
+--==================================================
 -- BIOME ROWS
+--==================================================
 
 local function createBiomeRow(name, index)
 
@@ -1103,11 +1062,14 @@ local function createBiomeRow(name, index)
 
 	button.MouseButton1Click:Connect(function()
 
-		if name == "BiomeDecor" then
-			deleteFolderCompletely(name)
+		local biome = findBiome(name)
+
+		if biome then
+
+			biome:Destroy()
+
 			deletedBiomes[name] = true
-		else
-			deleteBiomeModels(name)
+
 		end
 
 		refresh()
@@ -1128,9 +1090,9 @@ for index, name in ipairs(FOLDER_NAMES) do
 	createBiomeRow(name, index)
 end
 
-createBiomeRow("BiomeDecor", #FOLDER_NAMES + 1)
-
+--==================================================
 -- BUTTON EVENTS
+--==================================================
 
 openButton.MouseButton1Click:Connect(function()
 
@@ -1164,7 +1126,9 @@ biomeBack.MouseButton1Click:Connect(function()
 
 end)
 
+--==================================================
 -- AUTO UPDATE
+--==================================================
 
 task.spawn(function()
 
