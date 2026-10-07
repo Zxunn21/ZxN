@@ -11,6 +11,7 @@ local DEFAULT_SPEED = 50
 local UNIVERSE_SPEEDS = {
 	[10035204815] = 400,
 	[10563114921] = 255,
+	[10764300768] = 300,
 }
 
 local function getDefaultSpeed()
