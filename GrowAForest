@@ -112,10 +112,10 @@ end
 local deletedBiomes = {}
 
 local function findBiome(name)
-
 	return workspace:FindFirstChild(name, true)
-
 end
+
+--penentuan tinggi pohon
 
 local function getTreeHighestY(model)
 	local highestY = -math.huge
@@ -132,28 +132,58 @@ local function getTreeHighestY(model)
 		end
 	end
 
+	if model:IsA("BasePart") and model.Position.Y > highestY then
+		highestY = model.Position.Y
+	end
+
 	return highestY
 end
+
+--mencari model pohon utama
+
+local function getRootTreeModels(biome)
+	local trees = {}
+
+	if not biome then
+		return trees
+	end
+
+	for _, obj in ipairs(biome:GetDescendants()) do
+		if obj:IsA("Model") then
+			local parentModel = obj.Parent:FindFirstAncestorOfClass("Model")
+
+			if not parentModel or not parentModel:IsDescendantOf(biome) then
+				table.insert(trees, obj)
+			end
+		end
+	end
+
+	return trees
+end
+
+--mencari pohon tertinggi
 
 local function getHighestTree(biome)
 	local highestModel = nil
 	local highestY = -math.huge
 
-	for _, obj in ipairs(biome:GetChildren()) do
-		if obj:IsA("Model") then
-			local y = getTreeHighestY(obj)
+	for _, model in ipairs(getRootTreeModels(biome)) do
+		if model.Parent then
+			local y = getTreeHighestY(model)
 
 			if y > highestY then
 				highestY = y
-				highestModel = obj
+				highestModel = model
 			end
 		end
 	end
 
-	return highestModel
+	return highestModel, highestY
 end
 
-local function deleteBiome(name)
+--menghapus semua model kecuali pohon tertinggi
+
+local function deleteBiomeModels(name)
 	local biome = findBiome(name)
 
 	if not biome then
@@ -163,22 +193,40 @@ local function deleteBiome(name)
 
 	local highestTree = getHighestTree(biome)
 
-	for _, obj in ipairs(biome:GetChildren()) do
-		if obj:IsA("Model") and obj ~= highestTree then
-			obj:Destroy()
+	if not highestTree then
+		deletedBiomes[name] = false
+		return
+	end
+
+	for _, model in ipairs(getRootTreeModels(biome)) do
+		if model ~= highestTree and model.Parent then
+			model:Destroy()
 		end
 	end
 
 	deletedBiomes[name] = false
 end
 
--- Hapus biome default
-for name, enabled in pairs(DEFAULT_DELETED) do
+--menghapus folder secara total
 
-	if enabled then
-		deleteBiome(name)
+local function deleteFolderCompletely(name)
+	local folder = findBiome(name)
+
+	if folder then
+		folder:Destroy()
 	end
+end
 
+--hapus biome default
+
+for name, enabled in pairs(DEFAULT_DELETED) do
+	if enabled then
+		if name == "BiomeDecor" then
+			deleteFolderCompletely(name)
+		elseif table.find(FOLDER_NAMES, name) then
+			deleteBiomeModels(name)
+		end
+	end
 end
 
 -- MAIN FRAME
@@ -1055,18 +1103,11 @@ local function createBiomeRow(name, index)
 
 	button.MouseButton1Click:Connect(function()
 
-		local biome = findBiome(name)
-
-		if biome then
-			local highestTree = getHighestTree(biome)
-
-			for _, obj in ipairs(biome:GetChildren()) do
-				if obj:IsA("Model") and obj ~= highestTree then
-					obj:Destroy()
-				end
-			end
-
-			deletedBiomes[name] = false
+		if name == "BiomeDecor" then
+			deleteFolderCompletely(name)
+			deletedBiomes[name] = true
+		else
+			deleteBiomeModels(name)
 		end
 
 		refresh()
@@ -1086,6 +1127,8 @@ end
 for index, name in ipairs(FOLDER_NAMES) do
 	createBiomeRow(name, index)
 end
+
+createBiomeRow("BiomeDecor", #FOLDER_NAMES + 1)
 
 -- BUTTON EVENTS
 
