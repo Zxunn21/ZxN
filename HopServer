@@ -1,11 +1,32 @@
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Find or create ScreenGui
+-- =========================================================
+-- SETTINGS
+-- =========================================================
+
+local HOLD_TIME = 0.5
+
+-- HANYA server dengan maksimal 1 pemain
+local MAX_PLAYERS_FOR_EMPTY = 1
+
+-- Maksimal server yang dicoba
+local MAX_ATTEMPTS = 10
+
+-- Waktu menunggu teleport
+local TELEPORT_TIMEOUT = 5
+
+-- =========================================================
+-- GUI
+-- =========================================================
+
 local gui = playerGui:FindFirstChild("EggESP")
+
 if not gui then
 	gui = Instance.new("ScreenGui")
 	gui.Name = "EggESP"
@@ -16,18 +37,35 @@ if not gui then
 	gui.Parent = playerGui
 end
 
--- Server hop button
+-- Hapus GUI lama
+local oldButton = gui:FindFirstChild("ServerButton")
+if oldButton then
+	oldButton:Destroy()
+end
+
+local oldBubble = gui:FindFirstChild("ServerBubble")
+if oldBubble then
+	oldBubble:Destroy()
+end
+
+-- =========================================================
+-- SERVER BUTTON
+-- =========================================================
+
 local serverButton = Instance.new("TextButton")
 serverButton.Name = "ServerButton"
 serverButton.AnchorPoint = Vector2.new(0.5, 0.5)
 serverButton.Size = UDim2.fromOffset(80, 40)
 serverButton.Position = UDim2.new(0.95, -20, -0.05, -10)
+
 serverButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 serverButton.BorderSizePixel = 0
+
 serverButton.Text = "Server"
 serverButton.TextColor3 = Color3.fromRGB(0, 0, 0)
 serverButton.TextSize = 14
 serverButton.Font = Enum.Font.GothamBold
+
 serverButton.AutoButtonColor = true
 serverButton.Active = true
 serverButton.ZIndex = 1000
@@ -42,11 +80,15 @@ serverStroke.Thickness = 2
 serverStroke.Color = Color3.fromRGB(210, 210, 210)
 serverStroke.Parent = serverButton
 
--- Server hop bubble
+-- =========================================================
+-- BUBBLE
+-- =========================================================
+
 local serverBubble = Instance.new("Frame")
 serverBubble.Name = "ServerBubble"
 serverBubble.Size = UDim2.fromOffset(155, 42)
 serverBubble.Position = UDim2.new(0.9, -117, -0.05, 28)
+
 serverBubble.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 serverBubble.BorderSizePixel = 0
 serverBubble.Visible = false
@@ -74,15 +116,96 @@ serverBubbleArrow.Parent = serverBubble
 local serverBubbleText = Instance.new("TextLabel")
 serverBubbleText.Size = UDim2.new(1, -12, 1, -8)
 serverBubbleText.Position = UDim2.fromOffset(6, 4)
+
 serverBubbleText.BackgroundTransparency = 1
-serverBubbleText.Text = "Hold to Server Hop"
+serverBubbleText.Text = "Hold to Find Empty"
 serverBubbleText.TextColor3 = Color3.new(1, 1, 1)
 serverBubbleText.TextSize = 13
 serverBubbleText.Font = Enum.Font.GothamBold
 serverBubbleText.ZIndex = 1101
 serverBubbleText.Parent = serverBubble
 
--- Functions
+-- =========================================================
+-- STATE
+-- =========================================================
+
+local hopping = false
+local holdingServer = false
+local holdToken = 0
+
+-- =========================================================
+-- BLOCKED USER CACHE
+-- =========================================================
+
+local blockedUsers = {}
+
+local function updateBlockedUsers()
+
+	table.clear(blockedUsers)
+
+	local success, result = pcall(function()
+		return StarterGui:GetBlockedUserIds()
+	end)
+
+	if not success or typeof(result) ~= "table" then
+		return
+	end
+
+	for _, userId in ipairs(result) do
+		blockedUsers[tonumber(userId)] = true
+	end
+end
+
+-- Ambil daftar blocked saat script mulai
+updateBlockedUsers()
+
+-- Roblox akan memberi event saat daftar block berubah
+pcall(function()
+
+	local blockedEvent = StarterGui.PlayerBlockedEvent
+
+	if blockedEvent then
+
+		blockedEvent.Event:Connect(function(userId)
+
+			if userId then
+				blockedUsers[tonumber(userId)] = true
+			end
+
+		end)
+
+	end
+
+end)
+
+-- =========================================================
+-- CEK PLAYER BLOCKED DI SERVER SEKARANG
+-- =========================================================
+
+local function hasBlockedPlayerHere()
+
+	updateBlockedUsers()
+
+	for _, otherPlayer in ipairs(Players:GetPlayers()) do
+
+		if otherPlayer ~= player then
+
+			local userId = tonumber(otherPlayer.UserId)
+
+			if userId and blockedUsers[userId] then
+				return true, otherPlayer
+			end
+
+		end
+	end
+
+	return false, nil
+end
+
+-- =========================================================
+-- BUBBLE
+-- =========================================================
+
 local function showServerBubble()
 	serverBubble.Visible = true
 end
@@ -91,163 +214,409 @@ local function hideServerBubble()
 	serverBubble.Visible = false
 end
 
-local HOLD_TIME = 1
-local hopping = false
-local holdingServer = false
-local holdToken = 0
+-- =========================================================
+-- CANCEL HOLD
+-- =========================================================
 
 local function cancelServerHold()
+
 	holdingServer = false
-	holdToken += 0.5
+	holdToken += 1
+
 	serverButton.Text = "Server"
 	serverButton.AutoButtonColor = true
+
 	hideServerBubble()
 end
 
+-- =========================================================
+-- RESET
+-- =========================================================
+
 local function resetServerButton(message)
+
 	if message and message ~= "" then
+
 		serverButton.Text = message
+
 		task.wait(1)
 	end
+
 	serverButton.Text = "Server"
 	serverButton.AutoButtonColor = true
+
 	hopping = false
 end
 
+-- =========================================================
+-- GET SERVER LIST
+-- =========================================================
+
+local function getServerList()
+
+	local url =
+		"https://games.roblox.com/v1/games/"
+		.. game.PlaceId
+		.. "/servers/Public?sortOrder=Asc&limit=100"
+
+	local response
+
+	local success, result = pcall(function()
+
+		-- Executor request
+		if typeof(request) == "function" then
+
+			local req = request({
+				Url = url,
+				Method = "GET"
+			})
+
+			return req.Body
+
+		elseif typeof(http_request) == "function" then
+
+			local req = http_request({
+				Url = url,
+				Method = "GET"
+			})
+
+			return req.Body
+
+		elseif typeof(syn) == "table"
+			and typeof(syn.request) == "function" then
+
+			local req = syn.request({
+				Url = url,
+				Method = "GET"
+			})
+
+			return req.Body
+
+		else
+			return game:HttpGet(url)
+		end
+
+	end)
+
+	if not success or not result then
+		return nil
+	end
+
+	local decodeSuccess, data = pcall(function()
+		return HttpService:JSONDecode(result)
+	end)
+
+	if not decodeSuccess then
+		return nil
+	end
+
+	return data
+end
+
+-- =========================================================
+-- FIND EMPTY SERVER
+-- =========================================================
+
+local function findEmptyServers()
+
+	local data = getServerList()
+
+	if not data or not data.data then
+		return {}
+	end
+
+	local candidates = {}
+
+	for _, server in ipairs(data.data) do
+
+		local serverId = server.id
+		local playing = tonumber(server.playing) or 0
+		local maxPlayers = tonumber(server.maxPlayers) or 0
+
+		-- Jangan masuk server sekarang
+		if serverId ~= game.JobId then
+
+			-- Harus benar-benar <= 1 pemain
+			if playing <= MAX_PLAYERS_FOR_EMPTY then
+
+				-- Harus masih memiliki slot
+				if playing < maxPlayers then
+
+					table.insert(candidates, {
+						id = serverId,
+						playing = playing,
+						maxPlayers = maxPlayers
+					})
+
+				end
+			end
+		end
+	end
+
+	-- Server paling kosong di depan
+	table.sort(candidates, function(a, b)
+
+		if a.playing == b.playing then
+			return a.maxPlayers < b.maxPlayers
+		end
+
+		return a.playing < b.playing
+
+	end)
+
+	return candidates
+end
+
+-- =========================================================
+-- TELEPORT TO SPECIFIC SERVER
+-- =========================================================
+
+local function teleportToServer(serverId)
+
+	local oldJobId = game.JobId
+
+	local success = pcall(function()
+
+		TeleportService:TeleportToPlaceInstance(
+			game.PlaceId,
+			serverId,
+			player
+		)
+
+	end)
+
+	if not success then
+		return false
+	end
+
+	local startTime = os.clock()
+
+	while os.clock() - startTime < TELEPORT_TIMEOUT do
+
+		if game.JobId ~= oldJobId then
+			return true
+		end
+
+		task.wait(0.25)
+	end
+
+	return false
+end
+
+-- =========================================================
+-- FALLBACK ROBLOX MATCHMAKING
+-- =========================================================
+
+local function fallbackTeleport()
+
+	serverButton.Text = "New..."
+
+	local oldJobId = game.JobId
+
+	local success = pcall(function()
+
+		TeleportService:Teleport(
+			game.PlaceId,
+			player
+		)
+
+	end)
+
+	if not success then
+		return false
+	end
+
+	local startTime = os.clock()
+
+	while os.clock() - startTime < TELEPORT_TIMEOUT do
+
+		if game.JobId ~= oldJobId then
+			return true
+		end
+
+		task.wait(0.25)
+	end
+
+	return false
+end
+
+-- =========================================================
+-- MAIN SERVER HOP
+-- =========================================================
+
 local function performServerHop()
+
 	if hopping then
 		return
 	end
 
 	hopping = true
+
 	hideServerBubble()
-	serverButton.Text = "Hop..."
+
+	serverButton.Text = "Check..."
 	serverButton.AutoButtonColor = false
 
-	local success, result = pcall(function()
-		local HttpService = game:GetService("HttpService")
-		local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-		local response
+	-- =====================================================
+	-- CEK BLOCKED PLAYER DI SERVER SEKARANG
+	-- =====================================================
 
-		if typeof(request) == "function" then
-			local req = request({Url = url, Method = "GET"})
-			response = req.Body
-		elseif typeof(http_request) == "function" then
-			local req = http_request({Url = url, Method = "GET"})
-			response = req.Body
-		elseif typeof(syn) == "table" and typeof(syn.request) == "function" then
-			local req = syn.request({Url = url, Method = "GET"})
-			response = req.Body
-		else
-			response = game:HttpGet(url)
-		end
+	local blockedHere, blockedPlayer = hasBlockedPlayerHere()
 
-		return HttpService:JSONDecode(response)
-	end)
+	if blockedHere then
 
-	local candidates = {}
+		serverButton.Text = "Blocked"
 
-	if success and result and result.data then
-		for _, server in ipairs(result.data) do
-			if server.id ~= game.JobId and server.playing < server.maxPlayers then
-				table.insert(candidates, {
-					id = server.id,
-					playing = server.playing,
-				})
-			end
-		end
+		task.wait(0.5)
+
+		-- Langsung cari server lain
 	end
 
-	-- Prioritaskan server dengan pemain paling sedikit:
-	-- makin kosong server, makin kecil kemungkinan data basi
-	-- ternyata sudah penuh saat teleport dieksekusi.
-	table.sort(candidates, function(a, b)
-		return a.playing < b.playing
-	end)
+	-- =====================================================
+	-- CARI SERVER ≤ 1 PEMAIN
+	-- =====================================================
 
-	if #candidates == 0 then
-		resetServerButton("No Server")
-		return
-	end
+	serverButton.Text = "Scan..."
 
-	-- Coba maksimal 3 server berbeda (terurut dari yang paling kosong).
-	-- Jika satu gagal/penuh, otomatis lanjut ke server berikutnya.
-	local attempts = math.min(#candidates, 3)
+	local candidates = findEmptyServers()
 
-	for i = 1, attempts do
-		local target = candidates[i].id
+	-- =====================================================
+	-- ADA SERVER KOSONG
+	-- =====================================================
 
-		local ok = pcall(function()
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, target, player)
-		end)
+	if #candidates > 0 then
 
-		if ok then
-			-- Teleport sudah dimulai. WATCHDOG: jika dalam 8 detik masih
-			-- di server ini, hop gagal diam-diam (misal server ternyata
-			-- penuh / teleport dibatalkan engine).
-			-- Jika berhasil, client keluar dari server dan loop ini
-			-- tidak pernah melanjutkan eksekusi.
-			local jobId = game.JobId
-			local startTime = os.clock()
+		serverButton.Text = "Found"
 
-			while os.clock() - startTime < 8 do
-				if game.JobId ~= jobId then
-					-- Sudah tidak di server lama — hop sukses.
-					return
-				end
-				task.wait(0.25)
+		task.wait(0.3)
+
+		local attempts = math.min(
+			#candidates,
+			MAX_ATTEMPTS
+		)
+
+		for i = 1, attempts do
+
+			local target = candidates[i]
+
+			serverButton.Text =
+				"Hop " .. target.playing
+
+			local success = teleportToServer(target.id)
+
+			if success then
+				return
 			end
-			-- Masih di server yang sama setelah 8 detik → gagal,
-			-- lanjut coba server berikutnya.
-		else
-			-- Teleport error sinkron (instance tidak tersedia dll.),
-			-- coba server berikutnya.
+
 			task.wait(0.5)
 		end
 	end
 
-	-- Semua percobaan gagal → reset tombol ke kondisi normal.
+	-- =====================================================
+	-- TIDAK ADA EMPTY SERVER
+	-- =====================================================
+
+	serverButton.Text = "No Empty"
+
+	task.wait(0.5)
+
+	-- Biarkan Roblox memilih server
+	local success = fallbackTeleport()
+
+	if success then
+		return
+	end
+
+	-- =====================================================
+	-- RETRY
+	-- =====================================================
+
+	serverButton.Text = "Retry..."
+
+	task.wait(1)
+
+	local retryCandidates = findEmptyServers()
+
+	for i = 1, math.min(#retryCandidates, MAX_ATTEMPTS) do
+
+		local target = retryCandidates[i]
+
+		serverButton.Text =
+			"Hop " .. target.playing
+
+		if teleportToServer(target.id) then
+			return
+		end
+
+		task.wait(0.5)
+	end
+
 	resetServerButton("Failed")
 end
 
+-- =========================================================
+-- HOLD
+-- =========================================================
+
 local function beginServerHold()
+
 	if hopping or holdingServer then
 		return
 	end
 
 	holdingServer = true
+
 	showServerBubble()
+
 	holdToken += 1
+
 	local token = holdToken
 	local startTime = os.clock()
 
 	task.spawn(function()
-		while holdingServer and token == holdToken do
+
+		while holdingServer
+			and token == holdToken do
+
 			local elapsed = os.clock() - startTime
 			local remaining = HOLD_TIME - elapsed
 
 			if remaining <= 0 then
-			holdingServer = false
+
+				holdingServer = false
+
 				performServerHop()
+
 				return
 			end
 
-			serverButton.Text = string.format("%.1f", remaining)
+			serverButton.Text =
+				string.format("%.1f", remaining)
+
 			task.wait(0.03)
 		end
+
 	end)
 end
 
+-- =========================================================
+-- INPUT
+-- =========================================================
+
 serverButton.InputBegan:Connect(function(inputObject)
+
 	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
 		or inputObject.UserInputType == Enum.UserInputType.Touch then
+
 		beginServerHold()
 	end
 end)
 
 serverButton.InputEnded:Connect(function(inputObject)
+
 	if inputObject.UserInputType == Enum.UserInputType.MouseButton1
 		or inputObject.UserInputType == Enum.UserInputType.Touch then
+
 		if holdingServer then
 			cancelServerHold()
 		end
