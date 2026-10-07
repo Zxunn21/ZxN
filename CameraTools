@@ -239,12 +239,17 @@ local camera = workspace.CurrentCamera
 local freeCamEnabled = false
 local anchoredParts = {}
 
-local BASE_SPEED = 50
-local SPRINT_MULT = 3
-local LOOK_SENSITIVITY = 0.01
+local BASE_SPEED = 30
+local SPRINT_MULT = 2.5
+local LOOK_SENSITIVITY = 0.003
 
-local yaw = 0
-local pitch = 0
+local ROTATION_SMOOTHNESS = 0.15
+local POSITION_SMOOTHNESS = 0.12
+
+local currentCFrame = nil
+local targetPosition = Vector3.zero
+local currentYaw, targetYaw = 0, 0
+local currentPitch, targetPitch = 0, 0
 
 local keysDown = {}
 local btnState = {}
@@ -635,8 +640,13 @@ local function startFreeCam()
 
 	local look = camera.CFrame.LookVector
 
-	yaw = math.atan2(-look.X, -look.Z)
-	pitch = math.asin(math.clamp(look.Y, -1, 1))
+	targetYaw = math.atan2(-look.X, -look.Z)
+	targetPitch = math.asin(math.clamp(look.Y, -1, 1))
+	currentYaw = targetYaw
+	currentPitch = targetPitch
+
+	currentCFrame = camera.CFrame
+	targetPosition = camera.CFrame.Position
 
 	camera.CameraType = Enum.CameraType.Scriptable
 
@@ -762,9 +772,9 @@ UserInputService.InputChanged:Connect(function(input)
 
 	if input.UserInputType == Enum.UserInputType.MouseMovement then
 		if mouseLookActive then
-			yaw -= input.Delta.X * LOOK_SENSITIVITY
-			pitch = math.clamp(
-				pitch - input.Delta.Y * LOOK_SENSITIVITY,
+			targetYaw -= input.Delta.X * LOOK_SENSITIVITY
+			targetPitch = math.clamp(
+				targetPitch - input.Delta.Y * LOOK_SENSITIVITY,
 				-math.rad(89),
 				math.rad(89)
 			)
@@ -772,9 +782,9 @@ UserInputService.InputChanged:Connect(function(input)
 
 	elseif input.UserInputType == Enum.UserInputType.Touch then
 		if input == touchLookInput then
-			yaw -= input.Delta.X * LOOK_SENSITIVITY
-			pitch = math.clamp(
-				pitch - input.Delta.Y * LOOK_SENSITIVITY,
+			targetYaw -= input.Delta.X * LOOK_SENSITIVITY
+			targetPitch = math.clamp(
+				targetPitch - input.Delta.Y * LOOK_SENSITIVITY,
 				-math.rad(89),
 				math.rad(89)
 			)
@@ -795,9 +805,17 @@ RunService.RenderStepped:Connect(function(dt)
 		return
 	end
 
-	local rotation = CFrame.fromOrientation(
-		pitch,
-		yaw,
+	if not currentCFrame then
+		currentCFrame = camera.CFrame
+		targetPosition = camera.CFrame.Position
+	end
+
+	currentYaw += (targetYaw - currentYaw) * ROTATION_SMOOTHNESS
+	currentPitch += (targetPitch - currentPitch) * ROTATION_SMOOTHNESS
+
+	local targetRotation = CFrame.fromOrientation(
+		currentPitch,
+		currentYaw,
 		0
 	)
 
@@ -831,9 +849,6 @@ RunService.RenderStepped:Connect(function(dt)
 		move = move.Unit
 	end
 
-	local worldMove =
-		rotation:VectorToWorldSpace(move)
-
 	local speed = BASE_SPEED
 
 	if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
@@ -842,12 +857,15 @@ RunService.RenderStepped:Connect(function(dt)
 		speed *= SPRINT_MULT
 	end
 
-	local position = camera.CFrame.Position
+	local worldMove = targetRotation:VectorToWorldSpace(move)
 
-	position += worldMove * speed * dt
+	targetPosition += worldMove * speed * dt
 
-	camera.CFrame =
-		CFrame.new(position) * rotation
+	local targetCFrame = CFrame.new(targetPosition) * targetRotation
+
+	currentCFrame = currentCFrame:Lerp(targetCFrame, POSITION_SMOOTHNESS)
+
+	camera.CFrame = currentCFrame
 end)
 
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
