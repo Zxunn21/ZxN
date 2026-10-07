@@ -18,7 +18,8 @@ local FOLDER_NAMES = {
 	"Mushroom",
 	"Candy",
 	"Volcano",
-	"Ocean"
+	"Ocean",
+	"Space"
 }
 
 -- Biome yang langsung dihapus saat script mulai
@@ -31,6 +32,7 @@ local DEFAULT_DELETED = {
 	Candy = true,
 	Volcano = true,
 	Ocean = false,
+	Space = false,
 	BiomeDecor = true,
 	SafeZoneDecor = true
 }
@@ -322,58 +324,36 @@ end
 --==================================================
 -- NEW HEIGHT METHOD
 --==================================================
--- Mengukur Y tertinggi dan Y terendah
--- dari setiap BasePart di dalam model.
---
--- Tidak menggunakan GetBoundingBox().
---==================================================
 
 local function getModelHeight(model)
 
 	if not model or not model.Parent then
-		return 0
+		return -math.huge
 	end
 
 	local parts = getBaseParts(model)
 
 	if #parts == 0 then
-		return 0
+		return -math.huge
 	end
 
-	local lowestY = math.huge
 	local highestY = -math.huge
 
 	for _, part in ipairs(parts) do
 
 		if part:IsDescendantOf(workspace) then
 
-			local position = part.Position
-			local halfY = part.Size.Y / 2
+			local y = part.Position.Y
 
-			local bottomY = position.Y - halfY
-			local topY = position.Y + halfY
-
-			if bottomY < lowestY then
-				lowestY = bottomY
-			end
-
-			if topY > highestY then
-				highestY = topY
+			if y > highestY then
+				highestY = y
 			end
 
 		end
 
 	end
 
-	if lowestY == math.huge
-		or highestY == -math.huge then
-
-		return 0
-
-	end
-
-	return highestY - lowestY
-
+	return highestY
 end
 
 --==================================================
@@ -795,11 +775,9 @@ local function getHighestModels()
 
 			for _, part in ipairs(parts) do
 
-				if part.Size.Y > highestPartHeight then
-
-					highestPartHeight = part.Size.Y
+				if part.Position.Y > highestPartHeight then
+					highestPartHeight = part.Position.Y
 					highestPart = part
-
 				end
 
 			end
