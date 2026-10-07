@@ -1036,4 +1036,4 @@ end)
 
 topBar.Parent = mainFrame
 scrollFrame.Parent = mainFrame
-mainFrame.Parent = screenGui2
+mainFrame.Parent = screenGui
