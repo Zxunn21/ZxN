@@ -1186,8 +1186,14 @@ local touchInterestLines = {}
 local function hasTouchInterest(part)
 	if not part or not part.Parent then return false end
 	if not part:IsA("BasePart") then return false end
+
+	-- Jangan tampilkan TouchInterest ESP jika Transparency = 1
+	if part.Transparency >= 1 then
+		return false
+	end
+
 	return part:FindFirstChild("TouchInterest") ~= nil
-end
+end2
 
 -- Highlight untuk individual parts
 local function addTouchInterestHighlight(part)
