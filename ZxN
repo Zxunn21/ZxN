@@ -236,18 +236,13 @@ local gameButton = Instance.new("TextButton")
 gameButton.Size = UDim2.new(1, -10, 0, 40)
 gameButton.Position = UDim2.fromOffset(0, 5)
 gameButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+gameButton.BorderSizePixel = 0
 gameButton.TextColor3 = Color3.new(1, 1, 1)
 gameButton.Text = "Game"
 gameButton.TextSize = 18
-gameButton.TextXAlignment = Enum.TextXAlignment.Left
-gameButton.TextYAlignment = Enum.TextYAlignment.Center
 gameButton.Font = Enum.Font.GothamBold
 gameButton.ZIndex = 501
 gameButton.Parent = mainMenu
-
-local gameButtonUIPadding = Instance.new("UIPadding")
-gameButtonUIPadding.PaddingLeft = UDim.new(0, 10)
-gameButtonUIPadding.Parent = gameButton
 
 local gameButtonCorner = Instance.new("UICorner")
 gameButtonCorner.CornerRadius = UDim.new(0, 7)
@@ -258,18 +253,13 @@ featureButton.Name = "FeatureButton"
 featureButton.Size = UDim2.new(1, -10, 0, 40)
 featureButton.Position = UDim2.fromOffset(0, 55)
 featureButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+featureButton.BorderSizePixel = 0
 featureButton.TextColor3 = Color3.new(1, 1, 1)
 featureButton.Text = "Fitur"
 featureButton.TextSize = 18
-featureButton.TextXAlignment = Enum.TextXAlignment.Left
-featureButton.TextYAlignment = Enum.TextYAlignment.Center
 featureButton.Font = Enum.Font.GothamBold
 featureButton.ZIndex = 501
 featureButton.Parent = mainMenu
-
-local featureButtonPadding = Instance.new("UIPadding")
-featureButtonPadding.PaddingLeft = UDim.new(0, 10)
-featureButtonPadding.Parent = featureButton
 
 local featureButtonCorner = Instance.new("UICorner")
 featureButtonCorner.CornerRadius = UDim.new(0, 7)
@@ -664,6 +654,7 @@ local autoExecuteLinks = {
 	{ description = "RunButton", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RunButton" },
 	{ description = "ToggleSpeed", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ToggleSpeed" },
 	{ description = "HopServer", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/HopServer" },
+	{ description = "UniversalGuiManager", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/UniversalGuiManager" },
 }
 
 local function executeLinkDirectly(url, description)
