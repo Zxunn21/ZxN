@@ -1,0 +1,202 @@
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+local TARGET_FONTFACE = Font.new(
+	"rbxasset://fonts/families/SourceSansPro.json",
+	Enum.FontWeight.Bold,
+	Enum.FontStyle.Normal
+)
+
+-- Deteksi warna teks untuk menentukan bordir
+local function isBlackish(color)
+	local r, g, b = math.floor(color.R * 255), math.floor(color.G * 255), math.floor(color.B * 255)
+	return r < 50 and g < 50 and b < 50
+end
+
+local function isLightOrGray(color)
+	local r, g, b = math.floor(color.R * 255), math.floor(color.G * 255), math.floor(color.B * 255)
+	local avg = (r + g + b) / 3
+	-- Abu-abu atau putih: channel hamper sama, rata-rata >= 60
+	return math.abs(r - avg) < 25 and math.abs(g - avg) < 25 and math.abs(b - avg) < 25 and avg >= 60
+end
+
+-- Terapkan font + logika warna teks dan bordir ke semua elemen teks
+local function applyTextStyle(instance)
+	if not (instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox")) then return end
+	if instance:GetAttribute("TextStyled") then return end
+	instance:SetAttribute("TextStyled", true)
+
+	instance.FontFace = TARGET_FONTFACE
+
+	local currentColor = instance.TextColor3
+	local existingStroke = instance:FindFirstChildOfClass("UIStroke")
+
+	if isBlackish(currentColor) then
+		-- Teks hitam -> hitam pekat dengan bordir putih
+		instance.TextColor3 = Color3.fromRGB(0, 0, 0)
+		if not existingStroke then
+			local stroke = Instance.new("UIStroke")
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+			stroke.Color = Color3.fromRGB(255, 255, 255)
+			stroke.Thickness = 1.5
+			stroke.Parent = instance
+		end
+	elseif isLightOrGray(currentColor) then
+		-- Teks abu-abu/putih -> putih murni dengan bordir hitam
+		instance.TextColor3 = Color3.fromRGB(255, 255, 255)
+		if not existingStroke then
+			local stroke = Instance.new("UIStroke")
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+			stroke.Color = Color3.fromRGB(0, 0, 0)
+			stroke.Thickness = 1.5
+			stroke.Parent = instance
+		end
+	end
+end
+
+-- Styling untuk Frame: border + corner, TANPA shine/gradient
+local function styleFrame(frame)
+	if not frame:IsA("Frame") then return end
+	if frame:GetAttribute("FrameStyled") then return end
+	-- Lewati frame internal dari styling
+	if frame.Name == "InnerBorderFrame" or frame.Name == "ShineContainer" or frame.Name == "StyleOverlay" then return end
+
+	-- Lewati frame yang transparan (tidak terlihat)
+	if frame.BackgroundTransparency >= 1 then return end
+
+	frame:SetAttribute("FrameStyled", true)
+
+	local uiCorner = frame:FindFirstChildOfClass("UICorner")
+	if not uiCorner then
+		uiCorner = Instance.new("UICorner")
+		uiCorner.CornerRadius = UDim.new(0, 10)
+		uiCorner.Parent = frame
+	end
+
+	local outerStroke = Instance.new("UIStroke")
+	outerStroke.Name = "OuterBorder"
+	outerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	outerStroke.Color = Color3.fromRGB(0, 0, 0)
+	outerStroke.Transparency = 0.2
+	outerStroke.Thickness = 2
+	outerStroke.Parent = frame
+
+	local innerFrame = Instance.new("Frame")
+	innerFrame.Name = "InnerBorderFrame"
+	innerFrame.Size = UDim2.new(1, -4, 1, -4)
+	innerFrame.Position = UDim2.new(0, 2, 0, 2)
+	innerFrame.BackgroundTransparency = 1
+	innerFrame.BorderSizePixel = 0
+	innerFrame.ZIndex = frame.ZIndex + 1
+	innerFrame.Parent = frame
+
+	local innerCorner = Instance.new("UICorner")
+	innerCorner.CornerRadius = UDim.new(uiCorner.CornerRadius.Scale, math.max(0, uiCorner.CornerRadius.Offset - 2))
+	innerCorner.Parent = innerFrame
+
+	local innerStroke = Instance.new("UIStroke")
+	innerStroke.Name = "InnerBorderStroke"
+	innerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	innerStroke.Color = Color3.fromRGB(255, 255, 255)
+	innerStroke.Transparency = 0.5
+	innerStroke.Thickness = 1
+	innerStroke.Parent = innerFrame
+
+	-- TIDAK ada shine container atau gradient untuk Frame
+end
+
+-- Styling untuk tombol: border + corner + gradient + shine
+local function styleButton(button)
+	if not (button:IsA("TextButton") or button:IsA("ImageButton")) then return end
+	if button:FindFirstChild("StyledMarker") then return end
+
+	local marker = Instance.new("BoolValue")
+	marker.Name = "StyledMarker"
+	marker.Parent = button
+
+	button.ClipsDescendants = true
+
+	local uiCorner = button:FindFirstChildOfClass("UICorner")
+	if not uiCorner then
+		uiCorner = Instance.new("UICorner")
+		uiCorner.CornerRadius = UDim.new(0, 12)
+		uiCorner.Parent = button
+	end
+
+	local baseGradient = button:FindFirstChildOfClass("UIGradient")
+	if not baseGradient then
+		baseGradient = Instance.new("UIGradient")
+		baseGradient.Rotation = 90
+		baseGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(130, 130, 130))
+		})
+		baseGradient.Parent = button
+	end
+
+	local outerStroke = Instance.new("UIStroke")
+	outerStroke.Name = "OuterBorder"
+	outerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	outerStroke.Color = Color3.fromRGB(0, 0, 0)
+	outerStroke.Transparency = 0.2
+	outerStroke.Thickness = 2
+	outerStroke.Parent = button
+
+	local innerFrame = Instance.new("Frame")
+	innerFrame.Name = "InnerBorderFrame"
+	innerFrame.Size = UDim2.new(1, -4, 1, -4)
+	innerFrame.Position = UDim2.new(0, 2, 0, 2)
+	innerFrame.BackgroundTransparency = 1
+	innerFrame.ZIndex = button.ZIndex + 1
+	innerFrame.Parent = button
+
+	local innerCorner = uiCorner:Clone()
+	innerCorner.CornerRadius = UDim.new(uiCorner.CornerRadius.Scale, math.max(0, uiCorner.CornerRadius.Offset - 2))
+	innerCorner.Parent = innerFrame
+
+	local innerStroke = Instance.new("UIStroke")
+	innerStroke.Name = "InnerBorderStroke"
+	innerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	innerStroke.Color = Color3.fromRGB(255, 255, 255)
+	innerStroke.Transparency = 0.5
+	innerStroke.Thickness = 1
+	innerStroke.Parent = innerFrame
+
+	local shineContainer = Instance.new("Frame")
+	shineContainer.Name = "ShineContainer"
+	shineContainer.Size = UDim2.new(1, -8, 0.45, 0)
+	shineContainer.Position = UDim2.new(0, 4, 0, 4)
+	shineContainer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	shineContainer.BackgroundTransparency = 0.65
+	shineContainer.BorderSizePixel = 0
+	shineContainer.ZIndex = button.ZIndex + 2
+	shineContainer.Parent = button
+
+	local shineCorner = uiCorner:Clone()
+	shineCorner.CornerRadius = UDim.new(uiCorner.CornerRadius.Scale, math.max(0, uiCorner.CornerRadius.Offset - 4))
+	shineCorner.Parent = shineContainer
+
+	local shineGradient = Instance.new("UIGradient")
+	shineGradient.Rotation = 90
+	shineGradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(1, 0.95)
+	})
+	shineGradient.Parent = shineContainer
+end
+
+-- Fungsi utama: terapkan semua styling yang sesuai ke setiap instance
+local function styleInstance(instance)
+	styleButton(instance)
+	styleFrame(instance)
+	applyTextStyle(instance)
+end
+
+for _, descendant in ipairs(playerGui:GetDescendants()) do
+	styleInstance(descendant)
+end
+
+playerGui.DescendantAdded:Connect(function(descendant)
+	styleInstance(descendant)
+end)
