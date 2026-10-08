@@ -623,7 +623,7 @@ local function refreshListFrame()
 	for lowerName, info in pairs(modelHistory) do
 		-- Saat mode scan aktif, hanya tampilkan objek dalam radius scan
 		if not scanModeEnabled or scanNearbyNames[lowerName] then
-				local kind = (type(info) == "table" and info.kind) or "M"
+			local kind = (type(info) == "table" and info.kind) or "M"
 			local original = (type(info) == "table" and info.name) or info
 			table.insert(names, { lower = lowerName, original = original, kind = kind })
 		end
@@ -1424,6 +1424,26 @@ local function applyTouchInterestESP()
 			else
 				removeTouchInterestLine(descendant)
 			end
+		end
+	end
+
+	-- Cleanup: hapus ESP (highlight, billboard, line) dari part yang sudah tidak lolos hasTouchInterest
+	-- (mis. transparency berubah menjadi 1, TouchInterest dihapus, atau part hilang dari workspace)
+	for part in pairs(touchInterestHighlights) do
+		if not hasTouchInterest(part) then
+			removeTouchInterestHighlight(part)
+		end
+	end
+
+	for part in pairs(touchInterestBillboards) do
+		if not hasTouchInterest(part) then
+			removeTouchInterestBillboard(part)
+		end
+	end
+
+	for part in pairs(touchInterestLines) do
+		if not hasTouchInterest(part) then
+			removeTouchInterestLine(part)
 		end
 	end
 end
