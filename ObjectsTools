@@ -1,4 +1,4 @@
-local Players = game:GetService("Players")
+wlocal Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
@@ -6,7 +6,7 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Cek apakah GUI sudah ada sebelumnya
-local existingGui = playerGui:FindFirstChild("ObjekToolsGui")
+local existingGui = playerGui:FindFirstChild("ObjectsToolsGui")
 if existingGui then
 	existingGui:Destroy()
 end
@@ -1187,13 +1187,12 @@ local function hasTouchInterest(part)
 	if not part or not part.Parent then return false end
 	if not part:IsA("BasePart") then return false end
 
-	-- Jangan tampilkan TouchInterest ESP jika Transparency = 1
 	if part.Transparency >= 1 then
 		return false
 	end
 
 	return part:FindFirstChild("TouchInterest") ~= nil
-end2
+end
 
 -- Highlight untuk individual parts
 local function addTouchInterestHighlight(part)
