@@ -36,7 +36,7 @@ mainFrameCorner.Parent = mainFrame
 -- === TRIGGER BUTTON (draggable, click = toggle frame, long-press = bubble) ===
 local triggerBtn = Instance.new("TextButton")
 triggerBtn.Name = "TriggerButton"
-triggerBtn.Size = UDim2.new(0, 130, 0, 38)
+triggerBtn.Size = UDim2.new(0, 130, 0, 28)
 triggerBtn.Position = UDim2.new(0, 15, 0.5, -19)
 triggerBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 48)
 triggerBtn.BackgroundTransparency = 0.1
@@ -45,7 +45,7 @@ triggerBtn.Text = "Object Tools"
 triggerBtn.TextColor3 = Color3.fromRGB(235, 235, 235)
 triggerBtn.TextSize = 14
 triggerBtn.Font = Enum.Font.GothamBold
-triggerBtn.ZIndex = 5
+triggerBtn.ZIndex = 9999
 triggerBtn.AutoButtonColor = false
 triggerBtn.Parent = screenGui
 
