@@ -135,7 +135,7 @@ local function showBubble()
 				if bubbleFrame and bubbleFrame.Parent then
 					bubbleFrame.Visible = false
 				end
-				triggerBtn.Visible = false
+				screenGui.Enabled = false
 			end)
 		end)
 	end
