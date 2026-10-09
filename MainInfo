@@ -15,6 +15,46 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
+-- === TRIGGER BUTTON (draggable, click = toggle frame, long-press = bubble) ===
+local triggerBtn = Instance.new("TextButton")
+triggerBtn.Name = "TriggerButton"
+triggerBtn.Size = UDim2.new(0, 100, 0, 38)
+triggerBtn.Position = UDim2.new(0, 15, 0.5, -19)
+triggerBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 48)
+triggerBtn.BackgroundTransparency = 0.1
+triggerBtn.BorderSizePixel = 0
+triggerBtn.Text = "Main Info"
+triggerBtn.TextColor3 = Color3.fromRGB(235, 235, 235)
+triggerBtn.TextSize = 14
+triggerBtn.Font = Enum.Font.GothamBold
+triggerBtn.ZIndex = 5
+triggerBtn.AutoButtonColor = false
+triggerBtn.Parent = screenGui
+
+-- Efek tekan untuk trigger button
+local triggerDefaultColor = triggerBtn.BackgroundColor3
+local triggerPressedColor = Color3.fromRGB(30, 30, 33)
+
+triggerBtn.MouseButton1Down:Connect(function()
+	triggerBtn.BackgroundColor3 = triggerPressedColor
+end)
+
+triggerBtn.MouseButton1Up:Connect(function()
+	triggerBtn.BackgroundColor3 = triggerDefaultColor
+end)
+triggerBtn.MouseLeave:Connect(function()
+	triggerBtn.BackgroundColor3 = triggerDefaultColor
+end)
+
+local triggerCorner = Instance.new("UICorner")
+triggerCorner.CornerRadius = UDim.new(0, 8)
+triggerCorner.Parent = triggerBtn
+
+local triggerStroke = Instance.new("UIStroke")
+triggerStroke.Thickness = 1.5
+triggerStroke.Color = Color3.fromRGB(80, 80, 80)
+triggerStroke.Parent = triggerBtn
+
 -- Main Frame (60% x 80% of screen)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
@@ -23,6 +63,171 @@ mainFrame.Position = UDim2.new(0.2, 0, 0.1, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
+
+-- Frame awalnya tersembunyi
+mainFrame.Visible = false
+
+-- Bubble frame (lazy-created)
+local bubbleFrame = nil
+
+local function hideBubble()
+	if bubbleFrame and bubbleFrame.Parent then
+		bubbleFrame.Visible = false
+	end
+end
+
+local function showBubble()
+	if not bubbleFrame then
+		bubbleFrame = Instance.new("Frame")
+		bubbleFrame.Name = "TriggerBubble"
+		bubbleFrame.Size = UDim2.new(0, 130, 0, 44)
+		bubbleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 38)
+		bubbleFrame.BackgroundTransparency = 0.05
+		bubbleFrame.BorderSizePixel = 0
+		bubbleFrame.ZIndex = 20
+		bubbleFrame.Visible = false
+		bubbleFrame.Parent = screenGui
+
+		local bubbleCorner = Instance.new("UICorner")
+		bubbleCorner.CornerRadius = UDim.new(0, 8)
+		bubbleCorner.Parent = bubbleFrame
+
+		local bubbleStroke = Instance.new("UIStroke")
+		bubbleStroke.Thickness = 1.5
+		bubbleStroke.Color = Color3.fromRGB(120, 120, 120)
+		bubbleStroke.Parent = bubbleFrame
+
+		local hideGuiBtn = Instance.new("TextButton")
+		hideGuiBtn.Size = UDim2.new(1, -12, 1, -12)
+		hideGuiBtn.Position = UDim2.fromOffset(6, 6)
+		hideGuiBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+		hideGuiBtn.BorderSizePixel = 0
+		hideGuiBtn.Text = "Hide Gui"
+		hideGuiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		hideGuiBtn.TextSize = 13
+		hideGuiBtn.Font = Enum.Font.GothamBold
+		hideGuiBtn.ZIndex = 21
+		hideGuiBtn.Parent = bubbleFrame
+
+		local hideCorner = Instance.new("UICorner")
+		hideCorner.CornerRadius = UDim.new(0, 6)
+		hideCorner.Parent = hideGuiBtn
+
+		hideGuiBtn.Activated:Connect(function()
+			hideBubble()
+
+			-- Efek tekan: warna lebih gelap + sedikit mengecil
+			hideGuiBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 30)
+			hideGuiBtn.Size = UDim2.new(1, -16, 1, -16)
+			hideGuiBtn.Position = UDim2.fromOffset(8, 8)
+
+			task.delay(0.2, function()
+				mainFrame.Visible = false
+				if bubbleFrame and bubbleFrame.Parent then
+					bubbleFrame.Visible = false
+				end
+				screenGui.Enabled = false
+			end)
+		end)
+	end
+
+	-- Posisikan bubble di atas trigger button
+	local tp = triggerBtn.Position
+	bubbleFrame.Position = UDim2.new(
+		tp.X.Scale, tp.X.Offset,
+		tp.Y.Scale, tp.Y.Offset - 50
+	)
+	bubbleFrame.Visible = true
+end
+
+-- Drag + click/long-press detection untuk trigger button
+local triggerPressing = false
+local triggerDragging = false
+local triggerLongPressFired = false
+local triggerDragStart = Vector2.new(0, 0)
+local triggerStartPos = UDim2.new(0, 0, 0, 0)
+local longPressThread = nil
+
+triggerBtn.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		triggerPressing = true
+		triggerDragging = false
+		triggerLongPressFired = false
+		triggerDragStart = input.Position
+		triggerStartPos = triggerBtn.Position
+		hideBubble()
+
+		-- Timer long-press (0.5 detik)
+		longPressThread = task.delay(0.5, function()
+			if triggerPressing and not triggerDragging then
+				triggerLongPressFired = true
+				showBubble()
+			end
+		end)
+	end
+end)
+
+triggerBtn.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+		if triggerPressing then
+			local delta = input.Position - triggerDragStart
+			local moveDist = math.sqrt(delta.X ^ 2 + delta.Y ^ 2)
+
+			if moveDist > 5 then
+				triggerDragging = true
+
+			-- Batalkan timer long-press
+			if longPressThread then
+				task.cancel(longPressThread)
+				longPressThread = nil
+			end
+
+			-- Update posisi (drag)
+			triggerBtn.Position = UDim2.new(
+				triggerStartPos.X.Scale,
+				triggerStartPos.X.Offset + delta.X,
+				triggerStartPos.Y.Scale,
+				triggerStartPos.Y.Offset + delta.Y
+			)
+		end
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		if triggerPressing then
+			-- Batalkan timer long-press
+			if longPressThread then
+				task.cancel(longPressThread)
+				longPressThread = nil
+			end
+
+			if not triggerDragging and not triggerLongPressFired then
+				-- Klik singkat: toggle mainFrame
+				mainFrame.Visible = not mainFrame.Visible
+			end
+
+			triggerPressing = false
+		end
+	end
+end)
+
+-- Tutup bubble saat klik di luar bubble (bukan di trigger button)
+-- gameProcessed = true berarti klik mengenai elemen GUI, jadi skip agar tidak
+-- menutup bubble sebelum tombol di dalamnya sempat memproses event Activated.
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		if bubbleFrame and bubbleFrame.Visible and not triggerPressing then
+			hideBubble()
+		end
+	end
+end)
 
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 8)
