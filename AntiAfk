@@ -1,0 +1,16 @@
+-- ZxN Anti-AFK | Single LocalScript
+-- Otomatis aktif
+
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+
+local player = Players.LocalPlayer
+
+player.Idled:Connect(function()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
+end)
+
+print("[ZxN] Anti-AFK aktif!")
