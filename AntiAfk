@@ -14,6 +14,8 @@ player.Idled:Connect(function()
 end)
 
 -- Max Zoom 5000
+player.CameraMaxZoomDistance = 5000
+
 player.CharacterAdded:Connect(function()
     task.wait(1)
     player.CameraMaxZoomDistance = 5000
