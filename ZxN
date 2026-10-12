@@ -656,6 +656,7 @@ local autoExecuteLinks = {
 	{ description = "HopServer", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/HopServer" },
 	{ description = "UniversalGuiManager", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/UniversalGuiManager" },
     { description = "AntiAfk", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AntiAfk" },
+	{ description = "AutoDelate", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AutoDelate" },
 }
 
 local function executeLinkDirectly(url, description)
