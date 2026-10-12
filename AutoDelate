@@ -1,6 +1,10 @@
 -- AutoDelate | Single LocalScript
 
+local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
 local Helpers = {
     ["10766217938"] = {
@@ -8,10 +12,7 @@ local Helpers = {
     }
 }
 
--- Mendapatkan Universe ID
 local universeId = tostring(game.GameId)
-
--- Menjalankan helper berdasarkan Universe ID
 local commands = Helpers[universeId]
 
 if not commands then
@@ -19,41 +20,128 @@ if not commands then
     return
 end
 
-local function deleteObject(code)
-    local objectType, targetName = code:match("^(%S+)%s+(.+)$")
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "AutoDelateGui"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
 
-    if not objectType or not targetName then
-        warn("[AutoDelate] Format kode salah:", code)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(220, 100)
+frame.Position = UDim2.new(0.5, -110, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius =
+    UDim.new(0, 10)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundTransparency = 1
+title.Text = "AutoDelate"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.Parent = frame
+
+local function createButton(text, position, color)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.fromOffset(90, 40)
+    button.Position = position
+    button.BackgroundColor3 = color
+    button.Text = text
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.TextSize = 16
+    button.Font = Enum.Font.GothamBold
+    button.Parent = frame
+
+    Instance.new("UICorner", button).CornerRadius =
+        UDim.new(0, 8)
+
+    return button
+end
+
+local onButton = createButton(
+    "ON",
+    UDim2.fromOffset(12, 47),
+    Color3.fromRGB(35, 170, 80)
+)
+
+local offButton = createButton(
+    "OFF",
+    UDim2.fromOffset(118, 47),
+    Color3.fromRGB(190, 50, 50)
+)
+
+-- Status
+local enabled = true
+local started = false
+
+local function executeCommands()
+    if started or not enabled then
         return
     end
 
-    local deleted = 0
+    started = true
 
-    -- Pencarian rekursif di seluruh Workspace
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj.Name == targetName then
-            local shouldDelete = false
+    for _, command in ipairs(commands) do
+        local objectType, targetName =
+            command:match("^(%S+)%s+(.+)$")
 
-            if objectType == "F" and obj:IsA("Folder") then
-                shouldDelete = true
-            elseif objectType == "M" and obj:IsA("Model") then
-                shouldDelete = true
-            elseif objectType == "P" and obj:IsA("BasePart") then
-                shouldDelete = true
-            end
+        if objectType and targetName then
+            local objects = Workspace:GetDescendants()
 
-            if shouldDelete then
-                obj:Destroy()
-                deleted = deleted + 1
+            for _, obj in ipairs(objects) do
+                if not obj.Parent then
+                    continue
+                end
+
+                if obj.Name ~= targetName then
+                    continue
+                end
+
+                local valid =
+                    (objectType == "F" and obj:IsA("Folder"))
+                    or (objectType == "M" and obj:IsA("Model"))
+                    or (objectType == "P" and obj:IsA("BasePart"))
+
+                if valid then
+                    obj:Destroy()
+                    print("[AutoDelate] Dihapus:", targetName)
+                end
             end
         end
     end
-
-    print("[AutoDelate] Kode:", code, "| Terhapus:", deleted)
 end
 
-for _, command in ipairs(commands) do
-    deleteObject(command)
-end
+onButton.Activated:Connect(function()
+    enabled = true
+    onButton.Text = "ON ✓"
+    offButton.Text = "OFF"
 
-print("[AutoDelate] Selesai!")
+    executeCommands()
+end)
+
+offButton.Activated:Connect(function()
+    enabled = false
+    started = false
+
+    onButton.Text = "ON"
+    offButton.Text = "OFF ✓"
+
+    print("[AutoDelate] Dinonaktifkan")
+end)
+
+-- Hilangkan GUI setelah 5 detik
+task.delay(5, function()
+    if gui.Parent then
+        gui:Destroy()
+    end
+
+    -- Jika tidak ada interaksi, otomatis ON
+    if not started and enabled then
+        executeCommands()
+    end
+end)
+
+print("[AutoDelate] GUI aktif. Pilih ON atau OFF.")
