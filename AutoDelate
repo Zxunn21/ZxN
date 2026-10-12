@@ -10,7 +10,8 @@ local Helpers = {
     ["10766217938"] = {
         "F PlantedTrees",
         "F HalloweenDecor",
-        "F ElementalAuraFx"
+        "F ElementalAuraFx",
+        "F HubLandmarks"
     }
 }
 
