@@ -8,7 +8,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local Helpers = {
     ["10766217938"] = {
-        "F PlantedTrees"
+        "F PlantedTrees",
+        "F HalloweenDecor"
     }
 }
 
