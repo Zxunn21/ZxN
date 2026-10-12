@@ -1,0 +1,59 @@
+-- AutoDelate | Single LocalScript
+
+local Workspace = game:GetService("Workspace")
+
+local Helpers = {
+    ["10766217938"] = {
+        "F PlantedTrees"
+    }
+}
+
+-- Mendapatkan Universe ID
+local universeId = tostring(game.GameId)
+
+-- Menjalankan helper berdasarkan Universe ID
+local commands = Helpers[universeId]
+
+if not commands then
+    warn("[AutoDelate] Universe tidak terdaftar:", universeId)
+    return
+end
+
+local function deleteObject(code)
+    local objectType, targetName = code:match("^(%S+)%s+(.+)$")
+
+    if not objectType or not targetName then
+        warn("[AutoDelate] Format kode salah:", code)
+        return
+    end
+
+    local deleted = 0
+
+    -- Pencarian rekursif di seluruh Workspace
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj.Name == targetName then
+            local shouldDelete = false
+
+            if objectType == "F" and obj:IsA("Folder") then
+                shouldDelete = true
+            elseif objectType == "M" and obj:IsA("Model") then
+                shouldDelete = true
+            elseif objectType == "P" and obj:IsA("BasePart") then
+                shouldDelete = true
+            end
+
+            if shouldDelete then
+                obj:Destroy()
+                deleted = deleted + 1
+            end
+        end
+    end
+
+    print("[AutoDelate] Kode:", code, "| Terhapus:", deleted)
+end
+
+for _, command in ipairs(commands) do
+    deleteObject(command)
+end
+
+print("[AutoDelate] Selesai!")
