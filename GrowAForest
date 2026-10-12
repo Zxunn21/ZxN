@@ -30,7 +30,8 @@ local DEFAULT_DELETED = {
 	Mushroom = true,
 	Candy = true,
 	Volcano = true,
-	Ocean = false,
+	Ocean = true,
+    Space = true,
 	BiomeDecor = true,
 	SafeZoneDecor = true
 }
