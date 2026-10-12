@@ -32,6 +32,8 @@ local DEFAULT_DELETED = {
 	Volcano = true,
 	Ocean = true,
     Space = true,
+    HalloweenDecor = true,
+    Pets = true,
 	BiomeDecor = true,
 	SafeZoneDecor = true
 }
