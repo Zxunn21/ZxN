@@ -18,10 +18,10 @@ local FOLDER_NAMES = {
 	"Mushroom",
 	"Candy",
 	"Volcano",
-	"Ocean"
-    "Space"
-    "Blossom"
-    "Dino"
+	"Ocean",
+    "Space",
+    "Blossom",
+    "Dino",
     "Cyber"
 }
 
