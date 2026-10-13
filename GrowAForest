@@ -19,6 +19,10 @@ local FOLDER_NAMES = {
 	"Candy",
 	"Volcano",
 	"Ocean"
+    "Space"
+    "Blossom"
+    "Dino"
+    "Cyber"
 }
 
 -- Biome yang langsung dihapus saat script mulai
