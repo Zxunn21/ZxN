@@ -11,42 +11,38 @@ local playerGui = player:WaitForChild("PlayerGui")
 --==================================================
 
 local FOLDER_NAMES = {
-	"Forest",
-	"Desert",
-	"Ice",
-	"Jungle",
-	"Mushroom",
-	"Candy",
-	"Volcano",
-	"Ocean",
-    "Space",
-    "Blossom",
-    "Dino",
-    "Cyber"
+    "Forest", "Desert", "Ice", "Jungle",
+    "Mushroom", "Candy", "Volcano", "Ocean",
+    "Space", "Blossom", "Dino", "Cyber"
 }
 
--- Biome yang langsung dihapus saat script mulai
 local DEFAULT_DELETED = {
-	Forest = true,
-	Desert = true,
-	Ice = true,
-	Jungle = true,
-	Mushroom = true,
-	Candy = true,
-	Volcano = true,
-	Ocean = true,
+    Forest = true,
+    Desert = true,
+    Ice = true,
+    Jungle = true,
+    Mushroom = true,
+    Candy = true,
+    Volcano = true,
+    Ocean = true,
     Space = true,
     HalloweenDecor = true,
     Pets = true,
-	BiomeDecor = true,
-	SafeZoneDecor = true
+    BiomeDecor = true,
+    SafeZoneDecor = true
 }
 
 local UPDATE_INTERVAL = 1
+local MAX_DELETE_HEIGHT = 100
 
 --==================================================
 -- GUI
 --==================================================
+
+local oldGui = playerGui:FindFirstChild("GrowAForestGui")
+if oldGui then
+    oldGui:Destroy()
+end
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "GrowAForestGui"
@@ -58,98 +54,209 @@ gui.Parent = playerGui
 --==================================================
 
 local function makeCorner(obj, radius)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, radius)
-	c.Parent = obj
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius)
+    c.Parent = obj
 end
 
 local function makeStroke(obj)
-	local s = Instance.new("UIStroke")
-	s.Thickness = 1
-	s.Transparency = 0.4
-	s.Parent = obj
+    local s = Instance.new("UIStroke")
+    s.Thickness = 1
+    s.Transparency = 0.4
+    s.Parent = obj
 end
 
 local function makeDraggable(frame, dragBar)
+    local dragging = false
+    local dragStart
+    local startPos
 
-	local dragging = false
-	local dragStart
-	local startPos
+    dragBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
 
-	dragBar.InputBegan:Connect(function(input)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
 
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
+    UserInputService.InputChanged:Connect(function(input)
+        if not dragging then return end
 
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
 
-			input.Changed:Connect(function()
+        local delta = input.Position - dragStart
 
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-
-			end)
-		end
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-
-		if not dragging then
-			return
-		end
-
-		if input.UserInputType ~= Enum.UserInputType.MouseMovement
-			and input.UserInputType ~= Enum.UserInputType.Touch then
-			return
-		end
-
-		local delta = input.Position - dragStart
-
-		frame.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-
-	end)
+        frame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end)
 end
 
 --==================================================
--- DELETE BIOME SYSTEM
+-- MODEL HEIGHT
+--==================================================
+
+local function getBaseParts(container)
+    local parts = {}
+
+    if container:IsA("BasePart") then
+        table.insert(parts, container)
+    end
+
+    for _, obj in ipairs(container:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            table.insert(parts, obj)
+        end
+    end
+
+    return parts
+end
+
+local function getModelHeight(model)
+    if not model or not model.Parent then
+        return 0
+    end
+
+    local parts = getBaseParts(model)
+
+    if #parts == 0 then
+        return 0
+    end
+
+    local lowestY = math.huge
+    local highestY = -math.huge
+
+    for _, part in ipairs(parts) do
+        if part:IsDescendantOf(workspace) then
+            local halfY = part.Size.Y / 2
+            local bottomY = part.Position.Y - halfY
+            local topY = part.Position.Y + halfY
+
+            lowestY = math.min(lowestY, bottomY)
+            highestY = math.max(highestY, topY)
+        end
+    end
+
+    if lowestY == math.huge or highestY == -math.huge then
+        return 0
+    end
+
+    return highestY - lowestY
+end
+
+--==================================================
+-- DELETE MODEL SYSTEM
 --==================================================
 
 local deletedBiomes = {}
 
 local function findBiome(name)
-
-	return workspace:FindFirstChild(name, true)
-
+    return workspace:FindFirstChild(name, true)
 end
 
 local function deleteBiome(name)
+    local biome = findBiome(name)
 
-	local biome = findBiome(name)
+    if not biome then
+        deletedBiomes[name] = true
+        return
+    end
 
-	if biome then
-		biome:Destroy()
-	end
+    -- Hapus folder khusus ini sepenuhnya
+    -- sesuai perilaku script sebelumnya.
+    if name == "BiomeDecor" or name == "SafeZoneDecor"
+    or name == "HalloweenDecor" or name == "Pets" then
+        biome:Destroy()
+        deletedBiomes[name] = true
+        return
+    end
 
-	deletedBiomes[name] = true
+    -- Kumpulkan Model terluar terlebih dahulu.
+    -- Model anak tidak diproses terpisah jika induknya
+    -- sudah masuk daftar.
+    local models = {}
 
+    for _, obj in ipairs(biome:GetDescendants()) do
+        if obj:IsA("Model") then
+            local parent = obj.Parent
+            local nested = false
+
+            while parent and parent ~= biome do
+                if parent:IsA("Model") then
+                    nested = true
+                    break
+                end
+                parent = parent.Parent
+            end
+
+            if not nested then
+                table.insert(models, obj)
+            end
+        end
+    end
+
+    local deletedCount = 0
+    local keptCount = 0
+
+    for _, model in ipairs(models) do
+        if model.Parent then
+            local height = getModelHeight(model)
+
+            if height <= MAX_DELETE_HEIGHT then
+                model:Destroy()
+                deletedCount += 1
+            else
+                keptCount += 1
+            end
+        end
+    end
+
+    deletedBiomes[name] = true
+
+    print(
+        "[GrowAForest] " .. name ..
+        " | Dihapus: " .. deletedCount ..
+        " | Dipertahankan: " .. keptCount
+    )
 end
 
--- Hapus biome default
 for name, enabled in pairs(DEFAULT_DELETED) do
-
-	if enabled then
-		deleteBiome(name)
-	end
-
+    if enabled then
+        deleteBiome(name)
+    end
 end
+
+--==================================================
+-- GAF TRIGGER BUTTON
+--==================================================
+
+local trigger = Instance.new("TextButton")
+trigger.Name = "GAF_Trigger"
+trigger.Size = UDim2.fromOffset(65, 40)
+trigger.Position = UDim2.new(0, 15, 0.5, -20)
+trigger.BackgroundColor3 = Color3.fromRGB(60, 150, 80)
+trigger.BorderSizePixel = 0
+trigger.Text = "GAF"
+trigger.TextColor3 = Color3.new(1, 1, 1)
+trigger.TextSize = 16
+trigger.Font = Enum.Font.GothamBold
+trigger.Parent = gui
+
+makeCorner(trigger, 8)
+makeStroke(trigger)
 
 --==================================================
 -- MAIN FRAME
@@ -162,13 +269,10 @@ main.Position = UDim2.fromScale(0.2, 0.1)
 main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 main.BorderSizePixel = 0
 main.Parent = gui
+main.Visible = false
 
 makeCorner(main, 10)
 makeStroke(main)
-
---==================================================
--- MAIN TOPBAR
---==================================================
 
 local topbar = Instance.new("Frame")
 topbar.Name = "Topbar"
@@ -201,10 +305,14 @@ closeMain.Font = Enum.Font.GothamBold
 closeMain.Parent = topbar
 
 closeMain.MouseButton1Click:Connect(function()
-	gui:Destroy()
+    gui:Destroy()
 end)
 
 makeDraggable(main, topbar)
+
+trigger.MouseButton1Click:Connect(function()
+    main.Visible = not main.Visible
+end)
 
 --==================================================
 -- TREE MENU
@@ -243,7 +351,7 @@ openButton.Parent = treeRow
 makeCorner(openButton, 7)
 
 --==================================================
--- DELETE BIOMES MENU BUTTON
+-- DELETE MENU
 --==================================================
 
 local deleteRow = Instance.new("Frame")
@@ -279,108 +387,106 @@ deleteOpenButton.Parent = deleteRow
 makeCorner(deleteOpenButton, 7)
 
 --==================================================
--- FIND FOLDERS
+-- TELEPORT TO LAST BIOME
+--==================================================
+
+local teleportRow = Instance.new("Frame")
+teleportRow.Name = "TeleportRow"
+teleportRow.Size = UDim2.new(1, -20, 0, 55)
+teleportRow.Position = UDim2.fromOffset(10, 185)
+teleportRow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+teleportRow.BorderSizePixel = 0
+teleportRow.Parent = main
+
+makeCorner(teleportRow, 8)
+
+local teleportText = Instance.new("TextLabel")
+teleportText.Size = UDim2.new(1, -100, 1, 0)
+teleportText.Position = UDim2.fromOffset(12, 0)
+teleportText.BackgroundTransparency = 1
+teleportText.Text = "📍 Teleport to last biome"
+teleportText.TextColor3 = Color3.new(1, 1, 1)
+teleportText.TextSize = 15
+teleportText.Font = Enum.Font.GothamSemibold
+teleportText.TextXAlignment = Enum.TextXAlignment.Left
+teleportText.Parent = teleportRow
+
+local teleportButton = Instance.new("TextButton")
+teleportButton.Name = "TeleportButton"
+teleportButton.Size = UDim2.fromOffset(80, 35)
+teleportButton.Position = UDim2.new(1, -88, 0.5, -17)
+teleportButton.BackgroundColor3 = Color3.fromRGB(70, 120, 190)
+teleportButton.Text = "Teleport"
+teleportButton.TextColor3 = Color3.new(1, 1, 1)
+teleportButton.TextSize = 12
+teleportButton.Font = Enum.Font.GothamBold
+teleportButton.Parent = teleportRow
+
+makeCorner(teleportButton, 7)
+
+teleportButton.MouseButton1Click:Connect(function()
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+
+    if root then
+        root.CFrame = CFrame.new(-28.69, 5.08, 4243.34)
+    end
+end)
+
+--==================================================
+-- LINE TO GIANT ROW
+--==================================================
+
+local giantLineRow = Instance.new("Frame")
+giantLineRow.Name = "LineToGiantRow"
+giantLineRow.Size = UDim2.new(1, -20, 0, 55)
+giantLineRow.Position = UDim2.fromOffset(10, 250)
+giantLineRow.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+giantLineRow.BorderSizePixel = 0
+giantLineRow.Parent = main
+
+makeCorner(giantLineRow, 8)
+
+local giantLineText = Instance.new("TextLabel")
+giantLineText.Size = UDim2.new(1, -100, 1, 0)
+giantLineText.Position = UDim2.fromOffset(12, 0)
+giantLineText.BackgroundTransparency = 1
+giantLineText.Text = "🌲 Line to Giant"
+giantLineText.TextColor3 = Color3.new(1, 1, 1)
+giantLineText.TextSize = 16
+giantLineText.Font = Enum.Font.GothamSemibold
+giantLineText.TextXAlignment = Enum.TextXAlignment.Left
+giantLineText.Parent = giantLineRow
+
+local giantLineButton = Instance.new("TextButton")
+giantLineButton.Name = "LineToGiantButton"
+giantLineButton.Size = UDim2.fromOffset(80, 35)
+giantLineButton.Position = UDim2.new(1, -88, 0.5, -17)
+giantLineButton.BackgroundColor3 = Color3.fromRGB(60, 150, 80)
+giantLineButton.Text = "LINE: ON"
+giantLineButton.TextColor3 = Color3.new(1, 1, 1)
+giantLineButton.TextSize = 12
+giantLineButton.Font = Enum.Font.GothamBold
+giantLineButton.Parent = giantLineRow
+
+makeCorner(giantLineButton, 7)
+
+--==================================================
+-- FIND TREE FOLDERS
 --==================================================
 
 local function findTreeFolders()
+    local folders = {}
 
-	local folders = {}
+    for _, name in ipairs(FOLDER_NAMES) do
+        local obj = workspace:FindFirstChild(name, true)
 
-	for _, name in ipairs(FOLDER_NAMES) do
+        if obj and (obj:IsA("Folder") or obj:IsA("Model")) then
+            table.insert(folders, obj)
+        end
+    end
 
-		local obj = workspace:FindFirstChild(name, true)
-
-		if obj and (obj:IsA("Folder") or obj:IsA("Model")) then
-			table.insert(folders, obj)
-		end
-
-	end
-
-	return folders
-end
-
---==================================================
--- GET BASEPARTS
---==================================================
-
-local function getBaseParts(container)
-
-	local parts = {}
-
-	if not container then
-		return parts
-	end
-
-	if container:IsA("BasePart") then
-		table.insert(parts, container)
-	end
-
-	for _, obj in ipairs(container:GetDescendants()) do
-
-		if obj:IsA("BasePart") then
-			table.insert(parts, obj)
-		end
-
-	end
-
-	return parts
-end
-
---==================================================
--- NEW HEIGHT METHOD
---==================================================
--- Mengukur Y tertinggi dan Y terendah
--- dari setiap BasePart di dalam model.
---
--- Tidak menggunakan GetBoundingBox().
---==================================================
-
-local function getModelHeight(model)
-
-	if not model or not model.Parent then
-		return 0
-	end
-
-	local parts = getBaseParts(model)
-
-	if #parts == 0 then
-		return 0
-	end
-
-	local lowestY = math.huge
-	local highestY = -math.huge
-
-	for _, part in ipairs(parts) do
-
-		if part:IsDescendantOf(workspace) then
-
-			local position = part.Position
-			local halfY = part.Size.Y / 2
-
-			local bottomY = position.Y - halfY
-			local topY = position.Y + halfY
-
-			if bottomY < lowestY then
-				lowestY = bottomY
-			end
-
-			if topY > highestY then
-				highestY = topY
-			end
-
-		end
-
-	end
-
-	if lowestY == math.huge
-		or highestY == -math.huge then
-
-		return 0
-
-	end
-
-	return highestY - lowestY
-
+    return folders
 end
 
 --==================================================
@@ -388,49 +494,30 @@ end
 --==================================================
 
 local function getTargetPart(model)
+    if not model or not model.Parent then
+        return nil
+    end
 
-	if not model or not model.Parent then
-		return nil
-	end
+    if model:IsA("BasePart") then
+        return model
+    end
 
-	if model:IsA("BasePart") then
-		return model
-	end
+    if model:IsA("Model") and model.PrimaryPart then
+        return model.PrimaryPart
+    end
 
-	if model:IsA("Model") then
+    local parts = getBaseParts(model)
+    local highestPart = nil
+    local highestY = -math.huge
 
-		if model.PrimaryPart
-			and model.PrimaryPart:IsA("BasePart") then
+    for _, part in ipairs(parts) do
+        if part.Position.Y > highestY then
+            highestY = part.Position.Y
+            highestPart = part
+        end
+    end
 
-			return model.PrimaryPart
-
-		end
-
-	end
-
-	local parts = getBaseParts(model)
-
-	if #parts == 0 then
-		return nil
-	end
-
-	-- Cari part yang paling tinggi
-	local highestPart = nil
-	local highestY = -math.huge
-
-	for _, part in ipairs(parts) do
-
-		if part.Position.Y > highestY then
-
-			highestY = part.Position.Y
-			highestPart = part
-
-		end
-
-	end
-
-	return highestPart
-
+    return highestPart
 end
 
 --==================================================
@@ -440,90 +527,166 @@ end
 local activeLines = {}
 
 local function removeLine(model)
+    local data = activeLines[model]
+    if not data then return end
 
-	local data = activeLines[model]
+    if data.beam then data.beam:Destroy() end
+    if data.playerAttachment then data.playerAttachment:Destroy() end
+    if data.objectAttachment then data.objectAttachment:Destroy() end
 
-	if not data then
-		return
-	end
-
-	if data.beam then
-		data.beam:Destroy()
-	end
-
-	if data.playerAttachment then
-		data.playerAttachment:Destroy()
-	end
-
-	if data.objectAttachment then
-		data.objectAttachment:Destroy()
-	end
-
-	activeLines[model] = nil
-
+    activeLines[model] = nil
 end
 
 local function createLine(model)
+    if activeLines[model] then
+        removeLine(model)
+        return false
+    end
 
-	if activeLines[model] then
+    if not model or not model.Parent then
+        return false
+    end
 
-		removeLine(model)
+    local character = player.Character
+    if not character then return false end
 
-		return false
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
 
-	end
+    local targetPart = getTargetPart(model)
+    if not targetPart then return false end
 
-	if not model or not model.Parent then
-		return false
-	end
+    local playerAttachment = Instance.new("Attachment")
+    playerAttachment.Name = "GrowAForest_PlayerLine"
+    playerAttachment.Parent = root
 
-	local character = player.Character
+    local objectAttachment = Instance.new("Attachment")
+    objectAttachment.Name = "GrowAForest_ObjectLine"
+    objectAttachment.Parent = targetPart
 
-	if not character then
-		return false
-	end
+    local beam = Instance.new("Beam")
+    beam.Name = "GrowAForest_Line"
+    beam.Attachment0 = playerAttachment
+    beam.Attachment1 = objectAttachment
+    beam.Width0 = 0.08
+    beam.Width1 = 0.08
+    beam.FaceCamera = true
+    beam.LightEmission = 1
+    beam.LightInfluence = 0
+    beam.Parent = root
 
-	local root = character:FindFirstChild("HumanoidRootPart")
+    activeLines[model] = {
+        beam = beam,
+        playerAttachment = playerAttachment,
+        objectAttachment = objectAttachment,
+        targetPart = targetPart
+    }
 
-	if not root then
-		return false
-	end
-
-	local targetPart = getTargetPart(model)
-
-	if not targetPart then
-		return false
-	end
-
-	local playerAttachment = Instance.new("Attachment")
-	playerAttachment.Name = "GrowAForest_PlayerLine"
-	playerAttachment.Parent = root
-
-	local objectAttachment = Instance.new("Attachment")
-	objectAttachment.Name = "GrowAForest_ObjectLine"
-	objectAttachment.Parent = targetPart
-
-	local beam = Instance.new("Beam")
-	beam.Name = "GrowAForest_Line"
-	beam.Attachment0 = playerAttachment
-	beam.Attachment1 = objectAttachment
-	beam.Width0 = 0.08
-	beam.Width1 = 0.08
-	beam.FaceCamera = true
-	beam.LightEmission = 1
-	beam.LightInfluence = 0
-	beam.Parent = root
-
-	activeLines[model] = {
-		beam = beam,
-		playerAttachment = playerAttachment,
-		objectAttachment = objectAttachment,
-		targetPart = targetPart
-	}
-
-	return true
-
+    return true
 end
+
+--==================================================
+-- LINE TO GIANT SYSTEM (DEFAULT ON)
+--==================================================
+
+local getModelCandidates -- forward declaration; defined below
+local giantLinesEnabled = true
+local giantLines = {}
+
+local function removeGiantLine(model)
+    local data = giantLines[model]
+    if not data then return end
+
+    if data.beam then data.beam:Destroy() end
+    if data.playerAttachment then data.playerAttachment:Destroy() end
+    if data.objectAttachment then data.objectAttachment:Destroy() end
+
+    giantLines[model] = nil
+end
+
+local function createGiantLine(model)
+    if giantLines[model] or not model or not model.Parent then
+        return
+    end
+
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    local targetPart = getTargetPart(model)
+    if not root or not targetPart then return end
+
+    local playerAttachment = Instance.new("Attachment")
+    playerAttachment.Name = "GrowAForest_GiantPlayerLine"
+    playerAttachment.Parent = root
+
+    local objectAttachment = Instance.new("Attachment")
+    objectAttachment.Name = "GrowAForest_GiantObjectLine"
+    objectAttachment.Parent = targetPart
+
+    local beam = Instance.new("Beam")
+    beam.Name = "GrowAForest_GiantLine"
+    beam.Attachment0 = playerAttachment
+    beam.Attachment1 = objectAttachment
+    beam.Width0 = 0.1
+    beam.Width1 = 0.1
+    beam.FaceCamera = true
+    beam.LightEmission = 1
+    beam.LightInfluence = 0
+    beam.Color = ColorSequence.new(Color3.fromRGB(255, 190, 60))
+    beam.Parent = root
+
+    giantLines[model] = {
+        beam = beam,
+        playerAttachment = playerAttachment,
+        objectAttachment = objectAttachment,
+        targetPart = targetPart
+    }
+end
+
+local function clearGiantLines()
+    for model in pairs(giantLines) do
+        removeGiantLine(model)
+    end
+end
+
+local function updateGiantLines()
+    if not giantLinesEnabled then
+        clearGiantLines()
+        return
+    end
+
+    local found = {}
+
+    for _, folder in ipairs(findTreeFolders()) do
+        for _, model in ipairs(getModelCandidates(folder)) do
+            if model:IsA("Model") and model.Parent and getModelHeight(model) > MAX_DELETE_HEIGHT then
+                found[model] = true
+                createGiantLine(model)
+            end
+        end
+    end
+
+    -- Bersihkan garis jika model sudah hilang atau tingginya tidak lagi >100.
+    for model in pairs(giantLines) do
+        if not found[model] or not model.Parent then
+            removeGiantLine(model)
+        end
+    end
+end
+
+giantLineButton.MouseButton1Click:Connect(function()
+    giantLinesEnabled = not giantLinesEnabled
+
+    if giantLinesEnabled then
+        giantLineButton.Text = "LINE: ON"
+        giantLineButton.BackgroundColor3 = Color3.fromRGB(60, 150, 80)
+        updateGiantLines()
+    else
+        giantLineButton.Text = "LINE: OFF"
+        giantLineButton.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+        clearGiantLines()
+    end
+end)
+
 
 --==================================================
 -- RESULT FRAME
@@ -540,10 +703,6 @@ resultFrame.Parent = gui
 
 makeCorner(resultFrame, 10)
 makeStroke(resultFrame)
-
---==================================================
--- RESULT TOPBAR
---==================================================
 
 local resultTopbar = Instance.new("Frame")
 resultTopbar.Size = UDim2.new(1, 0, 0, 42)
@@ -575,11 +734,10 @@ backButton.Font = Enum.Font.GothamBold
 backButton.Parent = resultTopbar
 
 makeCorner(backButton, 6)
-
 makeDraggable(resultFrame, resultTopbar)
 
 --==================================================
--- SCROLL LIST
+-- TREE SCROLL
 --==================================================
 
 local scroll = Instance.new("ScrollingFrame")
@@ -605,241 +763,170 @@ padding.PaddingRight = UDim.new(0, 3)
 padding.Parent = scroll
 
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-
-	scroll.CanvasSize = UDim2.new(
-		0,
-		0,
-		0,
-		layout.AbsoluteContentSize.Y + 10
-	)
-
+    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
 end)
 
 --==================================================
--- ROW DATA
+-- TREE ROWS
 --==================================================
 
 local rows = {}
 
---==================================================
--- CREATE ROW
---==================================================
-
 local function createRow(index)
+    local row = Instance.new("Frame")
+    row.Name = "TreeRow_" .. index
+    row.Size = UDim2.new(1, -8, 0, 55)
+    row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    row.BorderSizePixel = 0
+    row.LayoutOrder = index
+    row.Parent = scroll
 
-	local row = Instance.new("Frame")
-	row.Name = "TreeRow_" .. index
-	row.Size = UDim2.new(1, -8, 0, 55)
-	row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	row.BorderSizePixel = 0
-	row.LayoutOrder = index
-	row.Parent = scroll
+    makeCorner(row, 7)
 
-	makeCorner(row, 7)
+    local number = Instance.new("TextLabel")
+    number.Size = UDim2.fromOffset(35, 55)
+    number.BackgroundTransparency = 1
+    number.Text = "#" .. index
+    number.TextColor3 = Color3.fromRGB(150, 150, 150)
+    number.TextSize = 13
+    number.Font = Enum.Font.GothamBold
+    number.Parent = row
 
-	local number = Instance.new("TextLabel")
-	number.Size = UDim2.fromOffset(35, 55)
-	number.BackgroundTransparency = 1
-	number.Text = "#" .. index
-	number.TextColor3 = Color3.fromRGB(150, 150, 150)
-	number.TextSize = 13
-	number.Font = Enum.Font.GothamBold
-	number.Parent = row
+    local folderLabel = Instance.new("TextLabel")
+    folderLabel.Size = UDim2.new(1, -145, 0, 20)
+    folderLabel.Position = UDim2.fromOffset(38, 3)
+    folderLabel.BackgroundTransparency = 1
+    folderLabel.TextColor3 = Color3.fromRGB(120, 200, 120)
+    folderLabel.TextSize = 11
+    folderLabel.Font = Enum.Font.GothamBold
+    folderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    folderLabel.Parent = row
 
-	local folderLabel = Instance.new("TextLabel")
-	folderLabel.Size = UDim2.new(1, -145, 0, 20)
-	folderLabel.Position = UDim2.fromOffset(38, 3)
-	folderLabel.BackgroundTransparency = 1
-	folderLabel.TextColor3 = Color3.fromRGB(120, 200, 120)
-	folderLabel.TextSize = 11
-	folderLabel.Font = Enum.Font.GothamBold
-	folderLabel.TextXAlignment = Enum.TextXAlignment.Left
-	folderLabel.Parent = row
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, -145, 0, 20)
+    nameLabel.Position = UDim2.fromOffset(38, 20)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextSize = 13
+    nameLabel.Font = Enum.Font.GothamSemibold
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    nameLabel.Parent = row
 
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, -145, 0, 20)
-	nameLabel.Position = UDim2.fromOffset(38, 20)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.TextColor3 = Color3.new(1, 1, 1)
-	nameLabel.TextSize = 13
-	nameLabel.Font = Enum.Font.GothamSemibold
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLabel.Parent = row
+    local heightLabel = Instance.new("TextLabel")
+    heightLabel.Size = UDim2.new(1, -145, 0, 15)
+    heightLabel.Position = UDim2.fromOffset(38, 38)
+    heightLabel.BackgroundTransparency = 1
+    heightLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
+    heightLabel.TextSize = 10
+    heightLabel.Font = Enum.Font.Gotham
+    heightLabel.TextXAlignment = Enum.TextXAlignment.Left
+    heightLabel.Parent = row
 
-	local heightLabel = Instance.new("TextLabel")
-	heightLabel.Size = UDim2.new(1, -145, 0, 15)
-	heightLabel.Position = UDim2.fromOffset(38, 38)
-	heightLabel.BackgroundTransparency = 1
-	heightLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
-	heightLabel.TextSize = 10
-	heightLabel.Font = Enum.Font.Gotham
-	heightLabel.TextXAlignment = Enum.TextXAlignment.Left
-	heightLabel.Parent = row
+    local lineButton = Instance.new("TextButton")
+    lineButton.Size = UDim2.fromOffset(75, 32)
+    lineButton.Position = UDim2.new(1, -82, 0.5, -16)
+    lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
+    lineButton.Text = "LINE"
+    lineButton.TextColor3 = Color3.new(1, 1, 1)
+    lineButton.TextSize = 12
+    lineButton.Font = Enum.Font.GothamBold
+    lineButton.Parent = row
 
-	local lineButton = Instance.new("TextButton")
-	lineButton.Size = UDim2.fromOffset(75, 32)
-	lineButton.Position = UDim2.new(1, -82, 0.5, -16)
-	lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
-	lineButton.Text = "LINE"
-	lineButton.TextColor3 = Color3.new(1, 1, 1)
-	lineButton.TextSize = 12
-	lineButton.Font = Enum.Font.GothamBold
-	lineButton.Parent = row
+    makeCorner(lineButton, 6)
 
-	makeCorner(lineButton, 6)
+    local rowData = {
+        row = row,
+        folderLabel = folderLabel,
+        nameLabel = nameLabel,
+        heightLabel = heightLabel,
+        lineButton = lineButton,
+        model = nil
+    }
 
-	local rowData = {
-		row = row,
-		folderLabel = folderLabel,
-		nameLabel = nameLabel,
-		heightLabel = heightLabel,
-		lineButton = lineButton,
-		model = nil
-	}
+    lineButton.MouseButton1Click:Connect(function()
+        local model = rowData.model
 
-	lineButton.MouseButton1Click:Connect(function()
+        if not model or not model.Parent then
+            return
+        end
 
-		if not rowData.model then
-			return
-		end
+        local active = createLine(model)
 
-		local model = rowData.model
+        if active then
+            lineButton.Text = "UNLINE"
+            lineButton.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+        else
+            lineButton.Text = "LINE"
+            lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
+        end
+    end)
 
-		if not model.Parent then
-			return
-		end
-
-		local active = createLine(model)
-
-		if active then
-
-			lineButton.Text = "UNLINE"
-			lineButton.BackgroundColor3 =
-				Color3.fromRGB(170, 70, 70)
-
-		else
-
-			lineButton.Text = "LINE"
-			lineButton.BackgroundColor3 =
-				Color3.fromRGB(70, 100, 170)
-
-		end
-
-	end)
-
-	rows[index] = rowData
-
-	return rowData
-
-end
-
---==================================================
--- GET MODEL CANDIDATES
---==================================================
-
-local function getModelCandidates(folder)
-
-	local candidates = {}
-
-	if folder:IsA("Model") then
-		table.insert(candidates, folder)
-	end
-
-	for _, obj in ipairs(folder:GetDescendants()) do
-
-		if obj:IsA("Model") then
-			table.insert(candidates, obj)
-		end
-
-	end
-
-	return candidates
-
+    rows[index] = rowData
+    return rowData
 end
 
 --==================================================
 -- FIND HIGHEST MODEL
 --==================================================
 
+getModelCandidates = function(folder)
+    local candidates = {}
+
+    if folder:IsA("Model") then
+        table.insert(candidates, folder)
+    end
+
+    for _, obj in ipairs(folder:GetDescendants()) do
+        if obj:IsA("Model") then
+            table.insert(candidates, obj)
+        end
+    end
+
+    return candidates
+end
+
 local function getHighestModels()
+    local results = {}
 
-	local folders = findTreeFolders()
+    for _, folder in ipairs(findTreeFolders()) do
+        local highestModel = nil
+        local highestHeight = -math.huge
 
-	local results = {}
+        for _, model in ipairs(getModelCandidates(folder)) do
+            if model.Parent then
+                local height = getModelHeight(model)
 
-	for _, folder in ipairs(folders) do
+                if height > highestHeight then
+                    highestHeight = height
+                    highestModel = model
+                end
+            end
+        end
 
-		local highestModel = nil
-		local highestHeight = -math.huge
+        if not highestModel then
+            for _, part in ipairs(getBaseParts(folder)) do
+                if part.Size.Y > highestHeight then
+                    highestHeight = part.Size.Y
+                    highestModel = part
+                end
+            end
+        end
 
-		local candidates = getModelCandidates(folder)
+        if highestModel then
+            table.insert(results, {
+                folder = folder,
+                model = highestModel,
+                height = math.max(0, highestHeight)
+            })
+        end
+    end
 
-		for _, model in ipairs(candidates) do
+    table.sort(results, function(a, b)
+        return a.height > b.height
+    end)
 
-			if model.Parent then
-
-				local height = getModelHeight(model)
-
-				if height > highestHeight then
-
-					highestHeight = height
-					highestModel = model
-
-				end
-
-			end
-
-		end
-
-		-- Fallback jika folder hanya berisi Part
-		if not highestModel then
-
-			local parts = getBaseParts(folder)
-
-			local highestPart = nil
-			local highestPartHeight = -math.huge
-
-			for _, part in ipairs(parts) do
-
-				if part.Size.Y > highestPartHeight then
-
-					highestPartHeight = part.Size.Y
-					highestPart = part
-
-				end
-
-			end
-
-			if highestPart then
-
-				highestModel = highestPart
-				highestHeight = highestPartHeight
-
-			end
-
-		end
-
-		if highestModel then
-
-			table.insert(results, {
-				folder = folder,
-				model = highestModel,
-				height = math.max(0, highestHeight)
-			})
-
-		end
-
-	end
-
-	table.sort(results, function(a, b)
-
-		return a.height > b.height
-
-	end)
-
-	return results
-
+    return results
 end
 
 --==================================================
@@ -849,95 +936,59 @@ end
 local lastResultsKey = ""
 
 local function updateList()
+    local results = getHighestModels()
+    local resultKey = ""
 
-	local results = getHighestModels()
+    for _, data in ipairs(results) do
+        resultKey = resultKey
+            .. data.folder:GetFullName()
+            .. "|" .. data.model:GetFullName()
+            .. "|" .. string.format("%.2f", data.height)
+            .. ";"
+    end
 
-	local resultKey = ""
+    if resultKey == lastResultsKey then
+        return
+    end
 
-	for _, data in ipairs(results) do
+    lastResultsKey = resultKey
 
-		resultKey =
-			resultKey
-			.. data.folder:GetFullName()
-			.. "|"
-			.. data.model:GetFullName()
-			.. "|"
-			.. string.format("%.2f", data.height)
-			.. ";"
+    for index = #results + 1, #rows do
+        if rows[index] and rows[index].row then
+            rows[index].row:Destroy()
+        end
+        rows[index] = nil
+    end
 
-	end
+    for index, data in ipairs(results) do
+        local rowData = rows[index]
 
-	if resultKey == lastResultsKey then
-		return
-	end
+        if not rowData then
+            rowData = createRow(index)
+        end
 
-	lastResultsKey = resultKey
+        rowData.row.LayoutOrder = index
+        rowData.folderLabel.Text = data.folder.Name
+        rowData.nameLabel.Text = data.model.Name
+        rowData.heightLabel.Text = string.format("Height: %.2f studs", data.height)
 
-	for index = #results + 1, #rows do
+        if rowData.model ~= data.model then
+            if rowData.model and activeLines[rowData.model] then
+                removeLine(rowData.model)
+            end
 
-		if rows[index] and rows[index].row then
-			rows[index].row:Destroy()
-		end
+            rowData.model = data.model
+            rowData.lineButton.Text = "LINE"
+            rowData.lineButton.BackgroundColor3 = Color3.fromRGB(70, 100, 170)
+        end
+    end
 
-		rows[index] = nil
-
-	end
-
-	for index, data in ipairs(results) do
-
-		local rowData = rows[index]
-
-		if not rowData then
-			rowData = createRow(index)
-		end
-
-		rowData.row.LayoutOrder = index
-
-		rowData.folderLabel.Text =
-			data.folder.Name
-
-		rowData.nameLabel.Text =
-			data.model.Name
-
-		rowData.heightLabel.Text =
-			string.format(
-				"Height: %.2f studs",
-				data.height
-			)
-
-		if rowData.model ~= data.model then
-
-			if rowData.model
-				and activeLines[rowData.model] then
-
-				removeLine(rowData.model)
-
-			end
-
-			rowData.model = data.model
-
-			rowData.lineButton.Text = "LINE"
-
-			rowData.lineButton.BackgroundColor3 =
-				Color3.fromRGB(70, 100, 170)
-
-		end
-
-	end
-
-	for model, data in pairs(activeLines) do
-
-		if not model
-			or not model.Parent
-			or not data.targetPart
-			or not data.targetPart.Parent then
-
-			removeLine(model)
-
-		end
-
-	end
-
+    for model, data in pairs(activeLines) do
+        if not model or not model.Parent
+        or not data.targetPart or not data.targetPart.Parent then
+            removeLine(model)
+        end
+    end
 end
 
 --==================================================
@@ -955,10 +1006,6 @@ biomeFrame.Parent = gui
 
 makeCorner(biomeFrame, 10)
 makeStroke(biomeFrame)
-
---==================================================
--- BIOME TOPBAR
---==================================================
 
 local biomeTopbar = Instance.new("Frame")
 biomeTopbar.Size = UDim2.new(1, 0, 0, 42)
@@ -992,10 +1039,6 @@ biomeBack.Parent = biomeTopbar
 makeCorner(biomeBack, 6)
 makeDraggable(biomeFrame, biomeTopbar)
 
---==================================================
--- BIOME SCROLL
---==================================================
-
 local biomeScroll = Instance.new("ScrollingFrame")
 biomeScroll.Size = UDim2.new(1, -12, 1, -52)
 biomeScroll.Position = UDim2.fromOffset(6, 48)
@@ -1018,14 +1061,9 @@ biomePadding.PaddingRight = UDim.new(0, 3)
 biomePadding.Parent = biomeScroll
 
 biomeLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-
-	biomeScroll.CanvasSize = UDim2.new(
-		0,
-		0,
-		0,
-		biomeLayout.AbsoluteContentSize.Y + 10
-	)
-
+    biomeScroll.CanvasSize = UDim2.new(
+        0, 0, 0, biomeLayout.AbsoluteContentSize.Y + 10
+    )
 end)
 
 --==================================================
@@ -1033,90 +1071,64 @@ end)
 --==================================================
 
 local function createBiomeRow(name, index)
+    local row = Instance.new("Frame")
+    row.Name = "Biome_" .. name
+    row.Size = UDim2.new(1, -8, 0, 55)
+    row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    row.BorderSizePixel = 0
+    row.LayoutOrder = index
+    row.Parent = biomeScroll
 
-	local row = Instance.new("Frame")
-	row.Name = "Biome_" .. name
-	row.Size = UDim2.new(1, -8, 0, 55)
-	row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	row.BorderSizePixel = 0
-	row.LayoutOrder = index
-	row.Parent = biomeScroll
+    makeCorner(row, 7)
 
-	makeCorner(row, 7)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -130, 1, 0)
+    label.Position = UDim2.fromOffset(12, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "🌍 " .. name
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextSize = 15
+    label.Font = Enum.Font.GothamSemibold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
 
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, -130, 1, 0)
-	label.Position = UDim2.fromOffset(12, 0)
-	label.BackgroundTransparency = 1
-	label.Text = "🌍 " .. name
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextSize = 15
-	label.Font = Enum.Font.GothamSemibold
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Parent = row
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.fromOffset(90, 34)
+    button.Position = UDim2.new(1, -100, 0.5, -17)
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.TextSize = 11
+    button.Font = Enum.Font.GothamBold
+    button.Parent = row
 
-	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(90, 34)
-	button.Position = UDim2.new(1, -100, 0.5, -17)
-	button.TextColor3 = Color3.new(1, 1, 1)
-	button.TextSize = 11
-	button.Font = Enum.Font.GothamBold
-	button.Parent = row
+    makeCorner(button, 6)
 
-	makeCorner(button, 6)
+    local function refresh()
+        local biome = findBiome(name)
 
-	local function refresh()
+        if not biome then
+            button.Text = "DELETED"
+            button.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+            deletedBiomes[name] = true
+        else
+            button.Text = "DELETE"
+            button.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+            deletedBiomes[name] = false
+        end
+    end
 
-		local biome = findBiome(name)
+    button.MouseButton1Click:Connect(function()
+        deleteBiome(name)
+        refresh()
+        lastResultsKey = ""
+        updateList()
+    end)
 
-		if not biome then
-
-			button.Text = "DELETED"
-			button.BackgroundColor3 =
-				Color3.fromRGB(90, 90, 90)
-
-			deletedBiomes[name] = true
-
-		else
-
-			button.Text = "DELETE"
-			button.BackgroundColor3 =
-				Color3.fromRGB(170, 70, 70)
-
-			deletedBiomes[name] = false
-
-		end
-
-	end
-
-	button.MouseButton1Click:Connect(function()
-
-		local biome = findBiome(name)
-
-		if biome then
-
-			biome:Destroy()
-
-			deletedBiomes[name] = true
-
-		end
-
-		refresh()
-
-		lastResultsKey = ""
-
-		updateList()
-
-	end)
-
-	refresh()
-
-	return row
-
+    refresh()
+    return row
 end
 
 for index, name in ipairs(FOLDER_NAMES) do
-	createBiomeRow(name, index)
+    createBiomeRow(name, index)
 end
 
 --==================================================
@@ -1124,35 +1136,26 @@ end
 --==================================================
 
 openButton.MouseButton1Click:Connect(function()
-
-	main.Visible = false
-	resultFrame.Visible = true
-
-	lastResultsKey = ""
-	updateList()
-
+    main.Visible = false
+    resultFrame.Visible = true
+    lastResultsKey = ""
+    updateList()
 end)
 
 deleteOpenButton.MouseButton1Click:Connect(function()
-
-	main.Visible = false
-	resultFrame.Visible = false
-	biomeFrame.Visible = true
-
+    main.Visible = false
+    resultFrame.Visible = false
+    biomeFrame.Visible = true
 end)
 
 backButton.MouseButton1Click:Connect(function()
-
-	resultFrame.Visible = false
-	main.Visible = true
-
+    resultFrame.Visible = false
+    main.Visible = true
 end)
 
 biomeBack.MouseButton1Click:Connect(function()
-
-	biomeFrame.Visible = false
-	main.Visible = true
-
+    biomeFrame.Visible = false
+    main.Visible = true
 end)
 
 --==================================================
@@ -1160,15 +1163,20 @@ end)
 --==================================================
 
 task.spawn(function()
+    while gui.Parent do
+        if resultFrame.Visible then
+            updateList()
+        end
 
-	while gui.Parent do
+        task.wait(UPDATE_INTERVAL)
+    end
+end)
 
-		if resultFrame.Visible then
-			updateList()
-		end
 
-		task.wait(UPDATE_INTERVAL)
-
-	end
-
+-- Jalankan scan setelah seluruh helper selesai didefinisikan.
+task.spawn(function()
+    while gui.Parent do
+        updateGiantLines()
+        task.wait(UPDATE_INTERVAL)
+    end
 end)
