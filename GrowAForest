@@ -26,6 +26,8 @@ local DEFAULT_DELETED = {
     Volcano = true,
     Ocean = true,
     Space = true,
+    Blossom = true,
+    Dino = true,
     HalloweenDecor = true,
     Pets = true,
     BiomeDecor = true,
@@ -33,6 +35,7 @@ local DEFAULT_DELETED = {
 }
 
 local UPDATE_INTERVAL = 1
+local DELETE_LOOP_INTERVAL = 5
 local MAX_DELETE_HEIGHT = 100
 
 --==================================================
@@ -162,6 +165,14 @@ end
 --==================================================
 
 local deletedBiomes = {}
+local autoDeleteEnabled = {}
+
+-- Folder yang ditetapkan untuk dihapus akan diperiksa berulang.
+for name, enabled in pairs(DEFAULT_DELETED) do
+    if enabled then
+        autoDeleteEnabled[name] = true
+    end
+end
 
 local function findBiome(name)
     return workspace:FindFirstChild(name, true)
@@ -502,7 +513,7 @@ local function getTargetPart(model)
         return model
     end
 
-    if model:IsA("Model") and model.PrimaryPart then
+    if model:IsA("Model") and model.PrimaryPart and model.PrimaryPart:IsDescendantOf(workspace) then
         return model.PrimaryPart
     end
 
@@ -511,13 +522,37 @@ local function getTargetPart(model)
     local highestY = -math.huge
 
     for _, part in ipairs(parts) do
-        if part.Position.Y > highestY then
+        if part:IsDescendantOf(workspace) and part.Position.Y > highestY then
             highestY = part.Position.Y
             highestPart = part
         end
     end
 
     return highestPart
+end
+
+-- Jika Model sudah direplikasi tetapi BasePart-nya belum tersedia,
+-- gunakan pivot model sebagai titik target melalui part proxy lokal.
+-- Catatan: model yang sama sekali belum direplikasi ke klien tidak dapat ditemukan.
+local function getModelTargetPosition(model)
+    if not model or not model.Parent then
+        return nil
+    end
+
+    if model:IsA("BasePart") then
+        return model.Position
+    end
+
+    if model:IsA("Model") then
+        local ok, pivot = pcall(function()
+            return model:GetPivot()
+        end)
+        if ok and pivot then
+            return pivot.Position
+        end
+    end
+
+    return nil
 end
 
 --==================================================
@@ -592,6 +627,7 @@ end
 local getModelCandidates -- forward declaration; defined below
 local giantLinesEnabled = true
 local giantLines = {}
+local knownGiantModels = setmetatable({}, { __mode = "k" })
 
 local function removeGiantLine(model)
     local data = giantLines[model]
@@ -600,6 +636,7 @@ local function removeGiantLine(model)
     if data.beam then data.beam:Destroy() end
     if data.playerAttachment then data.playerAttachment:Destroy() end
     if data.objectAttachment then data.objectAttachment:Destroy() end
+    if data.proxyPart then data.proxyPart:Destroy() end
 
     giantLines[model] = nil
 end
@@ -611,8 +648,29 @@ local function createGiantLine(model)
 
     local character = player.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
     local targetPart = getTargetPart(model)
-    if not root or not targetPart then return end
+    local proxyPart = nil
+
+    -- Model mungkin sudah ada, tetapi BasePart-nya belum ter-render/tersedia.
+    -- Buat titik target lokal transparan di posisi pivot model.
+    if not targetPart then
+        local targetPosition = getModelTargetPosition(model)
+        if not targetPosition then return end
+
+        proxyPart = Instance.new("Part")
+        proxyPart.Name = "GrowAForest_GiantLineProxy"
+        proxyPart.Size = Vector3.new(0.2, 0.2, 0.2)
+        proxyPart.Transparency = 1
+        proxyPart.Anchored = true
+        proxyPart.CanCollide = false
+        proxyPart.CanTouch = false
+        proxyPart.CanQuery = false
+        proxyPart.CFrame = CFrame.new(targetPosition)
+        proxyPart.Parent = workspace
+        targetPart = proxyPart
+    end
 
     local playerAttachment = Instance.new("Attachment")
     playerAttachment.Name = "GrowAForest_GiantPlayerLine"
@@ -626,19 +684,20 @@ local function createGiantLine(model)
     beam.Name = "GrowAForest_GiantLine"
     beam.Attachment0 = playerAttachment
     beam.Attachment1 = objectAttachment
-    beam.Width0 = 0.1
-    beam.Width1 = 0.1
+    beam.Width0 = 2
+    beam.Width1 = 2
     beam.FaceCamera = true
     beam.LightEmission = 1
     beam.LightInfluence = 0
-    beam.Color = ColorSequence.new(Color3.fromRGB(255, 190, 60))
+    beam.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
     beam.Parent = root
 
     giantLines[model] = {
         beam = beam,
         playerAttachment = playerAttachment,
         objectAttachment = objectAttachment,
-        targetPart = targetPart
+        targetPart = targetPart,
+        proxyPart = proxyPart
     }
 end
 
@@ -658,9 +717,31 @@ local function updateGiantLines()
 
     for _, folder in ipairs(findTreeFolders()) do
         for _, model in ipairs(getModelCandidates(folder)) do
-            if model:IsA("Model") and model.Parent and getModelHeight(model) > MAX_DELETE_HEIGHT then
-                found[model] = true
-                createGiantLine(model)
+            if model:IsA("Model") and model.Parent then
+                local height = getModelHeight(model)
+                local attributeHeight = model:GetAttribute("Height")
+                    or model:GetAttribute("ModelHeight")
+                    or model:GetAttribute("TreeHeight")
+
+                if height > MAX_DELETE_HEIGHT or (typeof(attributeHeight) == "number" and attributeHeight > MAX_DELETE_HEIGHT) then
+                    knownGiantModels[model] = true
+                end
+
+                -- Jika sebelumnya diketahui Giant, tetap buat garis meski part-nya
+                -- sementara belum tersedia. Attribute tinggi juga bisa jadi sumber acuan.
+                if knownGiantModels[model] or (typeof(attributeHeight) == "number" and attributeHeight > MAX_DELETE_HEIGHT) then
+                    found[model] = true
+                    createGiantLine(model)
+
+                    -- Perbarui posisi proxy bila pivot model berpindah.
+                    local lineData = giantLines[model]
+                    if lineData and lineData.proxyPart then
+                        local position = getModelTargetPosition(model)
+                        if position then
+                            lineData.proxyPart.CFrame = CFrame.new(position)
+                        end
+                    end
+                end
             end
         end
     end
@@ -1117,6 +1198,7 @@ local function createBiomeRow(name, index)
     end
 
     button.MouseButton1Click:Connect(function()
+        autoDeleteEnabled[name] = true
         deleteBiome(name)
         refresh()
         lastResultsKey = ""
@@ -1173,10 +1255,228 @@ task.spawn(function()
 end)
 
 
--- Jalankan scan setelah seluruh helper selesai didefinisikan.
+-- Ulangi pembersihan setiap 5 detik.
+-- Ini membantu menghapus model yang muncul kembali / terlambat direplikasi.
+task.spawn(function()
+    while gui.Parent do
+        task.wait(DELETE_LOOP_INTERVAL)
+
+        if not gui.Parent then
+            break
+        end
+
+        for name, enabled in pairs(autoDeleteEnabled) do
+            if enabled then
+                local ok, err = pcall(deleteBiome, name)
+                if not ok then
+                    warn("[GrowAForest] Gagal membersihkan " .. name .. ": " .. tostring(err))
+                end
+            end
+        end
+    end
+end)
+
+-- Jalankan scan garis Giant secara berkala.
 task.spawn(function()
     while gui.Parent do
         updateGiantLines()
         task.wait(UPDATE_INTERVAL)
+    end
+end)
+
+
+--==================================================
+-- GIANT MODEL SCANNER POPUP (HANYA MUNCUL JIKA ADA GIANT)
+--==================================================
+
+local giantPopup = Instance.new("Frame")
+giantPopup.Name = "GiantModelsPopup"
+giantPopup.Size = UDim2.fromScale(0.60, 0.60)
+giantPopup.Position = UDim2.fromScale(0.20, 0.20)
+giantPopup.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+giantPopup.BorderSizePixel = 0
+giantPopup.Visible = false
+giantPopup.ZIndex = 20
+giantPopup.Parent = gui
+makeCorner(giantPopup, 10)
+makeStroke(giantPopup)
+
+local giantPopupTopbar = Instance.new("Frame")
+giantPopupTopbar.Name = "Topbar"
+giantPopupTopbar.Size = UDim2.new(1, 0, 0, 42)
+giantPopupTopbar.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+giantPopupTopbar.BorderSizePixel = 0
+giantPopupTopbar.ZIndex = 21
+giantPopupTopbar.Parent = giantPopup
+makeCorner(giantPopupTopbar, 10)
+
+local giantPopupTitle = Instance.new("TextLabel")
+giantPopupTitle.Size = UDim2.new(1, -82, 1, 0)
+giantPopupTitle.Position = UDim2.fromOffset(10, 0)
+giantPopupTitle.BackgroundTransparency = 1
+giantPopupTitle.Text = "🌳 Giant Models (>100 studs)"
+giantPopupTitle.TextColor3 = Color3.new(1, 1, 1)
+giantPopupTitle.TextSize = 14
+giantPopupTitle.Font = Enum.Font.GothamBold
+giantPopupTitle.TextXAlignment = Enum.TextXAlignment.Left
+giantPopupTitle.ZIndex = 22
+giantPopupTitle.Parent = giantPopupTopbar
+
+local giantSkipButton = Instance.new("TextButton")
+giantSkipButton.Name = "SkipButton"
+giantSkipButton.Size = UDim2.fromOffset(60, 30)
+giantSkipButton.Position = UDim2.new(1, -66, 0, 6)
+giantSkipButton.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+giantSkipButton.BorderSizePixel = 0
+giantSkipButton.Text = "Skip ⏭"
+giantSkipButton.TextColor3 = Color3.new(1, 1, 1)
+giantSkipButton.TextSize = 12
+giantSkipButton.Font = Enum.Font.GothamBold
+giantSkipButton.ZIndex = 23
+giantSkipButton.Parent = giantPopupTopbar
+makeCorner(giantSkipButton, 7)
+
+giantSkipButton.MouseButton1Click:Connect(function()
+    if giantPopup and giantPopup.Parent then
+        giantPopup:Destroy()
+    end
+end)
+
+local giantPopupList = Instance.new("ScrollingFrame")
+giantPopupList.Name = "GiantModelsList"
+giantPopupList.Size = UDim2.new(1, -12, 1, -52)
+giantPopupList.Position = UDim2.fromOffset(6, 48)
+giantPopupList.BackgroundTransparency = 1
+giantPopupList.BorderSizePixel = 0
+giantPopupList.ScrollBarThickness = 5
+giantPopupList.CanvasSize = UDim2.new(0, 0, 0, 0)
+giantPopupList.ZIndex = 21
+giantPopupList.Parent = giantPopup
+
+local giantPopupLayout = Instance.new("UIListLayout")
+giantPopupLayout.Padding = UDim.new(0, 5)
+giantPopupLayout.SortOrder = Enum.SortOrder.LayoutOrder
+giantPopupLayout.Parent = giantPopupList
+
+local giantPopupPadding = Instance.new("UIPadding")
+giantPopupPadding.PaddingTop = UDim.new(0, 3)
+giantPopupPadding.PaddingBottom = UDim.new(0, 5)
+giantPopupPadding.PaddingLeft = UDim.new(0, 3)
+giantPopupPadding.PaddingRight = UDim.new(0, 3)
+giantPopupPadding.Parent = giantPopupList
+
+giantPopupLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    giantPopupList.CanvasSize = UDim2.new(0, 0, 0, giantPopupLayout.AbsoluteContentSize.Y + 10)
+end)
+
+-- Mainframe dan frame daftar Giant sama-sama dapat digeser lewat topbar.
+makeDraggable(giantPopup, giantPopupTopbar)
+
+local function refreshGiantPopup()
+    for _, child in ipairs(giantPopupList:GetChildren()) do
+        if child:IsA("Frame") or child.Name == "EmptyMessage" then
+            child:Destroy()
+        end
+    end
+
+    local foundCount = 0
+
+    for _, folder in ipairs(findTreeFolders()) do
+        for _, model in ipairs(getModelCandidates(folder)) do
+            if model:IsA("Model") and model.Parent then
+                local height = getModelHeight(model)
+                local attrHeight = model:GetAttribute("Height")
+                    or model:GetAttribute("ModelHeight")
+                    or model:GetAttribute("TreeHeight")
+
+                if height > MAX_DELETE_HEIGHT
+                    or (typeof(attrHeight) == "number" and attrHeight > MAX_DELETE_HEIGHT) then
+
+                    foundCount += 1
+
+                    local row = Instance.new("Frame")
+                    row.Name = "GiantRow_" .. foundCount
+                    row.Size = UDim2.new(1, -6, 0, 58)
+                    row.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                    row.BorderSizePixel = 0
+                    row.LayoutOrder = foundCount
+                    row.ZIndex = 22
+                    row.Parent = giantPopupList
+                    makeCorner(row, 7)
+
+                    local info = Instance.new("TextLabel")
+                    info.Size = UDim2.new(1, -100, 1, 0)
+                    info.Position = UDim2.fromOffset(9, 0)
+                    info.BackgroundTransparency = 1
+                    info.Text = folder.Name .. "  |  " .. model.Name .. "  (" ..
+                        tostring(math.floor(math.max(height, tonumber(attrHeight) or 0))) .. " studs)"
+                    info.TextColor3 = Color3.new(1, 1, 1)
+                    info.TextSize = 12
+                    info.Font = Enum.Font.GothamSemibold
+                    info.TextXAlignment = Enum.TextXAlignment.Left
+                    info.TextWrapped = true
+                    info.ZIndex = 23
+                    info.Parent = row
+
+                    local tp = Instance.new("TextButton")
+                    tp.Name = "TeleportButton"
+                    tp.Size = UDim2.fromOffset(82, 36)
+                    tp.Position = UDim2.new(1, -90, 0.5, -18)
+                    tp.BackgroundColor3 = Color3.fromRGB(65, 125, 195)
+                    tp.BorderSizePixel = 0
+                    tp.Text = "Teleport"
+                    tp.TextColor3 = Color3.new(1, 1, 1)
+                    tp.TextSize = 12
+                    tp.Font = Enum.Font.GothamBold
+                    tp.ZIndex = 24
+                    tp.Parent = row
+                    makeCorner(tp, 7)
+
+                    tp.MouseButton1Click:Connect(function()
+                        if not model or not model.Parent then
+                            info.Text = "Model tidak tersedia lagi."
+                            return
+                        end
+
+                        local character = player.Character
+                        local root = character and character:FindFirstChild("HumanoidRootPart")
+                        if not root then
+                            info.Text = "Karakter belum siap."
+                            return
+                        end
+
+                        local ok, pivot = pcall(function()
+                            return model:GetPivot()
+                        end)
+
+                        if ok and pivot then
+                            root.CFrame = CFrame.new(pivot.Position + Vector3.new(0, 6, 0))
+                        else
+                            info.Text = "Posisi model tidak tersedia."
+                        end
+                    end)
+                end
+            end
+        end
+    end
+
+    giantPopupTitle.Text = "🌳 Giant Models (>100) — " .. foundCount
+    return foundCount
+end
+
+-- Popup tidak ditampilkan saat belum ada Giant. Scan berkala sampai ada yang spawn.
+task.spawn(function()
+    while gui.Parent and giantPopup.Parent do
+        local foundCount = refreshGiantPopup()
+        if foundCount > 0 then
+            giantPopup.Visible = true
+            task.delay(10, function()
+                if giantPopup and giantPopup.Parent then
+                    giantPopup:Destroy()
+                end
+            end)
+            break
+        end
+        task.wait(0.5)
     end
 end)
