@@ -35,7 +35,7 @@ local DEFAULT_DELETED = {
 }
 
 local UPDATE_INTERVAL = 1
-local DELETE_LOOP_INTERVAL = 5
+local DELETE_LOOP_INTERVAL = 3
 local MAX_DELETE_HEIGHT = 60
 
 --==================================================
@@ -221,12 +221,18 @@ local function deleteBiome(name)
 
     local deletedCount = 0
     local keptCount = 0
+    local pendingCount = 0
 
     for _, model in ipairs(models) do
         if model.Parent then
             local height = getModelHeight(model)
 
-            if height <= MAX_DELETE_HEIGHT then
+            -- Tinggi 0 biasanya berarti model belum selesai tumbuh/
+            -- BasePart belum direplikasi. Jangan hapus atau putuskan dulu.
+            -- Pemindaian berikutnya akan memeriksanya kembali.
+            if height <= 0 then
+                pendingCount += 1
+            elseif height <= MAX_DELETE_HEIGHT then
                 model:Destroy()
                 deletedCount += 1
             else
@@ -240,7 +246,8 @@ local function deleteBiome(name)
     print(
         "[GrowAForest] " .. name ..
         " | Dihapus: " .. deletedCount ..
-        " | Dipertahankan: " .. keptCount
+        " | Dipertahankan: " .. keptCount ..
+        " | Menunggu tinggi > 0: " .. pendingCount
     )
 end
 
