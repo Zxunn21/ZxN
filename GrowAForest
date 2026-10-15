@@ -36,7 +36,7 @@ local DEFAULT_DELETED = {
 
 local UPDATE_INTERVAL = 1
 local DELETE_LOOP_INTERVAL = 5
-local MAX_DELETE_HEIGHT = 100
+local MAX_DELETE_HEIGHT = 60
 
 --==================================================
 -- GUI
