@@ -1,0 +1,1006 @@
+-- Offering Monitor
+-- Letakkan di StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Pengaturan
+local REFRESH_INTERVAL = 0.5
+local OFFERING_NAMES = {
+    "Offering_1",
+    "Offering_2",
+    "Offering_3"
+}
+
+-- Hapus GUI lama jika ada
+local oldGui = playerGui:FindFirstChild("OfferingMonitorGui")
+if oldGui then
+    oldGui:Destroy()
+end
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "OfferingMonitorGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Frame utama
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.new(0, 390, 0, 190)
+main.Position = UDim2.new(0.5, -150, 0.3, 0)
+main.BackgroundColor3 = Color3.fromRGB(28, 30, 38)
+main.BorderSizePixel = 0
+main.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = main
+
+-- Topbar
+local topbar = Instance.new("Frame")
+topbar.Name = "Topbar"
+topbar.Size = UDim2.new(1, 0, 0, 35)
+topbar.BackgroundColor3 = Color3.fromRGB(45, 49, 62)
+topbar.BorderSizePixel = 0
+topbar.Parent = main
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 10)
+topCorner.Parent = topbar
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -100, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "OFFERING MONITOR"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 14
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = topbar
+
+-- Tombol minimize di kiri tombol Submit.
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "Minimize"
+minimizeButton.Size = UDim2.new(0, 28, 0, 25)
+minimizeButton.Position = UDim2.new(1, -116, 0.5, -12)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(65, 69, 82)
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextSize = 16
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Active = true
+minimizeButton.Parent = topbar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 5)
+minimizeCorner.Parent = minimizeButton
+
+-- Tombol Submit di sisi kanan topbar.
+local submitButton = Instance.new("TextButton")
+submitButton.Name = "Submit"
+submitButton.Size = UDim2.new(0, 76, 0, 25)
+submitButton.Position = UDim2.new(1, -84, 0.5, -12)
+submitButton.BackgroundColor3 = Color3.fromRGB(78, 105, 190)
+submitButton.BorderSizePixel = 0
+submitButton.Text = "Submit"
+submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitButton.TextSize = 11
+submitButton.Font = Enum.Font.GothamBold
+submitButton.Active = true
+submitButton.Parent = topbar
+
+local submitCorner = Instance.new("UICorner")
+submitCorner.CornerRadius = UDim.new(0, 5)
+submitCorner.Parent = submitButton
+
+-- Area isi
+local content = Instance.new("Frame")
+content.Name = "Content"
+content.Position = UDim2.new(0, 10, 0, 43)
+content.Size = UDim2.new(1, -20, 1, -53)
+content.BackgroundTransparency = 1
+content.Parent = main
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = content
+
+-- Pesan status sementara untuk hasil scanner / eksekusi prompt
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "Status"
+statusLabel.Size = UDim2.new(1, 0, 0, 22)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(255, 220, 120)
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+statusLabel.LayoutOrder = 99
+statusLabel.Parent = content
+
+local statusToken = 0
+local function showTemporaryStatus(message, duration)
+    statusToken = statusToken + 1
+    local myStatusToken = statusToken
+    statusLabel.Text = tostring(message or "")
+
+    task.delay(duration or 2.5, function()
+        if statusLabel.Parent and statusToken == myStatusToken then
+            statusLabel.Text = ""
+        end
+    end)
+end
+
+-- Label untuk 3 offering
+local textLabels = {}
+local valueStatusLabels = {}
+local harvestButtons = {}
+local offeringStatuses = {"0/0", "0/0", "0/0"}
+
+for i = 1, 3 do
+    local row = Instance.new("Frame")
+    row.Name = "Row" .. i
+    row.Size = UDim2.new(1, 0, 0, 32)
+    row.BackgroundColor3 = Color3.fromRGB(39, 42, 52)
+    row.BorderSizePixel = 0
+    row.LayoutOrder = i
+    row.Parent = content
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = row
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(0, 90, 1, 0)
+    nameLabel.Position = UDim2.new(0, 8, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = OFFERING_NAMES[i]
+    nameLabel.TextColor3 = Color3.fromRGB(120, 190, 255)
+    nameLabel.TextSize = 11
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.Parent = row
+
+    -- Status value diletakkan di sebelah kiri nama model.
+    local valueStatus = Instance.new("TextLabel")
+    valueStatus.Name = "ValueStatus"
+    valueStatus.Size = UDim2.new(0, 38, 1, 0)
+    valueStatus.Position = UDim2.new(0, 100, 0, 0)
+    valueStatus.BackgroundTransparency = 1
+    valueStatus.Text = "0/0"
+    valueStatus.TextColor3 = Color3.fromRGB(255, 210, 100)
+    valueStatus.TextSize = 11
+    valueStatus.Font = Enum.Font.GothamBold
+    valueStatus.TextXAlignment = Enum.TextXAlignment.Left
+    valueStatus.Parent = row
+
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Name = "Value"
+    valueLabel.Size = UDim2.new(1, -218, 1, 0)
+    valueLabel.Position = UDim2.new(0, 140, 0, 0)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Text = "Mencari..."
+    valueLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    valueLabel.TextSize = 12
+    valueLabel.Font = Enum.Font.Gotham
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+    valueLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    valueLabel.Parent = row
+
+    valueStatusLabels[i] = valueStatus
+    textLabels[i] = valueLabel
+
+    local harvestButton = Instance.new("TextButton")
+    harvestButton.Name = "Panen"
+    harvestButton.Size = UDim2.new(0, 68, 0, 24)
+    harvestButton.Position = UDim2.new(1, -74, 0.5, -12)
+    harvestButton.BackgroundColor3 = Color3.fromRGB(54, 145, 88)
+    harvestButton.BorderSizePixel = 0
+    harvestButton.Text = "Panen"
+    harvestButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    harvestButton.TextSize = 11
+    harvestButton.Font = Enum.Font.GothamBold
+    harvestButton.Parent = row
+
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 5)
+    buttonCorner.Parent = harvestButton
+
+    harvestButtons[i] = harvestButton
+end
+
+-- Fungsi mencari teks di dalam Part
+local function getOfferingText(partName)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name == partName then
+            for _, gui in ipairs(obj:GetDescendants()) do
+                if gui:IsA("SurfaceGui") or gui:IsA("BillboardGui") then
+                    for _, child in ipairs(gui:GetDescendants()) do
+                        if child:IsA("TextLabel") then
+                            return child.Text
+                        end
+                    end
+                end
+            end
+
+            return "TextLabel tidak ditemukan"
+        end
+    end
+
+    return "Part tidak ditemukan"
+end
+
+-- Membersihkan teks offering agar hanya nama model yang tersisa.
+-- Contoh: "0/1 Glimmering Pumpkin" -> "Pumpkin"
+-- Mendukung variasi ejaan "Glimering" juga.
+local function getFruitName(offeringText)
+    if not offeringText or offeringText == "" then
+        return nil
+    end
+
+    local cleaned = offeringText
+    cleaned = cleaned:gsub("^%s*%d+%s*/%s*%d+%s*", "")
+    cleaned = cleaned:gsub("^%s*[Gg]lim+ering%s+", "")
+    cleaned = cleaned:gsub("^%s*[Gg]limmering%s+", "")
+    cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
+
+    if cleaned == "" then
+        return nil
+    end
+
+    return cleaned
+end
+
+-- Cari ProximityPrompt secara GLOBAL di seluruh Workspace.
+-- Semua Model dengan nama yang cocok akan diperiksa, termasuk model yang
+-- tersembunyi jauh di dalam root/folder/model lain. Jika satu model tidak
+-- mempunyai ProximityPrompt, pencarian TIDAK berhenti dan lanjut ke kandidat lain.
+local function findFruitPrompt(fruitName)
+    if not fruitName or fruitName == "" then
+        return nil
+    end
+
+    local targetName = fruitName:lower()
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name:lower() == targetName then
+            -- Prompt bisa berada langsung di model maupun jauh di dalam
+            -- Part / MeshPart / Attachment / Model anak.
+            local directPrompt = obj:FindFirstChildWhichIsA("ProximityPrompt")
+            if directPrompt and directPrompt.Enabled then
+                return directPrompt
+            end
+
+            for _, descendant in ipairs(obj:GetDescendants()) do
+                if descendant:IsA("ProximityPrompt") and descendant.Enabled then
+                    return descendant
+                end
+            end
+
+            -- Jangan return nil di sini. Bisa ada Model lain dengan nama sama
+            -- pada root lain yang mempunyai ProximityPrompt aktif.
+        end
+    end
+
+    return nil
+end
+
+-- Status scanner masing-masing Offering.
+-- false = scanner berhenti, true = scanner sedang mencari model/prompt.
+local harvestScanning = {false, false, false}
+local harvestScanTokens = {0, 0, 0}
+local SCAN_INTERVAL = 0.25
+
+local function setHarvestIdle(button)
+    if button and button.Parent then
+        button.Text = "Panen"
+        button.BackgroundColor3 = Color3.fromRGB(54, 145, 88)
+    end
+end
+
+local function stopHarvestScan(index)
+    harvestScanning[index] = false
+    -- Token dinaikkan agar loop lama langsung dianggap kedaluwarsa.
+    harvestScanTokens[index] = harvestScanTokens[index] + 1
+    setHarvestIdle(harvestButtons[index])
+end
+
+-- Ambil posisi dunia dari ProximityPrompt, baik prompt berada di BasePart
+-- maupun di Attachment yang berada di dalam part.
+local function getPromptWorldPosition(prompt)
+    local parent = prompt and prompt.Parent
+    if not parent then
+        return nil
+    end
+
+    if parent:IsA("Attachment") then
+        return parent.WorldPosition
+    end
+
+    if parent:IsA("BasePart") then
+        return parent.Position
+    end
+
+    local ancestor = parent:FindFirstAncestorWhichIsA("BasePart")
+    return ancestor and ancestor.Position or nil
+end
+
+-- Eksekusi prompt dengan mendekatkan karakter sementara ke prompt.
+-- CFrame awal selalu dicoba dipulihkan setelah eksekusi selesai.
+local function executePrompt(prompt)
+    if not prompt or not prompt.Parent then
+        return false, "Prompt sudah tidak tersedia"
+    end
+
+    local character = player.Character or player.CharacterAdded:Wait()
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local promptPosition = getPromptWorldPosition(prompt)
+
+    if not root then
+        return false, "HumanoidRootPart tidak ditemukan"
+    end
+    if not promptPosition then
+        return false, "Posisi ProximityPrompt tidak ditemukan"
+    end
+
+    local originalCFrame = root.CFrame
+    local success = false
+    local result = "Tidak ada metode eksekusi yang berhasil"
+
+    local ok, err = pcall(function()
+        -- Berdiri sedikit di atas/dekat prompt agar berada dalam activation distance.
+        root.CFrame = CFrame.new(promptPosition + Vector3.new(0, 2.5, 0))
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+        task.wait(0.25)
+
+        if type(fireproximityprompt) == "function" then
+            local fired, fireErr = pcall(function()
+                fireproximityprompt(prompt, math.max(prompt.HoldDuration, 0))
+            end)
+            if fired then
+                success = true
+                result = "Teleport + fireproximityprompt"
+            else
+                result = tostring(fireErr)
+            end
+        end
+
+        if not success then
+            local held, holdErr = pcall(function()
+                prompt:InputHoldBegin()
+                task.wait(math.max(prompt.HoldDuration, 0.05))
+                prompt:InputHoldEnd()
+            end)
+            if held then
+                success = true
+                result = "Teleport + InputHoldBegin/End"
+            else
+                result = tostring(holdErr)
+            end
+        end
+
+        -- Beri waktu singkat agar interaksi diproses sebelum kembali.
+        task.wait(0.20)
+    end)
+
+    -- Restore tetap dilakukan walaupun eksekusi di atas error.
+    if root and root.Parent then
+        root.CFrame = originalCFrame
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end
+
+    if not ok then
+        return false, tostring(err)
+    end
+    return success, result
+end
+
+local function startHarvestScan(index)
+    local button = harvestButtons[index]
+    if not button or not button.Parent then
+        return
+    end
+
+    harvestScanning[index] = true
+    harvestScanTokens[index] = harvestScanTokens[index] + 1
+    local myToken = harvestScanTokens[index]
+
+    button.Text = "Stop"
+    button.BackgroundColor3 = Color3.fromRGB(180, 130, 45)
+
+    task.spawn(function()
+        while screenGui.Parent
+            and harvestScanning[index]
+            and harvestScanTokens[index] == myToken do
+
+            -- Offering dibaca ulang SETIAP scan. Jadi bila offering berubah
+            -- ketika scanner sedang berjalan, target ikut berubah otomatis.
+            local offeringText = getOfferingText(OFFERING_NAMES[index])
+            local fruitName = getFruitName(offeringText)
+
+            if fruitName then
+                local prompt = findFruitPrompt(fruitName)
+
+                if prompt then
+                    -- Prompt ditemukan. Hentikan scanner sebelum mencoba panen
+                    -- agar tidak terjadi trigger berulang.
+                    harvestScanning[index] = false
+
+                    if button.Parent then
+                        button.Text = "Panen..."
+                        button.BackgroundColor3 = Color3.fromRGB(55, 125, 175)
+                    end
+
+                    local promptPath = prompt:GetFullName()
+                    showTemporaryStatus("Proximity ditemukan: " .. promptPath, 3)
+
+                    local ok, methodOrError = executePrompt(prompt)
+
+                    if button.Parent then
+                        if ok then
+                            button.Text = "Dikirim"
+                            button.BackgroundColor3 = Color3.fromRGB(55, 125, 175)
+                            showTemporaryStatus("Prompt dieksekusi: " .. tostring(methodOrError), 3)
+                        else
+                            warn("Gagal mengaktifkan ProximityPrompt:", methodOrError)
+                            button.Text = "Gagal"
+                            button.BackgroundColor3 = Color3.fromRGB(160, 65, 65)
+                            showTemporaryStatus("Prompt ditemukan, eksekusi gagal", 3)
+                        end
+                    end
+
+                    task.wait(1.2)
+
+                    -- Jangan menimpa tampilan bila pengguna sudah memulai scan
+                    -- baru selama jeda status hasil.
+                    if harvestScanTokens[index] == myToken then
+                        setHarvestIdle(button)
+                    end
+
+                    return
+                end
+            end
+
+            -- Tidak ditemukan? Jangan berhenti. Tetap scan seluruh Workspace
+            -- sampai prompt muncul atau pengguna menekan tombol lagi.
+            if button.Parent then
+                button.Text = "Stop"
+                button.BackgroundColor3 = Color3.fromRGB(180, 130, 45)
+            end
+
+            task.wait(SCAN_INTERVAL)
+        end
+
+        if harvestScanTokens[index] == myToken then
+            setHarvestIdle(button)
+        end
+    end)
+end
+
+-- Tombol Panen mempunyai dua mode:
+-- tap singkat = scanner manual seperti sebelumnya (berjalan sampai ditemukan / ditekan lagi)
+-- tahan >= 1 detik = mode LOOP otomatis.
+-- Dalam LOOP: hanya bekerja saat status 0/1, setiap percobaan scan maksimal 3 detik.
+-- Jika belum ditemukan, tunggu 5 detik lalu cek status dan ulangi.
+-- LOOP tetap aktif saat 1/1 atau 0/0 (idle/watch), dan otomatis panen lagi saat berubah menjadi 0/1.
+local harvestLoopActive = {false, false, false}
+local harvestPressed = {false, false, false}
+local harvestPressTokens = {0, 0, 0}
+local harvestLoopTokens = {0, 0, 0}
+local suppressHarvestRelease = {false, false, false}
+local HARVEST_HOLD_THRESHOLD = 1.0
+local HARVEST_LOOP_SCAN_TIMEOUT = 3.0
+local HARVEST_LOOP_RETRY_DELAY = 5.0
+
+local function setHarvestLoopVisual(index)
+    local button = harvestButtons[index]
+    if button and button.Parent then
+        button.Text = "Loop ON"
+        button.BackgroundColor3 = Color3.fromRGB(54, 145, 88)
+    end
+end
+
+local function stopHarvestLoop(index, message)
+    harvestLoopActive[index] = false
+    harvestLoopTokens[index] = harvestLoopTokens[index] + 1
+    harvestPressed[index] = false
+
+    if harvestScanning[index] then
+        stopHarvestScan(index)
+    else
+        setHarvestIdle(harvestButtons[index])
+    end
+
+    if message then
+        showTemporaryStatus(message, 1.8)
+    end
+end
+
+-- Satu percobaan panen untuk mode loop. Fungsi ini hanya memindai sampai
+-- timeout, sehingga satu siklus tidak akan menggantung jika model/prompt belum muncul.
+local function runTimedHarvestAttempt(index, loopToken)
+    local deadline = os.clock() + HARVEST_LOOP_SCAN_TIMEOUT
+    local button = harvestButtons[index]
+
+    while screenGui.Parent
+        and harvestLoopActive[index]
+        and harvestLoopTokens[index] == loopToken
+        and os.clock() < deadline do
+
+        -- Status dapat berubah sewaktu scanner berjalan.
+        if offeringStatuses[index] ~= "0/1" then
+            return "status_changed"
+        end
+
+        local offeringText = getOfferingText(OFFERING_NAMES[index])
+        local fruitName = getFruitName(offeringText)
+
+        if fruitName then
+            local prompt = findFruitPrompt(fruitName)
+            if prompt then
+                if button and button.Parent then
+                    button.Text = "Panen..."
+                    button.BackgroundColor3 = Color3.fromRGB(55, 125, 175)
+                end
+
+                showTemporaryStatus("Proximity ditemukan: " .. prompt:GetFullName(), 3)
+                local ok, methodOrError = executePrompt(prompt)
+
+                if ok then
+                    showTemporaryStatus("Prompt dieksekusi: " .. tostring(methodOrError), 3)
+                    return "executed"
+                else
+                    warn("Gagal mengaktifkan ProximityPrompt:", methodOrError)
+                    showTemporaryStatus("Prompt ditemukan, eksekusi gagal", 3)
+                    -- Tetap lanjut sampai batas 3 detik; mungkin ada kesempatan berikutnya.
+                end
+            end
+        end
+
+        if button and button.Parent then
+            button.Text = "Loop ON"
+            button.BackgroundColor3 = Color3.fromRGB(54, 145, 88)
+        end
+        task.wait(SCAN_INTERVAL)
+    end
+
+    return "timeout"
+end
+
+local function startHarvestLoop(index)
+    if harvestLoopActive[index] then
+        return
+    end
+
+    -- Pastikan scanner manual lama tidak ikut berjalan bersamaan.
+    if harvestScanning[index] then
+        stopHarvestScan(index)
+    end
+
+    harvestLoopActive[index] = true
+    harvestLoopTokens[index] = harvestLoopTokens[index] + 1
+    local myLoopToken = harvestLoopTokens[index]
+    setHarvestLoopVisual(index)
+    showTemporaryStatus("Panen " .. index .. " loop aktif", 1.5)
+
+    task.spawn(function()
+        while screenGui.Parent
+            and harvestLoopActive[index]
+            and harvestLoopTokens[index] == myLoopToken do
+
+            local status = offeringStatuses[index]
+
+            -- WATCH MODE: loop tetap aktif pada 1/1 atau 0/0, tetapi idle.
+            -- Panen hanya dijalankan ketika status berubah menjadi 0/1.
+            if status == "1/1" or status == "0/0" then
+                setHarvestLoopVisual(index)
+                task.wait(0.25)
+            elseif status == "0/1" then
+                setHarvestLoopVisual(index)
+                local result = runTimedHarvestAttempt(index, myLoopToken)
+
+                if not harvestLoopActive[index] or harvestLoopTokens[index] ~= myLoopToken then
+                    return
+                end
+
+                -- Setelah eksekusi beri kesempatan monitor memperbarui value.
+                if result == "executed" then
+                    task.wait(0.75)
+                end
+
+                status = offeringStatuses[index]
+                if status == "1/1" or status == "0/0" then
+                    -- Tetap dalam Loop ON. Tidak melakukan apa pun sampai 0/1 muncul lagi.
+                    setHarvestLoopVisual(index)
+                end
+
+                -- Tidak ditemukan dalam 3 detik / status masih 0/1:
+                -- berhenti mencari dan tunggu 5 detik sebelum siklus berikutnya.
+                setHarvestLoopVisual(index)
+                local waited = 0
+                while waited < HARVEST_LOOP_RETRY_DELAY
+                    and screenGui.Parent
+                    and harvestLoopActive[index]
+                    and harvestLoopTokens[index] == myLoopToken do
+
+                    local currentStatus = offeringStatuses[index]
+                    if currentStatus == "1/1" or currentStatus == "0/0" then
+                        -- Keluar dari waktu tunggu dan kembali ke watch mode, bukan mematikan loop.
+                        break
+                    end
+
+                    task.wait(0.25)
+                    waited = waited + 0.25
+                end
+            else
+                -- Status lain yang belum stabil: jangan spam scanner.
+                task.wait(0.25)
+            end
+        end
+    end)
+end
+
+for i, button in ipairs(harvestButtons) do
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+
+        -- Tekan ketika loop aktif = langsung matikan loop.
+        if harvestLoopActive[i] then
+            suppressHarvestRelease[i] = true
+            stopHarvestLoop(i, "Panen " .. i .. " loop mati")
+            return
+        end
+
+        -- Tekan ketika scanner manual aktif = hentikan scanner manual.
+        if harvestScanning[i] then
+            suppressHarvestRelease[i] = true
+            stopHarvestScan(i)
+            showTemporaryStatus("Pencarian panen " .. i .. " dihentikan", 1.5)
+            return
+        end
+
+        suppressHarvestRelease[i] = false
+        harvestPressed[i] = true
+        harvestPressTokens[i] = harvestPressTokens[i] + 1
+        local myPressToken = harvestPressTokens[i]
+
+        task.spawn(function()
+            task.wait(HARVEST_HOLD_THRESHOLD)
+            if harvestPressed[i]
+                and harvestPressTokens[i] == myPressToken
+                and not harvestLoopActive[i]
+                and not harvestScanning[i] then
+
+                -- Hold 1 detik mengaktifkan toggle loop dan tetap hidup setelah dilepas.
+                startHarvestLoop(i)
+            end
+        end)
+    end)
+
+    button.InputEnded:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+
+        if suppressHarvestRelease[i] then
+            suppressHarvestRelease[i] = false
+            harvestPressed[i] = false
+            return
+        end
+
+        local becameLoop = harvestLoopActive[i]
+        harvestPressed[i] = false
+        harvestPressTokens[i] = harvestPressTokens[i] + 1
+
+        -- Jika belum mencapai hold 1 detik, jalankan scanner manual lama.
+        if not becameLoop then
+            startHarvestScan(i)
+        end
+    end)
+end
+
+-- Submit:
+-- klik singkat saat idle = FireServer sekali
+-- tahan >= 1 detik = MASUK mode loop permanen (tetap loop walaupun tombol dilepas)
+-- saat mode loop aktif, tekan tombol sekali lagi = MATIKAN loop
+local submitPressed = false
+local submitPressToken = 0
+local submitLoopActive = false
+local suppressSubmitRelease = false
+local SUBMIT_HOLD_THRESHOLD = 1.0
+local SUBMIT_LOOP_INTERVAL = 3
+
+local function fireSubmitEvent()
+    local ok, err = pcall(function()
+        local Event = ReplicatedStorage.GameEvents.Events.FairyEvent.SubmitFairyFountainAllPlants
+        Event:FireServer()
+    end)
+    if not ok then
+        warn("Submit gagal:", err)
+        showTemporaryStatus("Submit gagal", 2)
+    end
+    return ok
+end
+
+local function stopSubmitLoop()
+    submitLoopActive = false
+    submitPressToken = submitPressToken + 1
+    if submitButton.Parent then
+        submitButton.Text = "Submit"
+        submitButton.BackgroundColor3 = Color3.fromRGB(78, 105, 190)
+    end
+    showTemporaryStatus("Submit loop mati", 1.5)
+end
+
+local function startSubmitLoop()
+    if submitLoopActive then
+        return
+    end
+
+    submitLoopActive = true
+    local loopToken = submitPressToken
+    submitButton.Text = "Loop ON"
+    submitButton.BackgroundColor3 = Color3.fromRGB(54, 145, 88)
+    showTemporaryStatus("Submit loop aktif", 1.5)
+
+    task.spawn(function()
+        while screenGui.Parent and submitLoopActive and submitPressToken == loopToken do
+            fireSubmitEvent()
+            task.wait(SUBMIT_LOOP_INTERVAL)
+        end
+    end)
+end
+
+submitButton.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    -- Jika loop sedang aktif, tekanan berikutnya langsung mematikannya.
+    -- Release dari tekanan ini tidak boleh dianggap sebagai submit tunggal.
+    if submitLoopActive then
+        suppressSubmitRelease = true
+        submitPressed = false
+        stopSubmitLoop()
+        return
+    end
+
+    suppressSubmitRelease = false
+    submitPressed = true
+    submitPressToken = submitPressToken + 1
+    local myToken = submitPressToken
+
+    task.spawn(function()
+        task.wait(SUBMIT_HOLD_THRESHOLD)
+
+        if not submitPressed
+            or submitPressToken ~= myToken
+            or submitLoopActive then
+            return
+        end
+
+        -- Setelah ditahan 1 detik, loop menjadi toggle permanen.
+        -- Melepas tombol sesudah ini tidak menghentikannya.
+        startSubmitLoop()
+    end)
+end)
+
+submitButton.InputEnded:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    if suppressSubmitRelease then
+        suppressSubmitRelease = false
+        return
+    end
+
+    local wasLoop = submitLoopActive
+    submitPressed = false
+
+    -- Jika hold belum mengaktifkan loop, ini adalah klik singkat.
+    if not wasLoop then
+        submitPressToken = submitPressToken + 1
+        if fireSubmitEvent() then
+            showTemporaryStatus("Submit dikirim", 1.5)
+        end
+    end
+end)
+
+-- Update teks
+task.spawn(function()
+    while screenGui.Parent do
+        for i, offeringName in ipairs(OFFERING_NAMES) do
+            local rawText = getOfferingText(offeringName)
+            local fruitName = getFruitName(rawText)
+
+            -- Ambil value seperti 0/1 atau 1/1 dari teks offering.
+            -- Jika teks/value yang ditemukan masih mengandung kata "Offering",
+            -- status dianggap belum memiliki target dan ditampilkan sebagai 0/0.
+            local statusValue = "0/0"
+            if rawText and not tostring(rawText):lower():find("offering", 1, true) then
+                local current, total = tostring(rawText):match("(%d+)%s*/%s*(%d+)")
+                if current and total then
+                    statusValue = current .. "/" .. total
+                end
+            end
+
+            offeringStatuses[i] = statusValue
+            valueStatusLabels[i].Text = statusValue
+            textLabels[i].Text = fruitName or rawText
+        end
+
+        task.wait(REFRESH_INTERVAL)
+    end
+end)
+
+-- Minimize: sembunyikan Main dan tampilkan trigger kecil "GaG".
+-- Trigger dapat di-drag dan tap singkat akan membuka Main kembali.
+local triggerButton = Instance.new("TextButton")
+triggerButton.Name = "GaGTrigger"
+triggerButton.Size = UDim2.new(0, 52, 0, 34)
+triggerButton.Position = main.Position
+triggerButton.BackgroundColor3 = Color3.fromRGB(45, 49, 62)
+triggerButton.BorderSizePixel = 0
+triggerButton.Text = "GaG"
+triggerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+triggerButton.TextSize = 13
+triggerButton.Font = Enum.Font.GothamBold
+triggerButton.Active = true
+triggerButton.Visible = false
+triggerButton.Parent = screenGui
+
+local triggerCorner = Instance.new("UICorner")
+triggerCorner.CornerRadius = UDim.new(0, 8)
+triggerCorner.Parent = triggerButton
+
+local function minimizeGui()
+    -- Trigger muncul di posisi kiri-atas window agar perpindahan terasa natural.
+    triggerButton.Position = main.Position
+    main.Visible = false
+    triggerButton.Visible = true
+end
+
+local function restoreGui()
+    -- Saat dibuka kembali, window mengikuti posisi trigger terakhir.
+    main.Position = triggerButton.Position
+    triggerButton.Visible = false
+    main.Visible = true
+end
+
+minimizeButton.Activated:Connect(minimizeGui)
+
+-- HANYA topbar yang menerima perintah drag untuk Main.
+-- Tombol Minimize dan Submit dikecualikan dari area drag.
+local dragging = false
+local dragStart
+local startPosition
+local activeInput
+
+local function isInsideGuiObject(guiObject, position)
+    if not guiObject or not guiObject.Visible then
+        return false
+    end
+    local p = guiObject.AbsolutePosition
+    local s = guiObject.AbsoluteSize
+    return position.X >= p.X and position.X <= p.X + s.X
+        and position.Y >= p.Y and position.Y <= p.Y + s.Y
+end
+
+topbar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        if isInsideGuiObject(submitButton, input.Position)
+            or isInsideGuiObject(minimizeButton, input.Position) then
+            return
+        end
+
+        dragging = true
+        dragStart = input.Position
+        startPosition = main.Position
+        activeInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - dragStart
+
+        main.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input == activeInput
+        or input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        activeInput = nil
+    end
+end)
+
+-- Drag khusus trigger GaG. Jika hanya tap tanpa gerakan berarti restore GUI.
+local triggerDragging = false
+local triggerMoved = false
+local triggerDragStart
+local triggerStartPosition
+local triggerActiveInput
+local TRIGGER_DRAG_THRESHOLD = 6
+
+triggerButton.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    triggerDragging = true
+    triggerMoved = false
+    triggerDragStart = input.Position
+    triggerStartPosition = triggerButton.Position
+    triggerActiveInput = input
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if triggerDragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - triggerDragStart
+        if math.abs(delta.X) >= TRIGGER_DRAG_THRESHOLD or math.abs(delta.Y) >= TRIGGER_DRAG_THRESHOLD then
+            triggerMoved = true
+        end
+
+        triggerButton.Position = UDim2.new(
+            triggerStartPosition.X.Scale,
+            triggerStartPosition.X.Offset + delta.X,
+            triggerStartPosition.Y.Scale,
+            triggerStartPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if not triggerDragging then
+        return
+    end
+
+    if input == triggerActiveInput
+        or input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        local wasMoved = triggerMoved
+        triggerDragging = false
+        triggerActiveInput = nil
+
+        if not wasMoved and triggerButton.Visible then
+            restoreGui()
+        end
+    end
+end)
