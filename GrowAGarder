@@ -210,6 +210,7 @@ for i = 1, 3 do
     harvestButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     harvestButton.TextSize = 11
     harvestButton.Font = Enum.Font.GothamBold
+    harvestButton.Active = true
     harvestButton.Parent = row
 
     local buttonCorner = Instance.new("UICorner")
@@ -579,141 +580,184 @@ local function runTimedHarvestAttempt(index, loopToken)
     return "timeout"
 end
 
+-- Semua mode auto memakai SATU scheduler agar Offering 1/2/3 tidak pernah
+-- mengeksekusi prompt secara bersamaan. Urutan selalu 1 -> 2 -> 3 dan setelah
+-- sebuah prompt berhasil dipanen ada jeda 1 detik sebelum offering berikutnya.
+local AUTO_EXECUTION_DELAY = 1.0
+local harvestNextAttemptAt = {0, 0, 0}
+local harvestSchedulerStarted = false
+
+local function ensureHarvestScheduler()
+    if harvestSchedulerStarted then
+        return
+    end
+    harvestSchedulerStarted = true
+
+    task.spawn(function()
+        while screenGui.Parent do
+            local didWork = false
+
+            for index = 1, 3 do
+                if not screenGui.Parent then
+                    return
+                end
+
+                if harvestLoopActive[index] then
+                    setHarvestLoopVisual(index)
+
+                    if offeringStatuses[index] == "0/1"
+                        and os.clock() >= harvestNextAttemptAt[index] then
+
+                        local loopToken = harvestLoopTokens[index]
+                        local result = runTimedHarvestAttempt(index, loopToken)
+                        didWork = true
+
+                        if harvestLoopActive[index]
+                            and harvestLoopTokens[index] == loopToken then
+
+                            setHarvestLoopVisual(index)
+
+                            if result == "executed" then
+                                -- Wajib selesai dulu, baru offering selanjutnya boleh jalan.
+                                harvestNextAttemptAt[index] = os.clock() + HARVEST_LOOP_RETRY_DELAY
+                                task.wait(AUTO_EXECUTION_DELAY)
+                            elseif result == "timeout" then
+                                harvestNextAttemptAt[index] = os.clock() + HARVEST_LOOP_RETRY_DELAY
+                            else
+                                harvestNextAttemptAt[index] = 0
+                            end
+                        end
+                    end
+                end
+            end
+
+            if not didWork then
+                task.wait(0.20)
+            else
+                task.wait(0.05)
+            end
+        end
+    end)
+end
+
 local function startHarvestLoop(index)
     if harvestLoopActive[index] then
         return
     end
 
-    -- Pastikan scanner manual lama tidak ikut berjalan bersamaan.
     if harvestScanning[index] then
         stopHarvestScan(index)
     end
 
     harvestLoopActive[index] = true
     harvestLoopTokens[index] = harvestLoopTokens[index] + 1
-    local myLoopToken = harvestLoopTokens[index]
+    harvestNextAttemptAt[index] = 0
     setHarvestLoopVisual(index)
     showTemporaryStatus("Panen " .. index .. " loop aktif", 1.5)
+    ensureHarvestScheduler()
+end
 
-    task.spawn(function()
-        while screenGui.Parent
-            and harvestLoopActive[index]
-            and harvestLoopTokens[index] == myLoopToken do
+-- Hold Panen dibuat tahan terhadap touch yang bergeser keluar dari tombol.
+-- InputEnded dipantau secara global, bukan hanya dari tombol yang bersangkutan.
+local harvestActiveInput = {nil, nil, nil}
+local harvestHoldTriggered = {false, false, false}
 
-            local status = offeringStatuses[index]
+local function finishHarvestPress(index, input)
+    if harvestActiveInput[index] ~= input then
+        return
+    end
 
-            -- WATCH MODE: loop tetap aktif pada 1/1 atau 0/0, tetapi idle.
-            -- Panen hanya dijalankan ketika status berubah menjadi 0/1.
-            if status == "1/1" or status == "0/0" then
-                setHarvestLoopVisual(index)
-                task.wait(0.25)
-            elseif status == "0/1" then
-                setHarvestLoopVisual(index)
-                local result = runTimedHarvestAttempt(index, myLoopToken)
+    harvestActiveInput[index] = nil
+    harvestPressed[index] = false
+    harvestPressTokens[index] = harvestPressTokens[index] + 1
 
-                if not harvestLoopActive[index] or harvestLoopTokens[index] ~= myLoopToken then
-                    return
-                end
+    if suppressHarvestRelease[index] then
+        suppressHarvestRelease[index] = false
+        harvestHoldTriggered[index] = false
+        return
+    end
 
-                -- Setelah eksekusi beri kesempatan monitor memperbarui value.
-                if result == "executed" then
-                    task.wait(0.75)
-                end
+    -- Setelah hold berhasil mengaktifkan Loop ON, pelepasan jari/mouse tidak
+    -- boleh dianggap sebagai klik singkat dan tidak boleh memulai scan manual.
+    if harvestHoldTriggered[index] then
+        harvestHoldTriggered[index] = false
+        return
+    end
 
-                status = offeringStatuses[index]
-                if status == "1/1" or status == "0/0" then
-                    -- Tetap dalam Loop ON. Tidak melakukan apa pun sampai 0/1 muncul lagi.
-                    setHarvestLoopVisual(index)
-                end
-
-                -- Tidak ditemukan dalam 3 detik / status masih 0/1:
-                -- berhenti mencari dan tunggu 5 detik sebelum siklus berikutnya.
-                setHarvestLoopVisual(index)
-                local waited = 0
-                while waited < HARVEST_LOOP_RETRY_DELAY
-                    and screenGui.Parent
-                    and harvestLoopActive[index]
-                    and harvestLoopTokens[index] == myLoopToken do
-
-                    local currentStatus = offeringStatuses[index]
-                    if currentStatus == "1/1" or currentStatus == "0/0" then
-                        -- Keluar dari waktu tunggu dan kembali ke watch mode, bukan mematikan loop.
-                        break
-                    end
-
-                    task.wait(0.25)
-                    waited = waited + 0.25
-                end
-            else
-                -- Status lain yang belum stabil: jangan spam scanner.
-                task.wait(0.25)
-            end
-        end
-    end)
+    if not harvestLoopActive[index] then
+        startHarvestScan(index)
+    end
 end
 
 for i, button in ipairs(harvestButtons) do
+    local index = i
+
     button.InputBegan:Connect(function(input)
         if input.UserInputType ~= Enum.UserInputType.MouseButton1
             and input.UserInputType ~= Enum.UserInputType.Touch then
             return
         end
 
-        -- Tekan ketika loop aktif = langsung matikan loop.
-        if harvestLoopActive[i] then
-            suppressHarvestRelease[i] = true
-            stopHarvestLoop(i, "Panen " .. i .. " loop mati")
+        -- Abaikan input kedua selama satu press masih sedang dilacak.
+        if harvestActiveInput[index] ~= nil then
             return
         end
 
-        -- Tekan ketika scanner manual aktif = hentikan scanner manual.
-        if harvestScanning[i] then
-            suppressHarvestRelease[i] = true
-            stopHarvestScan(i)
-            showTemporaryStatus("Pencarian panen " .. i .. " dihentikan", 1.5)
+        harvestActiveInput[index] = input
+        harvestHoldTriggered[index] = false
+
+        -- Saat Loop ON, satu press berikutnya langsung mematikannya.
+        if harvestLoopActive[index] then
+            suppressHarvestRelease[index] = true
+            stopHarvestLoop(index, "Panen " .. index .. " loop mati")
             return
         end
 
-        suppressHarvestRelease[i] = false
-        harvestPressed[i] = true
-        harvestPressTokens[i] = harvestPressTokens[i] + 1
-        local myPressToken = harvestPressTokens[i]
+        -- Saat scanner manual aktif, satu press menghentikannya.
+        if harvestScanning[index] then
+            suppressHarvestRelease[index] = true
+            stopHarvestScan(index)
+            showTemporaryStatus("Pencarian panen " .. index .. " dihentikan", 1.5)
+            return
+        end
 
-        task.spawn(function()
-            task.wait(HARVEST_HOLD_THRESHOLD)
-            if harvestPressed[i]
-                and harvestPressTokens[i] == myPressToken
-                and not harvestLoopActive[i]
-                and not harvestScanning[i] then
+        suppressHarvestRelease[index] = false
+        harvestPressed[index] = true
+        harvestPressTokens[index] = harvestPressTokens[index] + 1
+        local myPressToken = harvestPressTokens[index]
+        local myInput = input
 
-                -- Hold 1 detik mengaktifkan toggle loop dan tetap hidup setelah dilepas.
-                startHarvestLoop(i)
+        task.delay(HARVEST_HOLD_THRESHOLD, function()
+            if harvestActiveInput[index] == myInput
+                and harvestPressed[index]
+                and harvestPressTokens[index] == myPressToken
+                and not harvestLoopActive[index]
+                and not harvestScanning[index] then
+
+                -- Tandai SEBELUM startHarvestLoop supaya release setelah ini
+                -- tidak pernah berubah menjadi klik manual.
+                harvestHoldTriggered[index] = true
+                startHarvestLoop(index)
             end
         end)
     end)
-
-    button.InputEnded:Connect(function(input)
-        if input.UserInputType ~= Enum.UserInputType.MouseButton1
-            and input.UserInputType ~= Enum.UserInputType.Touch then
-            return
-        end
-
-        if suppressHarvestRelease[i] then
-            suppressHarvestRelease[i] = false
-            harvestPressed[i] = false
-            return
-        end
-
-        local becameLoop = harvestLoopActive[i]
-        harvestPressed[i] = false
-        harvestPressTokens[i] = harvestPressTokens[i] + 1
-
-        -- Jika belum mencapai hold 1 detik, jalankan scanner manual lama.
-        if not becameLoop then
-            startHarvestScan(i)
-        end
-    end)
 end
+
+-- Global release membuat hold tetap valid di mobile walaupun jari sedikit
+-- bergeser keluar area tombol sebelum dilepas.
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    for index = 1, 3 do
+        if harvestActiveInput[index] == input then
+            finishHarvestPress(index, input)
+            break
+        end
+    end
+end)
 
 -- Submit:
 -- klik singkat saat idle = FireServer sekali
@@ -849,6 +893,44 @@ task.spawn(function()
         end
 
         task.wait(REFRESH_INTERVAL)
+    end
+end)
+
+-- Jika ketiga offering tetap 1/1 selama 1 detik penuh, teleport sekali ke
+-- posisi tujuan. Latch di-reset setelah salah satu offering tidak lagi 1/1.
+local ALL_COMPLETE_HOLD = 1.0
+local ALL_COMPLETE_TELEPORT_POSITION = Vector3.new(-98.50, 4.57, -16.50)
+local allCompleteSince = nil
+local allCompleteTeleported = false
+
+task.spawn(function()
+    while screenGui.Parent do
+        local allComplete = offeringStatuses[1] == "1/1"
+            and offeringStatuses[2] == "1/1"
+            and offeringStatuses[3] == "1/1"
+
+        if allComplete then
+            if not allCompleteSince then
+                allCompleteSince = os.clock()
+            elseif not allCompleteTeleported
+                and os.clock() - allCompleteSince >= ALL_COMPLETE_HOLD then
+
+                local character = player.Character
+                local root = character and character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = CFrame.new(ALL_COMPLETE_TELEPORT_POSITION)
+                    root.AssemblyLinearVelocity = Vector3.zero
+                    root.AssemblyAngularVelocity = Vector3.zero
+                    allCompleteTeleported = true
+                    showTemporaryStatus("Semua offering 1/1 - teleport", 2)
+                end
+            end
+        else
+            allCompleteSince = nil
+            allCompleteTeleported = false
+        end
+
+        task.wait(0.10)
     end
 end)
 
