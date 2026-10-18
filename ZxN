@@ -366,7 +366,7 @@ end
 
 local gameLinkFeatures = {
 	{ description = "Ride A Pet", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RideAPet", guiToHide = "RideAPetGui", universeId = 10035204815 },
-    { description = "Grow A Garden", url ="https://raw.githubusercontent.com/Zxunn21/GrowAGarden/refs/heads/main/MainGrowAGarden", guiToHide = "GrowAGarden", universeId = 7436755782 },
+    { description = "Grow A Garden", url = "https://raw.githubusercontent.com/Zxunn21/GrowAGarden/refs/heads/main/MainGrowAGarden", guiToHide = "GrowAGarden", universeId = 7436755782 },
 	{ description = "Grow A Forest", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/GrowAForest", guiToHide = "GrowAForestGui", universeId = 10766217938 },
 }
 
@@ -429,7 +429,7 @@ local function createGameLinkFeature(index, feature)
 		updateButton()
 
 		local guiExists = false
-		if feature.guiToHide and playerGui then
+		if feature.guiToHide and feature.guiToHide ~= "" and playerGui then
 			for _, descendant in ipairs(playerGui:GetDescendants()) do
 				if descendant.Name == feature.guiToHide then
 					guiExists = true
@@ -574,7 +574,7 @@ local function createLinkFeature(index, feature)
 		end
 		enabled = false
 		updateButton()
-		if feature.guiToHide and playerGui then
+		if feature.guiToHide and feature.guiToHide ~= "" and playerGui then
 			for _, descendant in ipairs(playerGui:GetDescendants()) do
 				if descendant.Name == feature.guiToHide then
 					if descendant:IsA("ScreenGui") then
@@ -596,7 +596,7 @@ local function createLinkFeature(index, feature)
 		if enabled then
 			-- Periksa apakah GUI sudah ada sebelum membuat baru
 			local guiExists = false
-			if feature.guiToHide and playerGui then
+			if feature.guiToHide and feature.guiToHide ~= "" and playerGui then
 				for _, descendant in ipairs(playerGui:GetDescendants()) do
 					if descendant.Name == feature.guiToHide then
 						if descendant:IsA("ScreenGui") then
@@ -627,7 +627,7 @@ local function createLinkFeature(index, feature)
 				end
 			end
 		else
-			if feature.guiToHide and playerGui then
+			if feature.guiToHide and feature.guiToHide ~= "" and playerGui then
 				for _, descendant in ipairs(playerGui:GetDescendants()) do
 					if descendant.Name == feature.guiToHide then
 						if descendant:IsA("ScreenGui") then
@@ -874,7 +874,14 @@ local function updateTeleportList()
 
 		if model then
 			found[eggName] = model
-			table.insert(keyParts, eggName .. ":" .. model:GetDebugId())
+			local ok, debugId = pcall(function()
+				return model:GetDebugId()
+			end)
+			if not ok then
+				local position = model:GetPivot().Position
+				debugId = string.format("%.2f,%.2f,%.2f", position.X, position.Y, position.Z)
+			end
+			table.insert(keyParts, eggName .. ":" .. tostring(debugId))
 		end
 	end
 
@@ -939,12 +946,12 @@ end
 -- Kumpulkan semua nama GUI terdaftar dari gameLinkFeatures dan linkFeatures
 local registeredGuis = {}
 for _, feature in ipairs(gameLinkFeatures) do
-	if feature.guiToHide then
+	if feature.guiToHide and feature.guiToHide ~= "" then
 		table.insert(registeredGuis, feature.guiToHide)
 	end
 end
 for _, feature in ipairs(linkFeatures) do
-	if feature.guiToHide then
+	if feature.guiToHide and feature.guiToHide ~= "" then
 		table.insert(registeredGuis, feature.guiToHide)
 	end
 end
