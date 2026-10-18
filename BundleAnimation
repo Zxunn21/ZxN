@@ -1,13 +1,155 @@
 local Players = game:GetService("Players")
 local AssetService = game:GetService("AssetService")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 
 local Player = Players.LocalPlayer
+local FavoriteFile = "FavoriteAnimations.json"
+local FavoriteData = {favorites = {}, active = nil}
+local DefaultAnimations = nil
+
+local function normalizeFavorites()
+    FavoriteData.favorites = FavoriteData.favorites or {}
+    if FavoriteData.active then
+        for i, data in ipairs(FavoriteData.favorites) do
+            if tostring(data.id) == tostring(FavoriteData.active) then
+                if i ~= 1 then
+                    table.remove(FavoriteData.favorites, i)
+                    table.insert(FavoriteData.favorites, 1, data)
+                end
+                break
+            end
+        end
+    end
+end
+
+local function loadFavorites()
+    if typeof(isfile) == "function" and typeof(readfile) == "function" and isfile(FavoriteFile) then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(FavoriteFile))
+        end)
+        if success and type(data) == "table" then
+            if data.favorites then
+                FavoriteData = data
+            else
+                FavoriteData = {favorites = data, active = nil}
+            end
+        end
+    end
+    normalizeFavorites()
+end
+
+local function saveFavorites()
+    normalizeFavorites()
+    if typeof(writefile) == "function" then
+        pcall(function()
+            writefile(FavoriteFile, HttpService:JSONEncode(FavoriteData))
+        end)
+    end
+end
+
+local function getFavoriteIndex(bundleId)
+    for i, data in ipairs(FavoriteData.favorites) do
+        if tostring(data.id) == tostring(bundleId) then
+            return i, data
+        end
+    end
+end
+
+local function isFavorite(bundleId)
+    return getFavoriteIndex(bundleId) ~= nil
+end
+
+local function addFavorite(bundleId, name)
+    if not isFavorite(bundleId) then
+        table.insert(FavoriteData.favorites, {id = bundleId, name = name or tostring(bundleId)})
+    end
+    saveFavorites()
+end
+
+local function removeFavorite(bundleId)
+    local index = getFavoriteIndex(bundleId)
+    if index then
+        table.remove(FavoriteData.favorites, index)
+    end
+    if tostring(FavoriteData.active) == tostring(bundleId) then
+        FavoriteData.active = nil
+    end
+    saveFavorites()
+end
+
+local function setDefaultFavorite(bundleId)
+    local index, data = getFavoriteIndex(bundleId)
+    if not index then return end
+    FavoriteData.active = bundleId
+    if index ~= 1 then
+        table.remove(FavoriteData.favorites, index)
+        table.insert(FavoriteData.favorites, 1, data)
+    end
+    saveFavorites()
+end
+
+local function moveFavorite(index, direction)
+    local target = index + direction
+    if index < 1 or index > #FavoriteData.favorites then return end
+    if target < 1 or target > #FavoriteData.favorites then return end
+    if FavoriteData.active and tostring(FavoriteData.favorites[index].id) == tostring(FavoriteData.active) then return end
+    if FavoriteData.active and tostring(FavoriteData.favorites[target].id) == tostring(FavoriteData.active) then return end
+    FavoriteData.favorites[index], FavoriteData.favorites[target] = FavoriteData.favorites[target], FavoriteData.favorites[index]
+    saveFavorites()
+end
+
+local function captureAnimations(animate)
+    local data = {}
+    for _, category in ipairs(animate:GetChildren()) do
+        local items = {}
+        for _, anim in ipairs(category:GetChildren()) do
+            if anim:IsA("Animation") then
+                local weights = {}
+                for _, child in ipairs(anim:GetChildren()) do
+                    if child:IsA("NumberValue") and child.Name == "Weight" then
+                        table.insert(weights, child.Value)
+                    end
+                end
+                table.insert(items, {name = anim.Name, animationId = anim.AnimationId, weights = weights})
+            end
+        end
+        if #items > 0 then
+            data[category.Name] = items
+        end
+    end
+    return data
+end
+
+local function restoreAnimations(animate, data)
+    for categoryName, items in pairs(data) do
+        local category = animate:FindFirstChild(categoryName)
+        if category then
+            for _, child in ipairs(category:GetChildren()) do
+                if child:IsA("Animation") then
+                    child:Destroy()
+                end
+            end
+            for _, item in ipairs(items) do
+                local anim = Instance.new("Animation")
+                anim.Name = item.name
+                anim.AnimationId = item.animationId
+                for _, value in ipairs(item.weights or {}) do
+                    local weight = Instance.new("NumberValue")
+                    weight.Name = "Weight"
+                    weight.Value = value
+                    weight.Parent = anim
+                end
+                anim.Parent = category
+            end
+        end
+    end
+end
+
+loadFavorites()
 
 local old = Player:WaitForChild("PlayerGui"):FindFirstChild("BundleAnimationChanger")
-if old then
-    old:Destroy()
-end
+if old then old:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "BundleAnimationChanger"
@@ -17,16 +159,15 @@ ScreenGui.Parent = Player.PlayerGui
 
 local Frame = Instance.new("Frame")
 Frame.Name = "Main"
-Frame.Size = UDim2.fromOffset(320, 160)
-Frame.Position = UDim2.new(0.5, -160, 0.5, -80)
+Frame.Size = UDim2.fromOffset(350, 210)
+Frame.Position = UDim2.new(0.5, -175, 0.5, -105)
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Frame.BorderSizePixel = 0
 Frame.Active = true
 Frame.Parent = ScreenGui
 
-local FrameCorner = Instance.new("UICorner")
+local FrameCorner = Instance.new("UICorner", Frame)
 FrameCorner.CornerRadius = UDim.new(0, 12)
-FrameCorner.Parent = Frame
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -55, 0, 40)
@@ -49,13 +190,10 @@ Minimize.TextSize = 20
 Minimize.Font = Enum.Font.GothamBold
 Minimize.BorderSizePixel = 0
 Minimize.Parent = Frame
-
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 8)
-MinCorner.Parent = Minimize
+Instance.new("UICorner", Minimize).CornerRadius = UDim.new(0, 8)
 
 local Input = Instance.new("TextBox")
-Input.Size = UDim2.new(1, -24, 0, 43)
+Input.Size = UDim2.new(1, -75, 0, 43)
 Input.Position = UDim2.fromOffset(12, 48)
 Input.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 Input.BorderSizePixel = 0
@@ -67,10 +205,125 @@ Input.TextSize = 15
 Input.Font = Enum.Font.Gotham
 Input.ClearTextOnFocus = false
 Input.Parent = Frame
+Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 8)
 
-local InputCorner = Instance.new("UICorner")
-InputCorner.CornerRadius = UDim.new(0, 8)
-InputCorner.Parent = Input
+local Favorite = Instance.new("TextButton")
+Favorite.Size = UDim2.fromOffset(43, 43)
+Favorite.Position = UDim2.new(1, -55, 0, 48)
+Favorite.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Favorite.BorderSizePixel = 0
+Favorite.Text = "☆"
+Favorite.TextColor3 = Color3.fromRGB(255, 220, 70)
+Favorite.TextSize = 28
+Favorite.Font = Enum.Font.GothamBold
+Favorite.Parent = Frame
+Instance.new("UICorner", Favorite).CornerRadius = UDim.new(0, 8)
+
+local FavoriteFrame = Instance.new("Frame")
+FavoriteFrame.Size = UDim2.fromOffset(360, 344)
+FavoriteFrame.Position = UDim2.new(0.5, -180, 0.5, -215)
+FavoriteFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+FavoriteFrame.BorderSizePixel = 0
+FavoriteFrame.Visible = false
+FavoriteFrame.Active = true
+FavoriteFrame.ZIndex = 10
+FavoriteFrame.Parent = ScreenGui
+Instance.new("UICorner", FavoriteFrame).CornerRadius = UDim.new(0, 12)
+
+local FavoriteTitle = Instance.new("TextLabel")
+FavoriteTitle.Size = UDim2.new(1, -125, 0, 38)
+FavoriteTitle.Position = UDim2.fromOffset(12, 3)
+FavoriteTitle.BackgroundTransparency = 1
+FavoriteTitle.Text = "Favorit"
+FavoriteTitle.TextColor3 = Color3.new(1, 1, 1)
+FavoriteTitle.TextSize = 17
+FavoriteTitle.Font = Enum.Font.GothamBold
+FavoriteTitle.TextXAlignment = Enum.TextXAlignment.Left
+FavoriteTitle.ZIndex = 11
+FavoriteTitle.Parent = FavoriteFrame
+
+local SortButton = Instance.new("TextButton")
+SortButton.Size = UDim2.fromOffset(58, 30)
+SortButton.Position = UDim2.new(1, -108, 0, 6)
+SortButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+SortButton.BorderSizePixel = 0
+SortButton.Text = "Sort"
+SortButton.TextColor3 = Color3.new(1, 1, 1)
+SortButton.TextSize = 13
+SortButton.Font = Enum.Font.GothamBold
+SortButton.ZIndex = 11
+SortButton.Parent = FavoriteFrame
+Instance.new("UICorner", SortButton).CornerRadius = UDim.new(0, 8)
+
+local FavoriteClose = Instance.new("TextButton")
+FavoriteClose.Size = UDim2.fromOffset(32, 30)
+FavoriteClose.Position = UDim2.new(1, -42, 0, 6)
+FavoriteClose.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+FavoriteClose.BorderSizePixel = 0
+FavoriteClose.Text = "×"
+FavoriteClose.TextColor3 = Color3.new(1, 1, 1)
+FavoriteClose.TextSize = 20
+FavoriteClose.Font = Enum.Font.GothamBold
+FavoriteClose.ZIndex = 11
+FavoriteClose.Parent = FavoriteFrame
+Instance.new("UICorner", FavoriteClose).CornerRadius = UDim.new(0, 8)
+
+local PendingFrame = Instance.new("Frame")
+PendingFrame.Size = UDim2.new(1, -24, 0, 52)
+PendingFrame.Position = UDim2.fromOffset(12, 46)
+PendingFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+PendingFrame.BorderSizePixel = 0
+PendingFrame.Visible = false
+PendingFrame.ZIndex = 11
+PendingFrame.Parent = FavoriteFrame
+Instance.new("UICorner", PendingFrame).CornerRadius = UDim.new(0, 8)
+
+local PendingName = Instance.new("TextLabel")
+PendingName.Size = UDim2.new(1, -100, 1, -6)
+PendingName.Position = UDim2.fromOffset(10, 3)
+PendingName.BackgroundTransparency = 1
+PendingName.Text = ""
+PendingName.TextColor3 = Color3.new(1, 1, 1)
+PendingName.TextSize = 13
+PendingName.Font = Enum.Font.Gotham
+PendingName.TextWrapped = true
+PendingName.TextXAlignment = Enum.TextXAlignment.Left
+PendingName.ZIndex = 12
+PendingName.Parent = PendingFrame
+
+local FavoriteConfirm = Instance.new("TextButton")
+FavoriteConfirm.Size = UDim2.fromOffset(82, 30)
+FavoriteConfirm.Position = UDim2.new(1, -92, 0.5, -15)
+FavoriteConfirm.BackgroundColor3 = Color3.fromRGB(55, 115, 255)
+FavoriteConfirm.BorderSizePixel = 0
+FavoriteConfirm.Text = "Favorit"
+FavoriteConfirm.TextColor3 = Color3.new(1, 1, 1)
+FavoriteConfirm.TextSize = 13
+FavoriteConfirm.Font = Enum.Font.GothamBold
+FavoriteConfirm.ZIndex = 12
+FavoriteConfirm.Parent = PendingFrame
+Instance.new("UICorner", FavoriteConfirm).CornerRadius = UDim.new(0, 8)
+
+local FavoriteList = Instance.new("ScrollingFrame")
+FavoriteList.Size = UDim2.new(1, -24, 1, -64)
+FavoriteList.Position = UDim2.fromOffset(12, 52)
+FavoriteList.BackgroundTransparency = 1
+FavoriteList.BorderSizePixel = 0
+FavoriteList.ScrollBarThickness = 4
+FavoriteList.CanvasSize = UDim2.fromOffset(0, 0)
+FavoriteList.AutomaticCanvasSize = Enum.AutomaticSize.None
+FavoriteList.ZIndex = 11
+FavoriteList.Parent = FavoriteFrame
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Padding = UDim.new(0, 4)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ListLayout.Parent = FavoriteList
+
+local PendingFavoriteId = nil
+local PendingFavoriteName = nil
+local SortMode = false
+local refreshFavoriteList
 
 local Button = Instance.new("TextButton")
 Button.Size = UDim2.new(1, -24, 0, 43)
@@ -82,171 +335,112 @@ Button.TextColor3 = Color3.new(1, 1, 1)
 Button.TextSize = 16
 Button.Font = Enum.Font.GothamBold
 Button.Parent = Frame
+Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
 
-local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 8)
-ButtonCorner.Parent = Button
+local Reset = Instance.new("TextButton")
+Reset.Size = UDim2.new(1, -24, 0, 43)
+Reset.Position = UDim2.fromOffset(12, 158)
+Reset.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+Reset.BorderSizePixel = 0
+Reset.Text = "Reset"
+Reset.TextColor3 = Color3.new(1, 1, 1)
+Reset.TextSize = 16
+Reset.Font = Enum.Font.GothamBold
+Reset.Parent = Frame
+Instance.new("UICorner", Reset).CornerRadius = UDim.new(0, 8)
 
 local Trigger = Instance.new("TextButton")
 Trigger.Name = "Trigger"
-Trigger.Size = UDim2.fromOffset(58, 58)
-Trigger.Position = UDim2.new(0, 15, 0.5, -29)
-Trigger.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Trigger.Size = UDim2.fromOffset(54, 42)
+Trigger.Position = UDim2.new(0, 20, 0.5, -21)
+Trigger.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 Trigger.BorderSizePixel = 0
 Trigger.Text = "ANIM"
 Trigger.TextColor3 = Color3.new(1, 1, 1)
-Trigger.TextSize = 12
+Trigger.TextSize = 14
 Trigger.Font = Enum.Font.GothamBold
 Trigger.Visible = false
 Trigger.Active = true
 Trigger.Parent = ScreenGui
-
-local TriggerCorner = Instance.new("UICorner")
-TriggerCorner.CornerRadius = UDim.new(1, 0)
-TriggerCorner.Parent = Trigger
+Instance.new("UICorner", Trigger).CornerRadius = UDim.new(1, 0)
 
 local function makeDraggable(gui)
-    local dragging = false
-    local dragStart
-    local startPos
-    local dragInput
-
+    local dragging, dragStart, startPos, dragInput
     gui.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = gui.Position
-
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
-
     gui.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
     end)
-
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            gui.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
 
 makeDraggable(Frame)
-makeDraggable(Trigger)
+makeDraggable(FavoriteFrame)
 
 local function getBundledItems(bundleId)
-    local success, bundle = pcall(function()
-        return AssetService:GetBundleDetailsAsync(bundleId)
-    end)
-
-    if not success or not bundle then
-        return nil
-    end
-
+    local success, bundle = pcall(function() return AssetService:GetBundleDetailsAsync(bundleId) end)
+    if not success or not bundle then return nil end
     local bundledItems = {}
-
     for _, item in ipairs(bundle.Items or {}) do
-        if item.Type == "Asset" and item.Id then
-            table.insert(bundledItems, item.Id)
-        end
+        if item.Type == "Asset" and item.Id then table.insert(bundledItems, item.Id) end
     end
-
     return bundledItems, bundle
 end
 
 local function resolveAnimationMappings(assetIds)
     local mappings = {}
-
     for _, assetId in ipairs(assetIds) do
-        local success, objects = pcall(function()
-            return game:GetObjects("rbxassetid://" .. tostring(assetId))
-        end)
-
+        local success, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(assetId)) end)
         if success and objects then
             local function searchTree(parent, parentPath)
                 for _, child in ipairs(parent:GetChildren()) do
                     if child:IsA("Animation") then
-                        local animationPath = parentPath .. "." .. child.Name
-                        local pathParts = animationPath:split(".")
+                        local pathParts = (parentPath .. "." .. child.Name):split(".")
                         local weightVals = {}
-
                         for _, wChild in ipairs(child:GetChildren()) do
-                            if wChild:IsA("NumberValue") and wChild.Name == "Weight" then
-                                table.insert(weightVals, wChild.Value)
-                            end
+                            if wChild:IsA("NumberValue") and wChild.Name == "Weight" then table.insert(weightVals, wChild.Value) end
                         end
-
                         local category = pathParts[#pathParts - 1]
-
-                        if category then
-                            table.insert(mappings, {
-                                category = category,
-                                name = pathParts[#pathParts],
-                                animationId = child.AnimationId,
-                                weights = weightVals
-                            })
-                        end
+                        if category then table.insert(mappings, {category = category, name = pathParts[#pathParts], animationId = child.AnimationId, weights = weightVals}) end
                     elseif #child:GetChildren() > 0 then
                         searchTree(child, parentPath .. "." .. child.Name)
                     end
                 end
             end
-
-            for _, obj in ipairs(objects) do
-                searchTree(obj, obj.Name)
-                obj:Destroy()
-            end
+            for _, obj in ipairs(objects) do searchTree(obj, obj.Name) obj:Destroy() end
         end
     end
-
     return mappings
 end
 
 local function findCategory(animate, categoryName)
     local exact = animate:FindFirstChild(categoryName)
-
-    if exact then
-        return exact
-    end
-
+    if exact then return exact end
     for _, child in ipairs(animate:GetChildren()) do
-        if child.Name:lower() == categoryName:lower() then
-            return child
-        end
+        if child.Name:lower() == categoryName:lower() then return child end
     end
-
-    return nil
 end
 
 local function applyAnimationToObject(animObj, animId, weights)
-    if not animObj or not animObj:IsA("Animation") then
-        return
-    end
-
+    if not animObj or not animObj:IsA("Animation") then return end
     animObj.AnimationId = animId
-
     if weights ~= nil then
         for _, child in ipairs(animObj:GetChildren()) do
-            if child:IsA("NumberValue") and child.Name == "Weight" then
-                child:Destroy()
-            end
+            if child:IsA("NumberValue") and child.Name == "Weight" then child:Destroy() end
         end
-
         for _, value in ipairs(weights) do
             local weight = Instance.new("NumberValue")
             weight.Name = "Weight"
@@ -256,154 +450,414 @@ local function applyAnimationToObject(animObj, animId, weights)
     end
 end
 
+local function restartAnimate(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local animate = character:FindFirstChild("Animate")
+    if humanoid then
+        for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do track:Stop() end
+    end
+    if animate then
+        animate.Disabled = true
+        task.wait()
+        animate.Disabled = false
+    end
+end
+
 local function applyBundle(bundleId)
     local Character = Player.Character or Player.CharacterAdded:Wait()
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
     local Animate = Character:FindFirstChild("Animate")
-
-    if not Humanoid or not Animate then
-        error("Humanoid atau Animate tidak ditemukan")
-    end
-
+    if not Humanoid or not Animate then error("Humanoid atau Animate tidak ditemukan") end
+    if not DefaultAnimations then DefaultAnimations = captureAnimations(Animate) end
     local assetIds, bundle = getBundledItems(bundleId)
-
-    if not assetIds or #assetIds == 0 then
-        error("Bundle tidak memiliki asset")
-    end
-
+    if not assetIds or #assetIds == 0 then error("Bundle tidak memiliki asset") end
     local mappings = resolveAnimationMappings(assetIds)
-
-    if #mappings == 0 then
-        error("Animation mapping tidak ditemukan")
-    end
-
-    for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
-        track:Stop()
-    end
-
-    local sorted = {}
-
-    for _, mapping in ipairs(mappings) do
-        if mapping.category:lower() == "idle" then
-            table.insert(sorted, 1, mapping)
-        else
-            table.insert(sorted, mapping)
-        end
-    end
-
+    if #mappings == 0 then error("Animation mapping tidak ditemukan") end
+    for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do track:Stop() end
     local mappingMap = {}
-
-    for _, mapping in ipairs(sorted) do
+    for _, mapping in ipairs(mappings) do
         local category = mapping.category:lower()
-
-        if not mappingMap[category] then
-            mappingMap[category] = {
-                folderName = mapping.category,
-                items = {}
-            }
-        end
-
+        mappingMap[category] = mappingMap[category] or {folderName = mapping.category, items = {}}
         mappingMap[category].items[mapping.name:lower()] = mapping
     end
-
     local changed = 0
-
     for _, data in pairs(mappingMap) do
         local categoryFolder = findCategory(Animate, data.folderName)
-
         if categoryFolder then
             local sourceByName = {}
-
-            for name, mapping in pairs(data.items) do
-                sourceByName[name] = mapping
-            end
-
+            for name, mapping in pairs(data.items) do sourceByName[name] = mapping end
             for _, animObj in ipairs(categoryFolder:GetChildren()) do
                 if animObj:IsA("Animation") then
-                    local lowerName = animObj.Name:lower()
-                    local mapping = sourceByName[lowerName]
-
+                    local mapping = sourceByName[animObj.Name:lower()]
                     if mapping then
-                        sourceByName[lowerName] = nil
-                        applyAnimationToObject(
-                            animObj,
-                            mapping.animationId,
-                            mapping.weights
-                        )
-
-                        if animObj.Name ~= mapping.name then
-                            animObj.Name = mapping.name
-                        end
-
+                        sourceByName[animObj.Name:lower()] = nil
+                        applyAnimationToObject(animObj, mapping.animationId, mapping.weights)
+                        animObj.Name = mapping.name
                         changed += 1
                     else
                         animObj:Destroy()
                     end
                 end
             end
-
             for _, mapping in pairs(sourceByName) do
                 local animObj = Instance.new("Animation")
                 animObj.Name = mapping.name
-
-                applyAnimationToObject(
-                    animObj,
-                    mapping.animationId,
-                    mapping.weights
-                )
-
+                applyAnimationToObject(animObj, mapping.animationId, mapping.weights)
                 animObj.Parent = categoryFolder
                 changed += 1
             end
         end
     end
-
-    if changed == 0 then
-        error("Tidak ada kategori Animate yang cocok")
-    end
-
-    if Humanoid.MoveDirection.Magnitude == 0 then
-        Animate.Disabled = true
-        task.wait()
-        Animate.Disabled = false
-    end
-
+    if changed == 0 then error("Tidak ada kategori Animate yang cocok") end
+    if Humanoid.MoveDirection.Magnitude == 0 then restartAnimate(Character) end
     return bundle and bundle.Name or tostring(bundleId)
 end
 
+local function resetManualStar()
+    Favorite.Text = "☆"
+end
+
+Input:GetPropertyChangedSignal("Text"):Connect(resetManualStar)
+
 Button.MouseButton1Click:Connect(function()
     local bundleId = tonumber(Input.Text:match("%d+"))
-
     if not bundleId then
         Button.Text = "ID tidak valid"
         task.wait(1)
         Button.Text = "Ubah"
         return
     end
-
     Button.Text = "Loading..."
-
-    local success, result = pcall(function()
-        return applyBundle(bundleId)
-    end)
-
+    local success, result = pcall(function() return applyBundle(bundleId) end)
     if success then
         Button.Text = "Berhasil"
     else
         Button.Text = "Gagal"
         warn(result)
     end
-
     task.wait(1.2)
     Button.Text = "Ubah"
 end)
 
+refreshFavoriteList = function()
+    for _, child in ipairs(FavoriteList:GetChildren()) do
+        if child ~= ListLayout then child:Destroy() end
+    end
+
+    local topOffset = PendingFrame.Visible and 58 or 0
+    FavoriteList.Position = UDim2.fromOffset(12, 52 + topOffset)
+    FavoriteList.Size = UDim2.new(1, -24, 1, -(64 + topOffset))
+
+    for index, data in ipairs(FavoriteData.favorites) do
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, -4, 0, 42)
+        row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        row.BorderSizePixel = 0
+        row.LayoutOrder = index
+        row.ZIndex = 12
+        row.Parent = FavoriteList
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+        local name = Instance.new("TextLabel")
+        name.Size = UDim2.new(1, -142, 1, -4)
+        name.Position = UDim2.fromOffset(10, 2)
+        name.BackgroundTransparency = 1
+        name.Text = tostring(data.name or data.id) .. "\nID: " .. tostring(data.id)
+        name.TextColor3 = Color3.new(1, 1, 1)
+        name.TextSize = 12
+        name.Font = Enum.Font.Gotham
+        name.TextWrapped = true
+        name.TextXAlignment = Enum.TextXAlignment.Left
+        name.ZIndex = 13
+        name.Parent = row
+
+        local left = Instance.new("TextButton")
+        left.Size = UDim2.fromOffset(58, 28)
+        left.Position = UDim2.new(1, -126, 0.5, -14)
+        left.BorderSizePixel = 0
+        left.TextColor3 = Color3.new(1, 1, 1)
+        left.TextSize = SortMode and 20 or 11
+        left.Font = Enum.Font.GothamBold
+        left.ZIndex = 13
+        left.Parent = row
+        Instance.new("UICorner", left).CornerRadius = UDim.new(0, 7)
+
+        local right = Instance.new("TextButton")
+        right.Size = UDim2.fromOffset(54, 28)
+        right.Position = UDim2.new(1, -62, 0.5, -14)
+        right.BorderSizePixel = 0
+        right.TextColor3 = Color3.new(1, 1, 1)
+        right.TextSize = SortMode and 20 or 11
+        right.Font = Enum.Font.GothamBold
+        right.ZIndex = 13
+        right.Parent = row
+        Instance.new("UICorner", right).CornerRadius = UDim.new(0, 7)
+
+        if SortMode then
+            left.Text = "↑"
+            right.Text = "↓"
+            left.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+            right.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+            local locked = FavoriteData.active and tostring(data.id) == tostring(FavoriteData.active)
+            left.AutoButtonColor = not locked
+            right.AutoButtonColor = not locked
+            left.TextTransparency = locked and 0.55 or 0
+            right.TextTransparency = locked and 0.55 or 0
+            left.MouseButton1Click:Connect(function()
+                moveFavorite(index, -1)
+                refreshFavoriteList()
+            end)
+            right.MouseButton1Click:Connect(function()
+                moveFavorite(index, 1)
+                refreshFavoriteList()
+            end)
+        else
+            local isDefault = FavoriteData.active and tostring(data.id) == tostring(FavoriteData.active)
+            left.Text = "Default"
+            left.BackgroundColor3 = isDefault and Color3.fromRGB(55, 115, 255) or Color3.fromRGB(55, 55, 55)
+            right.Text = "Delate"
+            right.BackgroundColor3 = Color3.fromRGB(160, 55, 55)
+            left.MouseButton1Click:Connect(function()
+                setDefaultFavorite(data.id)
+                local success, err = pcall(function() applyBundle(data.id) end)
+                if not success then warn(err) end
+                refreshFavoriteList()
+            end)
+            right.MouseButton1Click:Connect(function()
+                removeFavorite(data.id)
+                refreshFavoriteList()
+            end)
+        end
+    end
+
+    task.defer(function()
+        task.wait()
+        FavoriteList.CanvasSize = UDim2.fromOffset(0, ListLayout.AbsoluteContentSize.Y + 4)
+    end)
+end
+
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    FavoriteList.CanvasSize = UDim2.fromOffset(0, ListLayout.AbsoluteContentSize.Y + 4)
+end)
+
+Favorite.MouseButton1Click:Connect(function()
+    Favorite.Text = "☆"
+    PendingFavoriteId = nil
+    PendingFavoriteName = nil
+    PendingFrame.Visible = false
+
+    local text = Input.Text
+    local bundleId = tonumber(text:match("%d+"))
+
+    if bundleId then
+        Favorite.Text = "…"
+        local success, assetIds, bundle = pcall(function()
+            local ids, info = getBundledItems(bundleId)
+            return ids, info
+        end)
+        Favorite.Text = "☆"
+        if success and assetIds and bundle then
+            PendingFavoriteId = bundleId
+            PendingFavoriteName = bundle.Name or tostring(bundleId)
+            PendingName.Text = PendingFavoriteName .. "\nID: " .. tostring(bundleId)
+            PendingFrame.Visible = not isFavorite(bundleId)
+        end
+    end
+
+    FavoriteFrame.Visible = true
+    refreshFavoriteList()
+end)
+
+FavoriteConfirm.MouseButton1Click:Connect(function()
+    if not PendingFavoriteId then return end
+    addFavorite(PendingFavoriteId, PendingFavoriteName)
+    PendingFavoriteId = nil
+    PendingFavoriteName = nil
+    PendingFrame.Visible = false
+    refreshFavoriteList()
+end)
+
+SortButton.MouseButton1Click:Connect(function()
+    SortMode = not SortMode
+    SortButton.Text = SortMode and "Done" or "Sort"
+    SortButton.BackgroundColor3 = SortMode and Color3.fromRGB(55, 115, 255) or Color3.fromRGB(45, 45, 45)
+    refreshFavoriteList()
+end)
+
+FavoriteClose.MouseButton1Click:Connect(function()
+    FavoriteFrame.Visible = false
+    PendingFavoriteId = nil
+    PendingFavoriteName = nil
+    PendingFrame.Visible = false
+    SortMode = false
+    SortButton.Text = "Sort"
+    SortButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+end)
+
+Reset.MouseButton1Click:Connect(function()
+    local Character = Player.Character or Player.CharacterAdded:Wait()
+    local Animate = Character:FindFirstChild("Animate")
+    if not Animate or not DefaultAnimations then
+        Reset.Text = "Default belum tersimpan"
+        task.wait(1.2)
+        Reset.Text = "Reset"
+        return
+    end
+    Reset.Text = "Resetting..."
+    restoreAnimations(Animate, DefaultAnimations)
+    restartAnimate(Character)
+    Reset.Text = "Berhasil"
+    task.wait(1.2)
+    Reset.Text = "Reset"
+end)
+
+local BubbleFrame = nil
+
+local function hideBubble()
+    if BubbleFrame and BubbleFrame.Parent then
+        BubbleFrame.Visible = false
+    end
+end
+
+local function showBubble()
+    if not BubbleFrame then
+        BubbleFrame = Instance.new("Frame")
+        BubbleFrame.Name = "TriggerBubble"
+        BubbleFrame.Size = UDim2.fromOffset(130, 44)
+        BubbleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 38)
+        BubbleFrame.BackgroundTransparency = 0.05
+        BubbleFrame.BorderSizePixel = 0
+        BubbleFrame.ZIndex = 100
+        BubbleFrame.Visible = false
+        BubbleFrame.Parent = ScreenGui
+        Instance.new("UICorner", BubbleFrame).CornerRadius = UDim.new(0, 8)
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 1.5
+        stroke.Color = Color3.fromRGB(120, 120, 120)
+        stroke.Parent = BubbleFrame
+
+        local hideGuiButton = Instance.new("TextButton")
+        hideGuiButton.Size = UDim2.new(1, -12, 1, -12)
+        hideGuiButton.Position = UDim2.fromOffset(6, 6)
+        hideGuiButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        hideGuiButton.BorderSizePixel = 0
+        hideGuiButton.Text = "Hide Gui"
+        hideGuiButton.TextColor3 = Color3.new(1, 1, 1)
+        hideGuiButton.TextSize = 13
+        hideGuiButton.Font = Enum.Font.GothamBold
+        hideGuiButton.ZIndex = 101
+        hideGuiButton.Parent = BubbleFrame
+        Instance.new("UICorner", hideGuiButton).CornerRadius = UDim.new(0, 6)
+
+        hideGuiButton.Activated:Connect(function()
+            hideBubble()
+            Frame.Visible = false
+            FavoriteFrame.Visible = false
+            Trigger.Visible = false
+            ScreenGui.Enabled = false
+        end)
+    end
+
+    local triggerPosition = Trigger.Position
+    BubbleFrame.Position = UDim2.new(
+        triggerPosition.X.Scale, triggerPosition.X.Offset,
+        triggerPosition.Y.Scale, triggerPosition.Y.Offset - 50
+    )
+    BubbleFrame.Visible = true
+end
+
+local triggerPressing = false
+local triggerDragging = false
+local triggerLongPressFired = false
+local triggerDragStart = Vector2.new(0, 0)
+local triggerStartPos = UDim2.new(0, 0, 0, 0)
+local longPressThread = nil
+
 Minimize.MouseButton1Click:Connect(function()
+    Trigger.Position = Frame.Position
     Frame.Visible = false
+    FavoriteFrame.Visible = false
     Trigger.Visible = true
 end)
 
-Trigger.MouseButton1Click:Connect(function()
-    Trigger.Visible = false
-    Frame.Visible = true
+Trigger.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        triggerPressing = true
+        triggerDragging = false
+        triggerLongPressFired = false
+        triggerDragStart = input.Position
+        triggerStartPos = Trigger.Position
+        hideBubble()
+        longPressThread = task.delay(0.5, function()
+            if triggerPressing and not triggerDragging then
+                triggerLongPressFired = true
+                showBubble()
+            end
+        end)
+    end
+end)
+
+Trigger.InputChanged:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and triggerPressing then
+        local delta = input.Position - triggerDragStart
+        local moveDistance = math.sqrt(delta.X ^ 2 + delta.Y ^ 2)
+        if moveDistance > 5 then
+            triggerDragging = true
+            hideBubble()
+            if longPressThread then
+                task.cancel(longPressThread)
+                longPressThread = nil
+            end
+            Trigger.Position = UDim2.new(
+                triggerStartPos.X.Scale, triggerStartPos.X.Offset + delta.X,
+                triggerStartPos.Y.Scale, triggerStartPos.Y.Offset + delta.Y
+            )
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if triggerPressing then
+            if longPressThread then
+                task.cancel(longPressThread)
+                longPressThread = nil
+            end
+            if not triggerDragging and not triggerLongPressFired then
+                Frame.Visible = true
+                Trigger.Visible = false
+                hideBubble()
+            end
+            triggerPressing = false
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if BubbleFrame and BubbleFrame.Visible and not triggerPressing then
+            hideBubble()
+        end
+    end
+end)
+
+local function initializeCharacter(character)
+    local animate = character:WaitForChild("Animate", 10)
+    if not animate then return end
+    DefaultAnimations = captureAnimations(animate)
+    if FavoriteData.active then
+        task.defer(function()
+            task.wait(1)
+            local success, err = pcall(function() applyBundle(FavoriteData.active) end)
+            if not success then warn(err) end
+        end)
+    end
+end
+
+if Player.Character then task.defer(initializeCharacter, Player.Character) end
+Player.CharacterAdded:Connect(function(character)
+    task.wait(1)
+    initializeCharacter(character)
 end)
