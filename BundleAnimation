@@ -1,0 +1,409 @@
+local Players = game:GetService("Players")
+local AssetService = game:GetService("AssetService")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+
+local old = Player:WaitForChild("PlayerGui"):FindFirstChild("BundleAnimationChanger")
+if old then
+    old:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BundleAnimationChanger"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = false
+ScreenGui.Parent = Player.PlayerGui
+
+local Frame = Instance.new("Frame")
+Frame.Name = "Main"
+Frame.Size = UDim2.fromOffset(320, 160)
+Frame.Position = UDim2.new(0.5, -160, 0.5, -80)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Parent = ScreenGui
+
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 12)
+FrameCorner.Parent = Frame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -55, 0, 40)
+Title.Position = UDim2.fromOffset(12, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Animation Bundle"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 18
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Frame
+
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.fromOffset(35, 30)
+Minimize.Position = UDim2.new(1, -45, 0, 5)
+Minimize.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Minimize.Text = "—"
+Minimize.TextColor3 = Color3.new(1, 1, 1)
+Minimize.TextSize = 20
+Minimize.Font = Enum.Font.GothamBold
+Minimize.BorderSizePixel = 0
+Minimize.Parent = Frame
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 8)
+MinCorner.Parent = Minimize
+
+local Input = Instance.new("TextBox")
+Input.Size = UDim2.new(1, -24, 0, 43)
+Input.Position = UDim2.fromOffset(12, 48)
+Input.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Input.BorderSizePixel = 0
+Input.TextColor3 = Color3.new(1, 1, 1)
+Input.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+Input.PlaceholderText = "Masukkan Bundle ID"
+Input.Text = ""
+Input.TextSize = 15
+Input.Font = Enum.Font.Gotham
+Input.ClearTextOnFocus = false
+Input.Parent = Frame
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 8)
+InputCorner.Parent = Input
+
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(1, -24, 0, 43)
+Button.Position = UDim2.fromOffset(12, 103)
+Button.BackgroundColor3 = Color3.fromRGB(55, 115, 255)
+Button.BorderSizePixel = 0
+Button.Text = "Ubah"
+Button.TextColor3 = Color3.new(1, 1, 1)
+Button.TextSize = 16
+Button.Font = Enum.Font.GothamBold
+Button.Parent = Frame
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 8)
+ButtonCorner.Parent = Button
+
+local Trigger = Instance.new("TextButton")
+Trigger.Name = "Trigger"
+Trigger.Size = UDim2.fromOffset(58, 58)
+Trigger.Position = UDim2.new(0, 15, 0.5, -29)
+Trigger.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Trigger.BorderSizePixel = 0
+Trigger.Text = "ANIM"
+Trigger.TextColor3 = Color3.new(1, 1, 1)
+Trigger.TextSize = 12
+Trigger.Font = Enum.Font.GothamBold
+Trigger.Visible = false
+Trigger.Active = true
+Trigger.Parent = ScreenGui
+
+local TriggerCorner = Instance.new("UICorner")
+TriggerCorner.CornerRadius = UDim.new(1, 0)
+TriggerCorner.Parent = Trigger
+
+local function makeDraggable(gui)
+    local dragging = false
+    local dragStart
+    local startPos
+    local dragInput
+
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = gui.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    gui.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            gui.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+makeDraggable(Frame)
+makeDraggable(Trigger)
+
+local function getBundledItems(bundleId)
+    local success, bundle = pcall(function()
+        return AssetService:GetBundleDetailsAsync(bundleId)
+    end)
+
+    if not success or not bundle then
+        return nil
+    end
+
+    local bundledItems = {}
+
+    for _, item in ipairs(bundle.Items or {}) do
+        if item.Type == "Asset" and item.Id then
+            table.insert(bundledItems, item.Id)
+        end
+    end
+
+    return bundledItems, bundle
+end
+
+local function resolveAnimationMappings(assetIds)
+    local mappings = {}
+
+    for _, assetId in ipairs(assetIds) do
+        local success, objects = pcall(function()
+            return game:GetObjects("rbxassetid://" .. tostring(assetId))
+        end)
+
+        if success and objects then
+            local function searchTree(parent, parentPath)
+                for _, child in ipairs(parent:GetChildren()) do
+                    if child:IsA("Animation") then
+                        local animationPath = parentPath .. "." .. child.Name
+                        local pathParts = animationPath:split(".")
+                        local weightVals = {}
+
+                        for _, wChild in ipairs(child:GetChildren()) do
+                            if wChild:IsA("NumberValue") and wChild.Name == "Weight" then
+                                table.insert(weightVals, wChild.Value)
+                            end
+                        end
+
+                        local category = pathParts[#pathParts - 1]
+
+                        if category then
+                            table.insert(mappings, {
+                                category = category,
+                                name = pathParts[#pathParts],
+                                animationId = child.AnimationId,
+                                weights = weightVals
+                            })
+                        end
+                    elseif #child:GetChildren() > 0 then
+                        searchTree(child, parentPath .. "." .. child.Name)
+                    end
+                end
+            end
+
+            for _, obj in ipairs(objects) do
+                searchTree(obj, obj.Name)
+                obj:Destroy()
+            end
+        end
+    end
+
+    return mappings
+end
+
+local function findCategory(animate, categoryName)
+    local exact = animate:FindFirstChild(categoryName)
+
+    if exact then
+        return exact
+    end
+
+    for _, child in ipairs(animate:GetChildren()) do
+        if child.Name:lower() == categoryName:lower() then
+            return child
+        end
+    end
+
+    return nil
+end
+
+local function applyAnimationToObject(animObj, animId, weights)
+    if not animObj or not animObj:IsA("Animation") then
+        return
+    end
+
+    animObj.AnimationId = animId
+
+    if weights ~= nil then
+        for _, child in ipairs(animObj:GetChildren()) do
+            if child:IsA("NumberValue") and child.Name == "Weight" then
+                child:Destroy()
+            end
+        end
+
+        for _, value in ipairs(weights) do
+            local weight = Instance.new("NumberValue")
+            weight.Name = "Weight"
+            weight.Value = value
+            weight.Parent = animObj
+        end
+    end
+end
+
+local function applyBundle(bundleId)
+    local Character = Player.Character or Player.CharacterAdded:Wait()
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    local Animate = Character:FindFirstChild("Animate")
+
+    if not Humanoid or not Animate then
+        error("Humanoid atau Animate tidak ditemukan")
+    end
+
+    local assetIds, bundle = getBundledItems(bundleId)
+
+    if not assetIds or #assetIds == 0 then
+        error("Bundle tidak memiliki asset")
+    end
+
+    local mappings = resolveAnimationMappings(assetIds)
+
+    if #mappings == 0 then
+        error("Animation mapping tidak ditemukan")
+    end
+
+    for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
+        track:Stop()
+    end
+
+    local sorted = {}
+
+    for _, mapping in ipairs(mappings) do
+        if mapping.category:lower() == "idle" then
+            table.insert(sorted, 1, mapping)
+        else
+            table.insert(sorted, mapping)
+        end
+    end
+
+    local mappingMap = {}
+
+    for _, mapping in ipairs(sorted) do
+        local category = mapping.category:lower()
+
+        if not mappingMap[category] then
+            mappingMap[category] = {
+                folderName = mapping.category,
+                items = {}
+            }
+        end
+
+        mappingMap[category].items[mapping.name:lower()] = mapping
+    end
+
+    local changed = 0
+
+    for _, data in pairs(mappingMap) do
+        local categoryFolder = findCategory(Animate, data.folderName)
+
+        if categoryFolder then
+            local sourceByName = {}
+
+            for name, mapping in pairs(data.items) do
+                sourceByName[name] = mapping
+            end
+
+            for _, animObj in ipairs(categoryFolder:GetChildren()) do
+                if animObj:IsA("Animation") then
+                    local lowerName = animObj.Name:lower()
+                    local mapping = sourceByName[lowerName]
+
+                    if mapping then
+                        sourceByName[lowerName] = nil
+                        applyAnimationToObject(
+                            animObj,
+                            mapping.animationId,
+                            mapping.weights
+                        )
+
+                        if animObj.Name ~= mapping.name then
+                            animObj.Name = mapping.name
+                        end
+
+                        changed += 1
+                    else
+                        animObj:Destroy()
+                    end
+                end
+            end
+
+            for _, mapping in pairs(sourceByName) do
+                local animObj = Instance.new("Animation")
+                animObj.Name = mapping.name
+
+                applyAnimationToObject(
+                    animObj,
+                    mapping.animationId,
+                    mapping.weights
+                )
+
+                animObj.Parent = categoryFolder
+                changed += 1
+            end
+        end
+    end
+
+    if changed == 0 then
+        error("Tidak ada kategori Animate yang cocok")
+    end
+
+    if Humanoid.MoveDirection.Magnitude == 0 then
+        Animate.Disabled = true
+        task.wait()
+        Animate.Disabled = false
+    end
+
+    return bundle and bundle.Name or tostring(bundleId)
+end
+
+Button.MouseButton1Click:Connect(function()
+    local bundleId = tonumber(Input.Text:match("%d+"))
+
+    if not bundleId then
+        Button.Text = "ID tidak valid"
+        task.wait(1)
+        Button.Text = "Ubah"
+        return
+    end
+
+    Button.Text = "Loading..."
+
+    local success, result = pcall(function()
+        return applyBundle(bundleId)
+    end)
+
+    if success then
+        Button.Text = "Berhasil"
+    else
+        Button.Text = "Gagal"
+        warn(result)
+    end
+
+    task.wait(1.2)
+    Button.Text = "Ubah"
+end)
+
+Minimize.MouseButton1Click:Connect(function()
+    Frame.Visible = false
+    Trigger.Visible = true
+end)
+
+Trigger.MouseButton1Click:Connect(function()
+    Trigger.Visible = false
+    Frame.Visible = true
+end)
