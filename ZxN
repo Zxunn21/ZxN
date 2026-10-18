@@ -509,7 +509,7 @@ local linkFeatures = {
 	{ description = "Object View",             	url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ObjectView",            	guiToHide = "ObjectViewGui" },
 	{ description = "Additional Buttons",		url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/AdditionalButtons",       guiToHide = "AdditionalButtonsGui" },
 	{ description = "Root Object",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RootObject",         		guiToHide = "RootObjectGui" },
-	{ description = "Remote Event",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RemoteEvent",         		guiToHide = "RemoteEventGui" },
+	{ description = "Bundle Animation",			url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/BundleAnimation",         	guiToHide = "BundleAnimation" },
 	{ description = "Waypoints",				url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/Waypoints",         		guiToHide = "WaypointsGui" },
 	{ description = "LKZ",						url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/LKZ",         				guiToHide = "" },
 }
