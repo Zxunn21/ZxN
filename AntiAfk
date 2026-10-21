@@ -20,3 +20,4 @@ player.CharacterAdded:Connect(function()
     task.wait(1)
     player.CameraMaxZoomDistance = 5000
 end)
+x
