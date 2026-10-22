@@ -1,0 +1,152 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+if not player then
+    return
+end
+
+local tool
+local busy = false
+local lastActivation = 0
+
+local function getBackpack()
+    return player:FindFirstChildOfClass("Backpack") or player:WaitForChild("Backpack")
+end
+
+local function findTeleportTool()
+    local backpack = player:FindFirstChildOfClass("Backpack")
+    local character = player.Character
+    local found = backpack and backpack:FindFirstChild("Teleport")
+    if not found and character then
+        found = character:FindFirstChild("Teleport")
+    end
+    return found
+end
+
+local function getCharacterParts()
+    local character = player.Character
+    if not character then
+        return nil, nil
+    end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not root or humanoid.Health <= 0 then
+        return nil, nil
+    end
+    return character, root
+end
+
+local function getTargetPosition()
+    local camera = Workspace.CurrentCamera
+    if not camera then
+        return nil
+    end
+
+    local mouse = player:GetMouse()
+    local target = mouse.Target
+    local hitPosition = mouse.Hit.Position
+    local hitNormal = Vector3.new(0, 1, 0)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = player.Character and {player.Character} or {}
+    params.IgnoreWater = false
+
+    local result
+    if UserInputService.TouchEnabled then
+        local screenPosition = UserInputService:GetMouseLocation()
+        local ray = camera:ViewportPointToRay(screenPosition.X, screenPosition.Y)
+        result = Workspace:Raycast(ray.Origin, ray.Direction * 10000, params)
+    else
+        local unitRay = mouse.UnitRay
+        result = Workspace:Raycast(unitRay.Origin, unitRay.Direction * 10000, params)
+    end
+
+    if result then
+        target = result.Instance
+        hitPosition = result.Position
+        hitNormal = result.Normal
+    end
+
+    if not target or not target:IsA("BasePart") then
+        return nil
+    end
+
+    return hitPosition + hitNormal * 3
+end
+
+local function activateTeleport()
+    if busy or not tool or tool.Parent ~= player.Character then
+        return
+    end
+
+    local now = os.clock()
+    if now - lastActivation < 0.25 then
+        return
+    end
+    lastActivation = now
+
+    local character, root = getCharacterParts()
+    if not character or not root then
+        return
+    end
+
+    local destination = getTargetPosition()
+    if not destination then
+        return
+    end
+
+    busy = true
+    character:PivotTo(CFrame.new(destination) * root.CFrame.Rotation)
+    task.wait(0.15)
+    busy = false
+end
+
+local function createTeleportTool()
+    local newTool = Instance.new("Tool")
+    newTool.Name = "Teleport"
+    newTool.ToolTip = "Equip, then tap or click a surface to teleport"
+    newTool.RequiresHandle = false
+    newTool.CanBeDropped = false
+    newTool.Activated:Connect(activateTeleport)
+    newTool.Parent = getBackpack()
+    tool = newTool
+    return newTool
+end
+
+local function ensureTeleportTool()
+    local existing = findTeleportTool()
+    if existing then
+        tool = existing
+        return existing
+    end
+    return createTeleportTool()
+end
+
+ensureTeleportTool()
+
+player.CharacterAdded:Connect(function()
+    task.defer(function()
+        task.wait(0.5)
+        ensureTeleportTool()
+    end)
+end)
+
+player.ChildAdded:Connect(function(child)
+    if child:IsA("Backpack") then
+        task.defer(function()
+            task.wait(0.2)
+            ensureTeleportTool()
+        end)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if not findTeleportTool() then
+            ensureTeleportTool()
+        end
+    end
+end)
