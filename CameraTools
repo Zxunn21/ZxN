@@ -197,29 +197,7 @@ local function makeRow(order, labelText, buttons)
 	return row
 end
 
-local layoutRow = makeRow(1, "Layout", {
-	makeButton("Portrait", function()
-		pcall(function()
-			playerGui.ScreenOrientation = Enum.ScreenOrientation.Portrait
-		end)
-	end),
-
-	makeButton("Landscape", function()
-		pcall(function()
-			playerGui.ScreenOrientation = Enum.ScreenOrientation.LandscapeRight
-		end)
-	end),
-
-	makeButton("Auto", function()
-		pcall(function()
-			playerGui.ScreenOrientation = Enum.ScreenOrientation.Sensor
-		end)
-	end),
-})
-
-layoutRow.Parent = scrollFrame
-
-local cameraRow = makeRow(2, "Camera View", {
+local cameraRow = makeRow(1, "Camera View", {
 	makeButton("TPP", function()
 		player.CameraMode = Enum.CameraMode.Classic
 		player.CameraMinZoomDistance = 0.5
@@ -242,9 +220,17 @@ local anchoredParts = {}
 local BASE_SPEED = 50
 local SPRINT_MULT = 3
 local LOOK_SENSITIVITY = 0.01
+local FREECAM_SENSITIVITY_MULTIPLIER = 1.0 -- default 100%, dapat diatur melalui slider
+local FREECAM_SPEED_MULTIPLIER = 0.5 -- default 50%, dapat diatur melalui slider
 
 local yaw = 0
 local pitch = 0
+local freeCamPosition = nil
+local savedCameraType = nil
+local savedCameraSubject = nil
+local savedCameraCFrame = nil
+local savedFieldOfView = nil
+local savedInitialCameraDistance = 12
 
 local keysDown = {}
 local btnState = {}
@@ -286,6 +272,8 @@ local controlsGui = create("ScreenGui", {
 
 controlsGui.Parent = playerGui
 
+local controlsHidden = false
+
 local function makeMoveButton(text, dir)
 	local btn = create("TextButton", {
 		Name = dir .. "Button",
@@ -304,13 +292,20 @@ local function makeMoveButton(text, dir)
 		}),
 	})
 
-	local function setActive(state)
+ 	local function setActive(state)
 		if state then
 			btnState[dir] = true
-			btn.BackgroundTransparency = 0
 		else
 			btnState[dir] = nil
-			btn.BackgroundTransparency = 0.35
+		end
+
+		-- Jangan mengubah tampilan menjadi terang saat GUI disembunyikan.
+		if controlsHidden then
+			btn.BackgroundTransparency = 0.95
+			btn.TextTransparency = 0.15
+		else
+			btn.BackgroundTransparency = state and 0 or 0.35
+			btn.TextTransparency = 0
 		end
 	end
 
@@ -333,22 +328,49 @@ local function makeMoveButton(text, dir)
 	return btn
 end
 
+-- Kontrol sentuh: tombol gerak horizontal di kiri dan naik/turun di kanan.
+-- Tombol hanya tampil saat Free Cam aktif pada perangkat layar sentuh.
+local movePad = create("Frame", {
+	Name = "FreeCamMovePad",
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = UDim2.new(0, 52, 0.75, 0),
+	Size = UDim2.new(0, 146, 0, 146),
+	BackgroundTransparency = 1,
+	Visible = false,
+})
+movePad.Parent = controlsGui
+
+local forwardBtn = makeMoveButton("▲", "forward")
+forwardBtn.Position = UDim2.new(0.5, -22, 0, 0)
+forwardBtn.Parent = movePad
+
+local leftBtn = makeMoveButton("◀", "left")
+leftBtn.Position = UDim2.new(0, 0, 0, 50)
+leftBtn.Parent = movePad
+
+local backwardBtn = makeMoveButton("▼", "backward")
+backwardBtn.Position = UDim2.new(0.5, -22, 0, 50)
+backwardBtn.Parent = movePad
+
+local rightBtn = makeMoveButton("▶", "right")
+rightBtn.Position = UDim2.new(1, -44, 0, 50)
+rightBtn.Parent = movePad
+
 local vertPad = create("Frame", {
 	Name = "FreeCamVertPad",
 	AnchorPoint = Vector2.new(1, 1),
-	Position = UDim2.new(1, -20, 1, -20),
+	Position = UDim2.new(1, -62, 1, -76),
 	Size = UDim2.new(0, 44, 0, 98),
 	BackgroundTransparency = 1,
 	Visible = false,
 })
-
 vertPad.Parent = controlsGui
 
-local upBtn = makeMoveButton("▲", "up")
+local upBtn = makeMoveButton("+", "up")
 upBtn.Position = UDim2.new(0, 0, 0, 0)
 upBtn.Parent = vertPad
 
-local downBtn = makeMoveButton("▼", "down")
+local downBtn = makeMoveButton("−", "down")
 downBtn.Position = UDim2.new(0, 0, 0, 54)
 downBtn.Parent = vertPad
 
@@ -379,7 +401,7 @@ local showPanelButton = create("TextButton", {
 showPanelButton.Parent = controlsGui
 
 local ZOOM_MIN = 0.5
-local ZOOM_MAX = 10
+local ZOOM_MAX = 20
 local BASE_FOV = 70
 local zoomValue = 1
 
@@ -405,6 +427,153 @@ local zoomSlider = create("Frame", {
 })
 
 zoomSlider.Parent = controlsGui
+
+-- Teleport pemain ke posisi di depan kamera, memakai jarak kamera sebelum Free Cam aktif.
+local teleportButton = create("TextButton", {
+	Name = "TeleportToCameraButton",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -54),
+	Size = UDim2.new(0, 132, 0, 28),
+	BackgroundColor3 = Color3.fromRGB(40, 135, 90),
+	BackgroundTransparency = 0.15,
+	BorderSizePixel = 0,
+	Text = "TELEPORT",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+	AutoButtonColor = true,
+	Visible = false,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 7) }),
+})
+teleportButton.Parent = controlsGui
+
+-- Slider sensitivitas khusus Free Cam. Nilai kecil membuat putaran kamera lebih lambat.
+local sensitivitySlider = create("Frame", {
+	Name = "FreeCamSensitivitySlider",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -18),
+	Size = UDim2.new(0, 240, 0, 24),
+	BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+	BackgroundTransparency = 0.25,
+	BorderSizePixel = 0,
+	Visible = false,
+	Active = true,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", {
+		Color = Color3.fromRGB(90, 90, 110),
+		Transparency = 0.5,
+		Thickness = 1
+	}),
+})
+sensitivitySlider.Parent = controlsGui
+
+local sensitivityFill = create("Frame", {
+	Name = "Fill",
+	Position = UDim2.new(0, 0, 0, 0),
+	Size = UDim2.new(FREECAM_SENSITIVITY_MULTIPLIER, 0, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(60, 160, 220),
+	BackgroundTransparency = 0.1,
+	BorderSizePixel = 0,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+})
+sensitivityFill.Parent = sensitivitySlider
+
+local sensitivityKnob = create("Frame", {
+	Name = "Knob",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(FREECAM_SENSITIVITY_MULTIPLIER, 0, 0.5, 0),
+	Size = UDim2.new(0, 16, 0, 16),
+	BackgroundColor3 = Color3.fromRGB(245, 245, 255),
+	BorderSizePixel = 0,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", {
+		Color = Color3.fromRGB(40, 40, 55),
+		Transparency = 0.4,
+		Thickness = 1
+	}),
+})
+sensitivityKnob.Parent = sensitivitySlider
+
+local sensitivityLabel = create("TextLabel", {
+	Name = "SensitivityLabel",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 0, -6),
+	Size = UDim2.new(0, 180, 0, 18),
+	BackgroundTransparency = 1,
+	Text = "Sensitivity 100%",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+})
+sensitivityLabel.Parent = sensitivitySlider
+
+local sensitivityDragging = false
+local function setFreeCamSensitivity(value)
+	FREECAM_SENSITIVITY_MULTIPLIER = math.clamp(value, 0.05, 1)
+	local fraction = (FREECAM_SENSITIVITY_MULTIPLIER - 0.05) / 0.95
+	sensitivityFill.Size = UDim2.new(fraction, 0, 1, 0)
+	sensitivityKnob.Position = UDim2.new(fraction, 0, 0.5, 0)
+	sensitivityLabel.Text = "Sensitivity " .. tostring(math.floor(FREECAM_SENSITIVITY_MULTIPLIER * 100 + 0.5)) .. "%"
+end
+
+local function sensitivityFromInput(input)
+	local x = sensitivitySlider.AbsolutePosition.X
+	local width = math.max(sensitivitySlider.AbsoluteSize.X, 1)
+	local fraction = math.clamp((input.Position.X - x) / width, 0, 1)
+	setFreeCamSensitivity(0.05 + fraction * 0.95)
+end
+
+setFreeCamSensitivity(FREECAM_SENSITIVITY_MULTIPLIER)
+
+teleportButton.Activated:Connect(function()
+	if not freeCamEnabled then
+		return
+	end
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not character or not root or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	local lookDirection = CFrame.fromOrientation(pitch, yaw, 0).LookVector.Unit
+	local distance = math.max(savedInitialCameraDistance, 1)
+	-- Gunakan titik tepat di depan kamera. Jangan raycast ke lantai, karena
+	-- posisi tujuan memang boleh berada lebih tinggi dari posisi pemain semula.
+	local targetPosition = freeCamPosition + lookDirection * distance
+
+	-- Pertahankan orientasi tubuh agar karakter tetap tegak walaupun kamera
+	-- sedang melihat ke atas atau ke bawah.
+	local currentPivot = character:GetPivot()
+	local pivotRotation = currentPivot - currentPivot.Position
+	local targetPivotPosition = targetPosition + (currentPivot.Position - root.Position)
+	character:PivotTo(CFrame.new(targetPivotPosition) * pivotRotation)
+
+	-- Hilangkan momentum lama agar karakter tidak terdorong kembali setelah teleport.
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+end)
+
+-- Hanya knob putih yang dapat memulai drag. Menekan area bar tidak mengubah nilai.
+sensitivityKnob.Active = true
+sensitivityKnob.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		sensitivityDragging = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		sensitivityDragging = false
+	end
+end)
 
 local zoomFill = create("Frame", {
 	Name = "Fill",
@@ -455,6 +624,100 @@ local zoomLabel = create("TextLabel", {
 
 zoomLabel.Parent = zoomSlider
 
+-- Slider vertikal kecepatan di sisi kiri. Nilai 25% menjadi kecepatan awal.
+local speedSlider = create("Frame", {
+	Name = "FreeCamSpeedSlider",
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = UDim2.new(0, 14, 0.5, 0),
+	Size = UDim2.new(0, 28, 0, 220),
+	BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+	BackgroundTransparency = 0.4,
+	BorderSizePixel = 0,
+	Visible = false,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", {
+		Color = Color3.fromRGB(90, 90, 110),
+		Transparency = 0.5,
+		Thickness = 1
+	}),
+})
+speedSlider.Parent = controlsGui
+
+local speedFill = create("Frame", {
+	Name = "Fill",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 0, 1, 0),
+	Size = UDim2.new(1, 0, FREECAM_SPEED_MULTIPLIER, 0),
+	BackgroundColor3 = Color3.fromRGB(60, 160, 220),
+	BackgroundTransparency = 0.2,
+	BorderSizePixel = 0,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+})
+speedFill.Parent = speedSlider
+
+local speedKnob = create("Frame", {
+	Name = "Knob",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Size = UDim2.new(1, 10, 0, 20),
+	BackgroundColor3 = Color3.fromRGB(235, 235, 245),
+	BorderSizePixel = 0,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", {
+		Color = Color3.fromRGB(40, 40, 55),
+		Transparency = 0.4,
+		Thickness = 1
+	}),
+})
+speedKnob.Parent = speedSlider
+
+local speedLabel = create("TextLabel", {
+	Name = "SpeedLabel",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 0, -8),
+	Size = UDim2.new(0, 80, 0, 16),
+	BackgroundTransparency = 1,
+	Text = "Speed 50%",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+})
+speedLabel.Parent = speedSlider
+
+local speedDragging = false
+local function setFreeCamSpeed(value)
+	FREECAM_SPEED_MULTIPLIER = math.clamp(value, 0.05, 2)
+	local fraction = (FREECAM_SPEED_MULTIPLIER - 0.05) / 1.95
+	speedFill.Size = UDim2.new(1, 0, fraction, 0)
+	speedKnob.Position = UDim2.new(0.5, 0, 1 - fraction, 0)
+	speedLabel.Text = "Speed " .. tostring(math.floor(FREECAM_SPEED_MULTIPLIER * 100 + 0.5)) .. "%"
+end
+
+local function speedFromInput(input)
+	local y = speedSlider.AbsolutePosition.Y
+	local height = math.max(speedSlider.AbsoluteSize.Y, 1)
+	local fraction = math.clamp(1 - ((input.Position.Y - y) / height), 0, 1)
+	setFreeCamSpeed(0.05 + fraction * 1.95)
+end
+
+setFreeCamSpeed(FREECAM_SPEED_MULTIPLIER)
+speedKnob.Active = true
+speedKnob.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		speedDragging = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		speedDragging = false
+	end
+end)
+
 local function zoomFromFraction(f)
 	return ZOOM_MIN * (ZOOM_MAX / ZOOM_MIN) ^ f
 end
@@ -493,32 +756,38 @@ local function zoomFromInput(input)
 	setZoom(zoomFromFraction(fraction))
 end
 
-zoomSlider.InputBegan:Connect(function(input)
+-- Hanya knob putih yang dapat memulai drag pada slider zoom.
+zoomKnob.Active = true
+zoomKnob.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
-
 		zoomDragging = true
-		zoomFromInput(input)
 	end
 end)
 
-zoomSlider.InputEnded:Connect(function(input)
+UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
-
 		zoomDragging = false
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if not zoomDragging then
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement
+		and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch then
-
+ 	if zoomDragging then
 		zoomFromInput(input)
+	end
+
+	if sensitivityDragging then
+		sensitivityFromInput(input)
+	end
+
+	if speedDragging then
+		speedFromInput(input)
 	end
 end)
 
@@ -559,13 +828,6 @@ local function hideAllGuis()
 		if child:IsA("ScreenGui") and child ~= controlsGui then
 			savedGuiStates[child] = child.Enabled
 			child.Enabled = false
-		end
-	end
-
-	for _, child in ipairs(controlsGui:GetChildren()) do
-		if child ~= circleButton then
-			savedGuiStates[child] = child.Visible
-			child.Visible = false
 		end
 	end
 
@@ -610,11 +872,31 @@ local function showAllGuis()
 	savedCoreGuiStates = {}
 end
 
+local function setPadTransparency(transparency)
+	for _, button in ipairs({forwardBtn, backwardBtn, leftBtn, rightBtn, upBtn, downBtn}) do
+		button.BackgroundTransparency = transparency
+		button.TextTransparency = transparency >= 0.95 and 0.15 or 0
+	end
+end
+
+local function setCameraControlsHidden(hidden)
+	controlsHidden = hidden
+	-- Panah tetap aktif untuk menggerakkan kamera, tetapi hampir transparan.
+	movePad.Visible = UserInputService.TouchEnabled and freeCamEnabled
+	vertPad.Visible = UserInputService.TouchEnabled and freeCamEnabled
+	setPadTransparency(hidden and 0.95 or 0.35)
+	zoomSlider.Visible = not hidden and freeCamEnabled
+	sensitivitySlider.Visible = not hidden and freeCamEnabled
+	speedSlider.Visible = not hidden and freeCamEnabled
+	teleportButton.Visible = not hidden and freeCamEnabled
+	showPanelButton.Visible = not hidden and freeCamEnabled
+	-- Tombol lingkaran tetap tampil sebagai tombol untuk memulihkan kontrol.
+	circleButton.Visible = freeCamEnabled
+end
+
 circleButton.Activated:Connect(function()
-	if guiHidden then
-		showAllGuis()
-	else
-		hideAllGuis()
+	if freeCamEnabled then
+		setCameraControlsHidden(not controlsHidden)
 	end
 end)
 
@@ -629,12 +911,25 @@ local function startFreeCam()
 		return
 	end
 
-	freeCamEnabled = true
+	-- Simpan keadaan kamera agar dapat dipulihkan saat Free Cam dimatikan.
+	savedCameraType = camera.CameraType
+	savedCameraSubject = camera.CameraSubject
+	savedCameraCFrame = camera.CFrame
+	savedFieldOfView = camera.FieldOfView
+	local focusPosition = camera.Focus.Position
+	local measuredDistance = (camera.CFrame.Position - focusPosition).Magnitude
+	savedInitialCameraDistance = math.max(measuredDistance, 1)
 
-	anchorCharacter(player.Character)
+	freeCamEnabled = true
+	freeCamPosition = camera.CFrame.Position
+
+	-- Sembunyikan seluruh GUI lain secara otomatis, tetapi pertahankan kontrol kamera.
+	hideAllGuis()
+
+	-- Free Cam hanya menggerakkan kamera. Karakter tidak perlu di-anchor,
+	-- karena itu dapat mengganggu kontrol pemain dan tidak diperlukan untuk pergerakan kamera.
 
 	local look = camera.CFrame.LookVector
-
 	yaw = math.atan2(-look.X, -look.Z)
 	pitch = math.asin(math.clamp(look.Y, -1, 1))
 
@@ -644,7 +939,13 @@ local function startFreeCam()
 	showPanelButton.Visible = true
 
 	vertPad.Visible = UserInputService.TouchEnabled
+ 	controlsHidden = false
+	movePad.Visible = UserInputService.TouchEnabled
 	zoomSlider.Visible = true
+	sensitivitySlider.Visible = true
+	speedSlider.Visible = true
+	teleportButton.Visible = true
+	setPadTransparency(0.35)
 	circleButton.Visible = true
 
 	setZoom(zoomValue)
@@ -663,7 +964,14 @@ local function stopFreeCam()
 	zoomDragging = false
 
 	vertPad.Visible = false
-	zoomSlider.Visible = false
+	movePad.Visible = false
+ 	zoomSlider.Visible = false
+	sensitivitySlider.Visible = false
+	speedSlider.Visible = false
+	teleportButton.Visible = false
+	sensitivityDragging = false
+	speedDragging = false
+	controlsHidden = false
 	circleButton.Visible = false
 	showPanelButton.Visible = false
 
@@ -674,21 +982,36 @@ local function stopFreeCam()
 	end
 
 	if camera then
-		camera.FieldOfView = BASE_FOV
-	end
+		camera.FieldOfView = savedFieldOfView or BASE_FOV
 
-	restoreAnchors()
+		if savedCameraType then
+			camera.CameraType = savedCameraType
+		else
+			camera.CameraType = Enum.CameraType.Custom
+		end
 
-	if camera then
-		camera.CameraType = Enum.CameraType.Custom
+		if savedCameraSubject and savedCameraSubject.Parent then
+			camera.CameraSubject = savedCameraSubject
+		else
+			local character = player.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				camera.CameraSubject = humanoid
+			end
+		end
 
-		local character = player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-
-		if humanoid then
-			camera.CameraSubject = humanoid
+		if savedCameraCFrame then
+			camera.CFrame = savedCameraCFrame
 		end
 	end
+
+	freeCamPosition = nil
+	savedCameraType = nil
+	savedCameraSubject = nil
+	savedCameraCFrame = nil
+	savedFieldOfView = nil
+
+	restoreAnchors()
 end
 
 local touchLookInput = nil
@@ -708,7 +1031,9 @@ local KEYMAP = {
 	[Enum.KeyCode.Right] = "right",
 
 	[Enum.KeyCode.Space] = "up",
+	[Enum.KeyCode.E] = "up",
 	[Enum.KeyCode.LeftShift] = "down",
+	[Enum.KeyCode.Q] = "down",
 }
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -728,10 +1053,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	elseif input.UserInputType == Enum.UserInputType.Touch then
 		local pos = input.Position
-
 		local screenWidth = camera and camera.ViewportSize.X or 0
 
-		if screenWidth > 0 and pos.X < screenWidth * 0.55 then
+		-- Sisi kanan layar untuk mengubah arah pandang.
+		-- Sisi kiri dikhususkan untuk tombol gerak agar tidak saling mengganggu.
+		if screenWidth > 0 and pos.X > screenWidth * 0.55 then
 			touchLookInput = input
 		end
 	end
@@ -755,6 +1081,13 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
+UserInputService.WindowFocusReleased:Connect(function()
+	keysDown = {}
+	mouseLookActive = false
+	touchLookInput = nil
+	btnState = {}
+end)
+
 UserInputService.InputChanged:Connect(function(input)
 	if not freeCamEnabled then
 		return
@@ -762,9 +1095,9 @@ UserInputService.InputChanged:Connect(function(input)
 
 	if input.UserInputType == Enum.UserInputType.MouseMovement then
 		if mouseLookActive then
-			yaw -= input.Delta.X * LOOK_SENSITIVITY
+			yaw -= input.Delta.X * LOOK_SENSITIVITY * FREECAM_SENSITIVITY_MULTIPLIER / math.max(zoomValue, 1)
 			pitch = math.clamp(
-				pitch - input.Delta.Y * LOOK_SENSITIVITY,
+				pitch - input.Delta.Y * LOOK_SENSITIVITY * FREECAM_SENSITIVITY_MULTIPLIER / math.max(zoomValue, 1),
 				-math.rad(89),
 				math.rad(89)
 			)
@@ -772,9 +1105,9 @@ UserInputService.InputChanged:Connect(function(input)
 
 	elseif input.UserInputType == Enum.UserInputType.Touch then
 		if input == touchLookInput then
-			yaw -= input.Delta.X * LOOK_SENSITIVITY
+			yaw -= input.Delta.X * LOOK_SENSITIVITY * FREECAM_SENSITIVITY_MULTIPLIER / math.max(zoomValue, 1)
 			pitch = math.clamp(
-				pitch - input.Delta.Y * LOOK_SENSITIVITY,
+				pitch - input.Delta.Y * LOOK_SENSITIVITY * FREECAM_SENSITIVITY_MULTIPLIER / math.max(zoomValue, 1),
 				-math.rad(89),
 				math.rad(89)
 			)
@@ -782,73 +1115,54 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
-RunService.RenderStepped:Connect(function(dt)
-	if not freeCamEnabled then
-		return
-	end
+RunService:BindToRenderStep(
+	"CameraToolsFreeCam",
+	Enum.RenderPriority.Camera.Value + 1,
+	function(dt)
+		if not freeCamEnabled then
+			return
+		end
 
-	if not camera then
 		camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+
+		-- Pertahankan posisi Free Cam sendiri. Jangan mengambil posisi dari CFrame
+		-- kamera setiap frame karena sistem kamera lain dapat menimpanya.
+		if not freeCamPosition then
+			freeCamPosition = camera.CFrame.Position
+		end
+
+		local rotation = CFrame.fromOrientation(pitch, yaw, 0)
+		local move = Vector3.zero
+
+		if keysDown.forward or btnState.forward then move += Vector3.new(0, 0, -1) end
+		if keysDown.backward or btnState.backward then move += Vector3.new(0, 0, 1) end
+		if keysDown.left or btnState.left then move += Vector3.new(-1, 0, 0) end
+		if keysDown.right or btnState.right then move += Vector3.new(1, 0, 0) end
+		if keysDown.up or btnState.up then move += Vector3.new(0, 1, 0) end
+		if keysDown.down or btnState.down then move += Vector3.new(0, -1, 0) end
+
+		if move.Magnitude > 0 then
+			move = move.Unit
+		end
+
+		-- Seluruh gerakan mengikuti orientasi kamera, termasuk sudut atas/bawah.
+		-- Jadi tombol maju/panah atas bergerak tepat ke arah kamera sedang menghadap.
+		local worldMove = rotation:VectorToWorldSpace(move)
+
+		local speed = BASE_SPEED * FREECAM_SPEED_MULTIPLIER
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+			or UserInputService:IsKeyDown(Enum.KeyCode.RightControl) then
+			speed *= SPRINT_MULT
+		end
+
+		freeCamPosition += worldMove * speed * dt
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.CFrame = CFrame.new(freeCamPosition) * rotation
 	end
-
-	if not camera then
-		return
-	end
-
-	local rotation = CFrame.fromOrientation(
-		pitch,
-		yaw,
-		0
-	)
-
-	local move = Vector3.zero
-
-	if keysDown.forward then
-		move += Vector3.new(0, 0, -1)
-	end
-
-	if keysDown.backward then
-		move += Vector3.new(0, 0, 1)
-	end
-
-	if keysDown.left then
-		move += Vector3.new(-1, 0, 0)
-	end
-
-	if keysDown.right then
-		move += Vector3.new(1, 0, 0)
-	end
-
-	if btnState.up then
-		move += Vector3.new(0, 1, 0)
-	end
-
-	if btnState.down then
-		move += Vector3.new(0, -1, 0)
-	end
-
-	if move.Magnitude > 0 then
-		move = move.Unit
-	end
-
-	local worldMove =
-		rotation:VectorToWorldSpace(move)
-
-	local speed = BASE_SPEED
-
-	if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
-		or UserInputService:IsKeyDown(Enum.KeyCode.RightControl) then
-
-		speed *= SPRINT_MULT
-	end
-
-	local position = camera.CFrame.Position
-
-	position += worldMove * speed * dt
-
-	camera.CFrame =
-		CFrame.new(position) * rotation
-end)
+)
 
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	camera = workspace.CurrentCamera
@@ -859,14 +1173,8 @@ workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	end
 end)
 
-player.CharacterAdded:Connect(function(character)
-	if freeCamEnabled then
-		task.wait(0.15)
-
-		if freeCamEnabled then
-			anchorCharacter(character)
-		end
-	end
+player.CharacterAdded:Connect(function(_character)
+	-- Tidak mengunci karakter ketika Free Cam aktif.
 end)
 
 local freeCamButton
@@ -888,7 +1196,7 @@ freeCamButton = makeButton("OFF", function()
 end)
 
 local freeCamRow = makeRow(
-	3,
+	2,
 	"Free Cam",
 	{
 		freeCamButton
@@ -906,92 +1214,6 @@ showPanelButton.Activated:Connect(function()
 			Color3.fromRGB(60, 120, 200)
 	end
 end)
-
-local function makeNumberInput(
-	name,
-	getValue,
-	setValue,
-	min,
-	max,
-	fmt
-)
-	local box = create("TextBox", {
-		Name = name .. "Input",
-		Size = UDim2.new(0, 90, 0, 28),
-		BackgroundColor3 = Color3.fromRGB(25, 25, 32),
-		BackgroundTransparency = 0.2,
-		Text = fmt(getValue()),
-		TextColor3 = Color3.fromRGB(255, 255, 255),
-		PlaceholderText = name,
-		Font = Enum.Font.GothamMedium,
-		TextSize = 14,
-		ClearTextOnFocus = false,
-	})
-
-	create("UICorner", {
-		CornerRadius = UDim.new(0, 6)
-	}).Parent = box
-
-	create("UIStroke", {
-		Color = Color3.fromRGB(90, 90, 110),
-		Transparency = 0.4,
-		Thickness = 1
-	}).Parent = box
-
-	box.FocusLost:Connect(function()
-		local value = tonumber(box.Text)
-
-		if value then
-			value = math.clamp(value, min, max)
-			setValue(value)
-		end
-
-		box.Text = fmt(getValue())
-	end)
-
-	return box
-end
-
-local speedInput = makeNumberInput(
-	"Speed",
-	function()
-		return BASE_SPEED
-	end,
-	function(value)
-		BASE_SPEED = value
-	end,
-	1,
-	1000,
-	function(value)
-		return string.format("%.0f", value)
-	end
-)
-
-local sensInput = makeNumberInput(
-	"Sens",
-	function()
-		return LOOK_SENSITIVITY * 1000
-	end,
-	function(value)
-		LOOK_SENSITIVITY = value / 1000
-	end,
-	1,
-	100,
-	function(value)
-		return string.format("%.1f", value)
-	end
-)
-
-local settingsRow = makeRow(
-	4,
-	"Settings",
-	{
-		speedInput,
-		sensInput
-	}
-)
-
-settingsRow.Parent = scrollFrame
 
 local dragging = false
 local dragStart
