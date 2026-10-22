@@ -1,24 +1,18 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-
--- Cek apakah GUI sudah ada sebelumnya
 local existingGui = playerGui:FindFirstChild("ObjectsToolsGui")
 if existingGui then
 	existingGui:Destroy()
 end
-
--- Buat ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ObjectsToolsGui"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.DisplayOrder = 9999
 screenGui.Parent = playerGui
-
--- Frame utama 60% x 50%
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -28,16 +22,13 @@ mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.5
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
-
 local mainFrameCorner = Instance.new("UICorner")
 mainFrameCorner.CornerRadius = UDim.new(0, 10)
 mainFrameCorner.Parent = mainFrame
-
--- === TRIGGER BUTTON (draggable, click = toggle frame, long-press = bubble) ===
 local triggerBtn = Instance.new("TextButton")
 triggerBtn.Name = "TriggerButton"
 triggerBtn.Size = UDim2.new(0, 130, 0, 28)
-triggerBtn.Position = UDim2.new(0, 15, 0, 15)
+triggerBtn.Position = UDim2.new(0.2, 0, 0, 0)
 triggerBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 48)
 triggerBtn.BackgroundTransparency = 0.1
 triggerBtn.BorderSizePixel = 0
@@ -46,45 +37,34 @@ triggerBtn.TextColor3 = Color3.fromRGB(235, 235, 235)
 triggerBtn.TextSize = 14
 triggerBtn.Font = Enum.Font.GothamBold
 triggerBtn.ZIndex = 9999
+triggerBtn.Visible = false
 triggerBtn.AutoButtonColor = false
 triggerBtn.Parent = screenGui
-
--- Efek tekan untuk trigger button
 local triggerDefaultColor = triggerBtn.BackgroundColor3
 local triggerPressedColor = Color3.fromRGB(30, 30, 33)
-
 triggerBtn.MouseButton1Down:Connect(function()
 	triggerBtn.BackgroundColor3 = triggerPressedColor
 end)
-
 triggerBtn.MouseButton1Up:Connect(function()
 	triggerBtn.BackgroundColor3 = triggerDefaultColor
 end)
 triggerBtn.MouseLeave:Connect(function()
 	triggerBtn.BackgroundColor3 = triggerDefaultColor
 end)
-
 local triggerCorner = Instance.new("UICorner")
 triggerCorner.CornerRadius = UDim.new(0, 8)
 triggerCorner.Parent = triggerBtn
-
 local triggerStroke = Instance.new("UIStroke")
 triggerStroke.Thickness = 1.5
 triggerStroke.Color = Color3.fromRGB(80, 80, 80)
 triggerStroke.Parent = triggerBtn
-
--- Frame utama langsung tampil saat script dijalankan
 mainFrame.Visible = true
-
--- Bubble frame (lazy-created)
 local bubbleFrame = nil
-
 local function hideBubble()
 	if bubbleFrame and bubbleFrame.Parent then
 		bubbleFrame.Visible = false
 	end
 end
-
 local function showBubble()
 	if not bubbleFrame then
 		bubbleFrame = Instance.new("Frame")
@@ -96,16 +76,13 @@ local function showBubble()
 		bubbleFrame.ZIndex = 20
 		bubbleFrame.Visible = false
 		bubbleFrame.Parent = screenGui
-
 		local bubbleCorner = Instance.new("UICorner")
 		bubbleCorner.CornerRadius = UDim.new(0, 8)
 		bubbleCorner.Parent = bubbleFrame
-
 		local bubbleStroke = Instance.new("UIStroke")
 		bubbleStroke.Thickness = 1.5
 		bubbleStroke.Color = Color3.fromRGB(120, 120, 120)
 		bubbleStroke.Parent = bubbleFrame
-
 		local hideGuiBtn = Instance.new("TextButton")
 		hideGuiBtn.Size = UDim2.new(1, -12, 1, -12)
 		hideGuiBtn.Position = UDim2.fromOffset(6, 6)
@@ -117,19 +94,14 @@ local function showBubble()
 		hideGuiBtn.Font = Enum.Font.GothamBold
 		hideGuiBtn.ZIndex = 21
 		hideGuiBtn.Parent = bubbleFrame
-
 		local hideCorner = Instance.new("UICorner")
 		hideCorner.CornerRadius = UDim.new(0, 6)
 		hideCorner.Parent = hideGuiBtn
-
 		hideGuiBtn.Activated:Connect(function()
 			hideBubble()
-
-			-- Efek tekan: warna lebih gelap + sedikit mengecil
 			hideGuiBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 30)
 			hideGuiBtn.Size = UDim2.new(1, -16, 1, -16)
 			hideGuiBtn.Position = UDim2.fromOffset(8, 8)
-
 			task.delay(0.2, function()
 				mainFrame.Visible = false
 				if bubbleFrame and bubbleFrame.Parent then
@@ -139,8 +111,6 @@ local function showBubble()
 			end)
 		end)
 	end
-
-	-- Posisikan bubble di atas trigger button
 	local tp = triggerBtn.Position
 	bubbleFrame.Position = UDim2.new(
 		tp.X.Scale, tp.X.Offset,
@@ -148,17 +118,12 @@ local function showBubble()
 	)
 	bubbleFrame.Visible = true
 end
-
-
-
--- Drag + click/long-press detection untuk trigger button
 local triggerPressing = false
 local triggerDragging = false
 local triggerLongPressFired = false
 local triggerDragStart = Vector2.new(0, 0)
 local triggerStartPos = UDim2.new(0, 0, 0, 0)
 local longPressThread = nil
-
 triggerBtn.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
@@ -168,8 +133,6 @@ triggerBtn.InputBegan:Connect(function(input)
 		triggerDragStart = input.Position
 		triggerStartPos = triggerBtn.Position
 		hideBubble()
-
-		-- Timer long-press (0.5 detik)
 		longPressThread = task.delay(0.5, function()
 			if triggerPressing and not triggerDragging then
 				triggerLongPressFired = true
@@ -178,24 +141,18 @@ triggerBtn.InputBegan:Connect(function(input)
 		end)
 	end
 end)
-
 triggerBtn.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement
 		or input.UserInputType == Enum.UserInputType.Touch then
 		if triggerPressing then
 			local delta = input.Position - triggerDragStart
 			local moveDist = math.sqrt(delta.X ^ 2 + delta.Y ^ 2)
-
 			if moveDist > 5 then
 				triggerDragging = true
-
-				-- Batalkan timer long-press
 				if longPressThread then
 					task.cancel(longPressThread)
 					longPressThread = nil
 				end
-
-				-- Update posisi (drag)
 				triggerBtn.Position = UDim2.new(
 					triggerStartPos.X.Scale,
 					triggerStartPos.X.Offset + delta.X,
@@ -206,31 +163,22 @@ triggerBtn.InputChanged:Connect(function(input)
 		end
 	end
 end)
-
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 		if triggerPressing then
-			-- Batalkan timer long-press
 			if longPressThread then
 				task.cancel(longPressThread)
 				longPressThread = nil
 			end
-
 			if not triggerDragging and not triggerLongPressFired then
-				-- Klik singkat: toggle mainFrame
 				mainFrame.Visible = not mainFrame.Visible
+				triggerBtn.Visible = not mainFrame.Visible
 			end
-
 			triggerPressing = false
 		end
 	end
 end)
-
--- Tutup bubble saat klik di luar bubble (bukan di trigger button)
--- gameProcessed = true berarti klik mengenai elemen GUI (mis. tombol Hide Gui di
--- dalam bubble), jadi skip agar tidak menutup bubble sebelum tombol di dalamnya
--- sempat memproses event Activated.
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -240,8 +188,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 	end
 end)
-
--- Topbar draggable
 local topBar = Instance.new("Frame")
 topBar.Name = "TopBar"
 topBar.Size = UDim2.new(1, 0, 0, 30)
@@ -250,11 +196,9 @@ topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 topBar.BackgroundTransparency = 0.3
 topBar.BorderSizePixel = 0
 topBar.Parent = mainFrame
-
 local topBarCorner = Instance.new("UICorner")
 topBarCorner.CornerRadius = UDim.new(0, 10)
 topBarCorner.Parent = topBar
-
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -50, 1, 0)
 titleLabel.Position = UDim2.fromOffset(10, 0)
@@ -266,8 +210,6 @@ titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.TextYAlignment = Enum.TextYAlignment.Center
 titleLabel.Parent = topBar
-
--- Tombol minimize di kanan atas
 local minimizeButton = Instance.new("TextButton")
 minimizeButton.Name = "MinimizeButton"
 minimizeButton.Size = UDim2.fromOffset(28, 24)
@@ -284,15 +226,13 @@ local minimizeCorner = Instance.new("UICorner")
 minimizeCorner.CornerRadius = UDim.new(0, 5)
 minimizeCorner.Parent = minimizeButton
 minimizeButton.Activated:Connect(function()
+    triggerBtn.Position = UDim2.new(0.2, 0, 0, 0)
     mainFrame.Visible = false
     triggerBtn.Visible = true
 end)
-
--- Fungsi draggable
 local dragging = false
 local dragStart
 local startPosition
-
 topBar.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
@@ -301,7 +241,6 @@ topBar.InputBegan:Connect(function(input)
 		startPosition = mainFrame.Position
 	end
 end)
-
 topBar.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement
 		or input.UserInputType == Enum.UserInputType.Touch then
@@ -316,15 +255,12 @@ topBar.InputChanged:Connect(function(input)
 		end
 	end
 end)
-
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = false
 	end
 end)
-
--- Konten frame (Scrollable)
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Name = "Content"
 contentFrame.Size = UDim2.new(1, -20, 1, -50)
@@ -334,8 +270,271 @@ contentFrame.ScrollBarThickness = 6
 contentFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
 contentFrame.CanvasSize = UDim2.new(0, 0, 0, 280)
 contentFrame.Parent = mainFrame
-
--- === LINE TO OBJECT ===
+local shiftContentBelowInfoESP
+do
+local infoESPFrame = Instance.new("Frame")
+infoESPFrame.Name = "InfoObjectESPFrame"
+infoESPFrame.Size = UDim2.new(1, -10, 0, 90)
+infoESPFrame.Position = UDim2.fromOffset(5, 5)
+infoESPFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 38)
+infoESPFrame.BackgroundTransparency = 0.12
+infoESPFrame.BorderSizePixel = 0
+infoESPFrame.Parent = contentFrame
+local infoESPCorner = Instance.new("UICorner")
+infoESPCorner.CornerRadius = UDim.new(0, 8)
+infoESPCorner.Parent = infoESPFrame
+local infoESPTitle = Instance.new("TextLabel")
+infoESPTitle.Size = UDim2.new(1, -10, 0, 22)
+infoESPTitle.Position = UDim2.fromOffset(8, 2)
+infoESPTitle.BackgroundTransparency = 1
+infoESPTitle.Text = "Info Object ESP"
+infoESPTitle.TextColor3 = Color3.new(1, 1, 1)
+infoESPTitle.TextSize = 14
+infoESPTitle.Font = Enum.Font.GothamBold
+infoESPTitle.TextXAlignment = Enum.TextXAlignment.Left
+infoESPTitle.Parent = infoESPFrame
+local infoPartButton = Instance.new("TextButton")
+infoPartButton.Name = "InfoESPPartButton"
+infoPartButton.Size = UDim2.new(0, 78, 0, 27)
+infoPartButton.Position = UDim2.fromOffset(8, 27)
+infoPartButton.BackgroundColor3 = Color3.fromRGB(45, 115, 80)
+infoPartButton.BorderSizePixel = 0
+infoPartButton.Text = "Part"
+infoPartButton.TextColor3 = Color3.new(1, 1, 1)
+infoPartButton.TextSize = 12
+infoPartButton.Font = Enum.Font.GothamBold
+infoPartButton.Parent = infoESPFrame
+local infoPartCorner = Instance.new("UICorner")
+infoPartCorner.CornerRadius = UDim.new(0, 6)
+infoPartCorner.Parent = infoPartButton
+local infoModelButton = Instance.new("TextButton")
+infoModelButton.Name = "InfoESPModelButton"
+infoModelButton.Size = UDim2.new(0, 78, 0, 27)
+infoModelButton.Position = UDim2.fromOffset(92, 27)
+infoModelButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+infoModelButton.BorderSizePixel = 0
+infoModelButton.Text = "Model"
+infoModelButton.TextColor3 = Color3.new(1, 1, 1)
+infoModelButton.TextSize = 12
+infoModelButton.Font = Enum.Font.GothamBold
+infoModelButton.Parent = infoESPFrame
+local infoModelCorner = Instance.new("UICorner")
+infoModelCorner.CornerRadius = UDim.new(0, 6)
+infoModelCorner.Parent = infoModelButton
+local infoESPToggle = Instance.new("TextButton")
+infoESPToggle.Name = "InfoESPToggle"
+infoESPToggle.Size = UDim2.new(0, 58, 0, 27)
+infoESPToggle.Position = UDim2.fromOffset(176, 27)
+infoESPToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+infoESPToggle.BorderSizePixel = 0
+infoESPToggle.Text = "OFF"
+infoESPToggle.TextColor3 = Color3.new(1, 1, 1)
+infoESPToggle.TextSize = 12
+infoESPToggle.Font = Enum.Font.GothamBold
+infoESPToggle.Parent = infoESPFrame
+local infoToggleCorner = Instance.new("UICorner")
+infoToggleCorner.CornerRadius = UDim.new(0, 6)
+infoToggleCorner.Parent = infoESPToggle
+local infoESPHide = Instance.new("TextButton")
+infoESPHide.Name = "InfoESPHideButton"
+infoESPHide.Size = UDim2.new(0, 58, 0, 27)
+infoESPHide.Position = UDim2.fromOffset(240, 27)
+infoESPHide.BackgroundColor3 = Color3.fromRGB(80, 80, 85)
+infoESPHide.BorderSizePixel = 0
+infoESPHide.Text = "Hide"
+infoESPHide.TextColor3 = Color3.new(1, 1, 1)
+infoESPHide.TextSize = 12
+infoESPHide.Font = Enum.Font.GothamBold
+infoESPHide.Parent = infoESPFrame
+local infoHideCorner = Instance.new("UICorner")
+infoHideCorner.CornerRadius = UDim.new(0, 6)
+infoHideCorner.Parent = infoESPHide
+local infoESPStatus = Instance.new("TextLabel")
+infoESPStatus.Size = UDim2.new(1, -16, 0, 26)
+infoESPStatus.Position = UDim2.fromOffset(8, 59)
+infoESPStatus.BackgroundTransparency = 1
+infoESPStatus.Text = "Pilih Part/Model, ON, lalu ketuk objek di dunia."
+infoESPStatus.TextColor3 = Color3.fromRGB(210, 210, 210)
+infoESPStatus.TextSize = 10
+infoESPStatus.Font = Enum.Font.Gotham
+infoESPStatus.TextXAlignment = Enum.TextXAlignment.Left
+infoESPStatus.TextTruncate = Enum.TextTruncate.AtEnd
+infoESPStatus.Parent = infoESPFrame
+local infoESPMode = "Part"
+local infoESPEnabled = false
+local infoESPVisible = true
+local infoESPObjects = {}
+local function infoObjectPath(obj)
+	local names = {}
+	local current = obj
+	while current and current ~= game do
+		table.insert(names, 1, current.Name)
+		current = current.Parent
+	end
+	return table.concat(names, " - ")
+end
+local function infoESPBillboardPart(obj)
+	if obj:IsA("BasePart") then return obj end
+	if obj:IsA("Model") then
+		if obj.PrimaryPart then return obj.PrimaryPart end
+		return obj:FindFirstChildWhichIsA("BasePart", true)
+	end
+	return nil
+end
+local function removeInfoESP(obj)
+	local data = infoESPObjects[obj]
+	if not data then return end
+	if data.highlight then data.highlight:Destroy() end
+	if data.billboard then data.billboard:Destroy() end
+	infoESPObjects[obj] = nil
+end
+local function addInfoESP(obj)
+	if not obj or not obj.Parent then return end
+	if infoESPObjects[obj] then
+		removeInfoESP(obj)
+		return
+	end
+	if not (obj:IsA("BasePart") or obj:IsA("Model")) then return end
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "InfoObjectESPHighlight"
+	highlight.Adornee = obj
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(255, 205, 55)
+	highlight.FillTransparency = 0.72
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineTransparency = 0
+	highlight.Enabled = infoESPVisible
+	highlight.Parent = screenGui
+	local billboard
+	local adorneePart = infoESPBillboardPart(obj)
+	if adorneePart then
+		billboard = Instance.new("BillboardGui")
+		billboard.Name = "InfoObjectESPPath"
+		billboard.Adornee = adorneePart
+		billboard.Size = UDim2.new(0, 340, 0, 36)
+		billboard.StudsOffset = Vector3.new(0, 2.8, 0)
+		billboard.AlwaysOnTop = true
+		billboard.LightInfluence = 0
+		billboard.Enabled = infoESPVisible
+		billboard.Parent = screenGui
+		local pathLabel = Instance.new("TextLabel")
+		pathLabel.Size = UDim2.new(1, 0, 1, 0)
+		pathLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+		pathLabel.BackgroundTransparency = 0.18
+		pathLabel.BorderSizePixel = 0
+		pathLabel.Text = infoObjectPath(obj)
+		pathLabel.TextColor3 = Color3.fromRGB(255, 255, 150)
+		pathLabel.TextStrokeTransparency = 0.35
+		pathLabel.TextSize = 11
+		pathLabel.Font = Enum.Font.GothamBold
+		pathLabel.TextWrapped = true
+		pathLabel.Parent = billboard
+		local pathCorner = Instance.new("UICorner")
+		pathCorner.CornerRadius = UDim.new(0, 4)
+		pathCorner.Parent = pathLabel
+	end
+	infoESPObjects[obj] = { highlight = highlight, billboard = billboard }
+	local count = 0
+	for _ in pairs(infoESPObjects) do
+		count += 1
+	end
+	infoESPStatus.Text = "ESP aktif: " .. tostring(count) .. " objek"
+end
+local function refreshInfoESPPaths()
+	for obj, data in pairs(infoESPObjects) do
+		if not obj.Parent then
+			removeInfoESP(obj)
+		elseif data.billboard then
+			local label = data.billboard:FindFirstChildWhichIsA("TextLabel", true)
+			if label then label.Text = infoObjectPath(obj) end
+		end
+	end
+end
+local function updateInfoESPMode()
+	infoPartButton.BackgroundColor3 = infoESPMode == "Part" and Color3.fromRGB(45, 115, 80) or Color3.fromRGB(50, 50, 50)
+	infoModelButton.BackgroundColor3 = infoESPMode == "Model" and Color3.fromRGB(45, 115, 80) or Color3.fromRGB(50, 50, 50)
+end
+infoPartButton.Activated:Connect(function()
+	infoESPMode = "Part"
+	updateInfoESPMode()
+	infoESPStatus.Text = "Mode Part: ketuk BasePart untuk melihat jalur lengkap."
+end)
+infoModelButton.Activated:Connect(function()
+	infoESPMode = "Model"
+	updateInfoESPMode()
+	infoESPStatus.Text = "Mode Model: ketuk objek untuk memilih Model terdekat."
+end)
+infoESPToggle.Activated:Connect(function()
+	infoESPEnabled = not infoESPEnabled
+	infoESPToggle.Text = infoESPEnabled and "ON" or "OFF"
+	infoESPToggle.BackgroundColor3 = infoESPEnabled and Color3.fromRGB(40, 150, 70) or Color3.fromRGB(180, 50, 50)
+	infoESPStatus.Text = infoESPEnabled and "ON: ketuk objek di dunia untuk tambah/hapus ESP." or "OFF: pemilihan objek dihentikan. ESP tersimpan."
+end)
+infoESPHide.Activated:Connect(function()
+	infoESPVisible = not infoESPVisible
+	infoESPHide.Text = infoESPVisible and "Hide" or "Show"
+	for _, data in pairs(infoESPObjects) do
+		if data.highlight then data.highlight.Enabled = infoESPVisible end
+		if data.billboard then data.billboard.Enabled = infoESPVisible end
+	end
+	infoESPStatus.Text = infoESPVisible and "ESP ditampilkan." or "ESP disembunyikan, pilihan tetap tersimpan."
+end)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if not infoESPEnabled then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+	if not screenGui.Enabled or not mainFrame.Parent then return end
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	local screenPosition
+	if input.UserInputType == Enum.UserInputType.Touch then
+		screenPosition = Vector2.new(input.Position.X, input.Position.Y)
+	else
+		screenPosition = UserInputService:GetMouseLocation()
+	end
+	if mainFrame.Visible then
+		local p, size = mainFrame.AbsolutePosition, mainFrame.AbsoluteSize
+		if screenPosition.X >= p.X and screenPosition.X <= p.X + size.X and screenPosition.Y >= p.Y and screenPosition.Y <= p.Y + size.Y then return end
+	end
+	local ray = camera:ScreenPointToRay(screenPosition.X, screenPosition.Y)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { player.Character }
+	params.IgnoreWater = true
+	local result = workspace:Raycast(ray.Origin, ray.Direction * 2000, params)
+	if not result then return end
+	local hit = result.Instance
+	local selected
+	if infoESPMode == "Part" then
+		if hit:IsA("BasePart") then selected = hit end
+	else
+		local current = hit
+		while current and current ~= workspace do
+			if current:IsA("Model") then selected = current; break end
+			current = current.Parent
+		end
+	end
+	if selected then
+		addInfoESP(selected)
+		refreshInfoESPPaths()
+	end
+end)
+shiftContentBelowInfoESP = function()
+	local bottom = 0
+	for _, child in ipairs(contentFrame:GetChildren()) do
+		if child:IsA("GuiObject") then
+			if child ~= infoESPFrame then
+				child.Position = UDim2.new(child.Position.X.Scale, child.Position.X.Offset, child.Position.Y.Scale, child.Position.Y.Offset + 100)
+			end
+			local childBottom = child.Position.Y.Scale * contentFrame.AbsoluteSize.Y + child.Position.Y.Offset
+				+ child.Size.Y.Scale * contentFrame.AbsoluteSize.Y + child.Size.Y.Offset
+			bottom = math.max(bottom, childBottom)
+		end
+	end
+	local oldY = contentFrame.CanvasSize.Y.Offset
+	contentFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(oldY + 100, bottom + 20))
+end
+end
 local lineLabel = Instance.new("TextLabel")
 lineLabel.Name = "LineLabel"
 lineLabel.Size = UDim2.new(0, 120, 0, 40)
@@ -348,7 +547,6 @@ lineLabel.Font = Enum.Font.GothamBold
 lineLabel.TextXAlignment = Enum.TextXAlignment.Left
 lineLabel.TextYAlignment = Enum.TextYAlignment.Center
 lineLabel.Parent = contentFrame
-
 local objectInput = Instance.new("TextBox")
 objectInput.Name = "ObjectCoordinateInput"
 objectInput.Size = UDim2.new(0, 100, 0, 40)
@@ -364,16 +562,13 @@ objectInput.Font = Enum.Font.GothamBold
 objectInput.ClearTextOnFocus = false
 objectInput.TextXAlignment = Enum.TextXAlignment.Center
 objectInput.Parent = contentFrame
-
 local objectInputCorner = Instance.new("UICorner")
 objectInputCorner.CornerRadius = UDim.new(0, 8)
 objectInputCorner.Parent = objectInput
-
 local objectInputStroke = Instance.new("UIStroke")
 objectInputStroke.Thickness = 2
 objectInputStroke.Color = Color3.fromRGB(210, 210, 210)
 objectInputStroke.Parent = objectInput
-
 local objectLineToggle = Instance.new("TextButton")
 objectLineToggle.Name = "ObjectLineToggle"
 objectLineToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -386,12 +581,9 @@ objectLineToggle.TextColor3 = Color3.new(1, 1, 1)
 objectLineToggle.TextSize = 13
 objectLineToggle.Font = Enum.Font.GothamBold
 objectLineToggle.Parent = contentFrame
-
 local objectLineToggleCorner = Instance.new("UICorner")
 objectLineToggleCorner.CornerRadius = UDim.new(0, 8)
 objectLineToggleCorner.Parent = objectLineToggle
-
--- Tombol List (menampilkan daftar objek [model & part] yg pernah muncul)
 local objectListButton = Instance.new("TextButton")
 objectListButton.Name = "ObjectListButton"
 objectListButton.Size = UDim2.new(0, 50, 0, 40)
@@ -404,12 +596,9 @@ objectListButton.TextColor3 = Color3.new(1, 1, 1)
 objectListButton.TextSize = 13
 objectListButton.Font = Enum.Font.GothamBold
 objectListButton.Parent = contentFrame
-
 local objectListButtonCorner = Instance.new("UICorner")
 objectListButtonCorner.CornerRadius = UDim.new(0, 8)
 objectListButtonCorner.Parent = objectListButton
-
--- Input jarak scan Line to Object (studs; kosong = seluruh map)
 local objectDistanceInput = Instance.new("TextBox")
 objectDistanceInput.Name = "ObjectDistanceInput"
 objectDistanceInput.Size = UDim2.new(0, 60, 0, 40)
@@ -425,17 +614,13 @@ objectDistanceInput.Font = Enum.Font.GothamBold
 objectDistanceInput.ClearTextOnFocus = false
 objectDistanceInput.TextXAlignment = Enum.TextXAlignment.Center
 objectDistanceInput.Parent = contentFrame
-
 local objectDistanceInputCorner = Instance.new("UICorner")
 objectDistanceInputCorner.CornerRadius = UDim.new(0, 8)
 objectDistanceInputCorner.Parent = objectDistanceInput
-
 local objectDistanceInputStroke = Instance.new("UIStroke")
 objectDistanceInputStroke.Thickness = 2
 objectDistanceInputStroke.Color = Color3.fromRGB(210, 210, 210)
 objectDistanceInputStroke.Parent = objectDistanceInput
-
--- Tombol Scan (on/off: list hanya menampilkan objek dalam radius jarak)
 local objectScanToggle = Instance.new("TextButton")
 objectScanToggle.Name = "ObjectScanToggle"
 objectScanToggle.Size = UDim2.new(0, 55, 0, 40)
@@ -447,42 +632,34 @@ objectScanToggle.TextColor3 = Color3.new(1, 1, 1)
 objectScanToggle.TextSize = 13
 objectScanToggle.Font = Enum.Font.GothamBold
 objectScanToggle.Parent = contentFrame
-
 local objectScanToggleCorner = Instance.new("UICorner")
 objectScanToggleCorner.CornerRadius = UDim.new(0, 8)
 objectScanToggleCorner.Parent = objectScanToggle
-
--- LOGIKA LINE TO OBJECT
 local objectLineEnabled = false
 local objectBeams = {}
 local objectTargetParts = {}
 local objectStartAttachments = {}
 local objectHighlights = {}
 local objectBillboards = {}
-local currentTargets = nil -- daftar target: { { type = "P"/"M"/"F", name = "..." }, ... }
-local modelHistory = {}     -- map: objectName (lowercase) -> { name = ..., kind = "M"/"P" }
-local listExclusions = {}   -- set: objectName (lowercase) -> true
-local listFrame = nil       -- reference ke frame daftar model
-local listAllBtn = nil       -- reference ke tombol All di list frame
-local scanModeEnabled = false -- mode scan jarak (on/off)
-local scanNearbyNames = {}    -- set: nama objek (lowercase) yg dalam radius scan
-
+local currentTargets = nil
+local modelHistory = {}
+local listExclusions = {}
+local listFrame = nil
+local listAllBtn = nil
+local scanModeEnabled = false
+local scanNearbyNames = {}
 local function getObjectPosition(object)
 	if not object or not object.Parent then
 		return nil
 	end
-
 	if object:IsA("BasePart") then
 		return object.Position
 	end
-
 	if object:IsA("Model") then
 		return object:GetPivot().Position
 	end
-
 	return nil
 end
-
 local function clearObjectLines()
 	for _, beam in ipairs(objectBeams) do
 		if beam and beam.Parent then
@@ -490,65 +667,49 @@ local function clearObjectLines()
 		end
 	end
 	table.clear(objectBeams)
-
 	for _, data in ipairs(objectTargetParts) do
 		if data.part and data.part.Parent then
 			data.part:Destroy()
 		end
 	end
 	table.clear(objectTargetParts)
-
 	for _, attachment in ipairs(objectStartAttachments) do
 		if attachment and attachment.Parent then
 			attachment:Destroy()
 		end
 	end
 	table.clear(objectStartAttachments)
-
 	for _, highlight in ipairs(objectHighlights) do
 		if highlight and highlight.Parent then highlight:Destroy() end
 	end
 	table.clear(objectHighlights)
-
 	for _, billboard in ipairs(objectBillboards) do
 		if billboard and billboard.Parent then billboard:Destroy() end
 	end
 	table.clear(objectBillboards)
 end
-
 local function findObjects(targetType, targetName)
 	local results = {}
-
 	if not targetType or not targetName then
 		return results
 	end
-
 	targetName = targetName:match("^%s*(.-)%s*$")
 	if targetName == "" then
 		return results
 	end
-
 	local wanted = string.lower(targetName)
-
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		local typeMatches =
 			(targetType == "P" and obj:IsA("BasePart"))
 			or (targetType == "M" and obj:IsA("Model"))
-
 		if typeMatches and string.find(string.lower(obj.Name), wanted, 1, true) then
 			table.insert(results, obj)
 		end
 	end
-
 	return results
 end
-
--- Cek apakah part berada langsung dalam struktur container (bukan di dalam Model)
--- Dipakai agar part loose di dalam folder (kedalaman berapa pun) masuk list,
--- tapi part internal model (mis. Handle) tidak ikut
 local function isLoosePart(part, container)
 	if not part:IsA("BasePart") then return false end
-
 	local current = part.Parent
 	while current and current ~= container do
 		if current:IsA("Model") then
@@ -556,20 +717,12 @@ local function isLoosePart(part, container)
 		end
 		current = current.Parent
 	end
-
 	return current == container
 end
-
--- Ambil kandidat objek dari satu entri input
--- Tipe entri: "P" = part, "M" = model, "MIF" = model in folder
--- entry.exclude (opsional) = nama model yang dikecualikan (Exc)
 local function getEntryTargets(entry)
 	local candidates = {}
-
 	if entry.type == "F" then
-		-- Model In Folder: semua model di dalam folder yang namanya cocok
 		local wanted = string.lower(entry.name)
-
 		for _, obj in ipairs(workspace:GetDescendants()) do
 			local isContainer = obj:IsA("Folder") or obj:IsA("Model")
 			if isContainer and string.find(string.lower(obj.Name), wanted, 1, true) then
@@ -584,8 +737,6 @@ local function getEntryTargets(entry)
 	else
 		candidates = findObjects(entry.type, entry.name)
 	end
-
-	-- Filter list exclusions (dari tombol List UI)
 	if next(listExclusions) then
 		local filtered2 = {}
 		for _, obj in ipairs(candidates) do
@@ -595,15 +746,11 @@ local function getEntryTargets(entry)
 		end
 		candidates = filtered2
 	end
-
 	return candidates
 end
-
--- Kumpulkan semua objek yang cocok dari seluruh entri input (multi target)
 local function collectAllTargets(targetList)
 	local targets = {}
 	local seen = {}
-
 	for _, entry in ipairs(targetList or {}) do
 		for _, obj in ipairs(getEntryTargets(entry)) do
 			if not seen[obj] then
@@ -612,39 +759,30 @@ local function collectAllTargets(targetList)
 			end
 		end
 	end
-
 	return targets
 end
-
 local function getRootPart()
 	local character = player.Character
 	if not character then
 		return nil
 	end
-
 	return character:FindFirstChild("HumanoidRootPart")
 end
-
 local function createObjectLines(targetList)
 	clearObjectLines()
-
 	if not objectLineEnabled then
 		return
 	end
-
 	local rootPart = getRootPart()
 	if not rootPart then
 		return
 	end
-
 	local targets = collectAllTargets(targetList)
 	if #targets == 0 then
 		return
 	end
-
 	for _, target in ipairs(targets) do
 		local position = getObjectPosition(target)
-
 		if position then
 			local highlight = Instance.new("Highlight")
 			highlight.Name = "ObjekTools_ObjectLineHighlight"
@@ -656,8 +794,6 @@ local function createObjectLines(targetList)
 			highlight.OutlineTransparency = 0
 			highlight.Parent = screenGui
 			table.insert(objectHighlights, highlight)
-
-			-- ESP nama objek (billboard di atas target)
 			local billboard = Instance.new("BillboardGui")
 			billboard.Name = "ObjekTools_ObjectLineESP"
 			billboard.Adornee = target
@@ -667,7 +803,6 @@ local function createObjectLines(targetList)
 			billboard.LightInfluence = 0
 			billboard.Parent = screenGui
 			table.insert(objectBillboards, billboard)
-
 			local nameLabel = Instance.new("TextLabel")
 			nameLabel.Name = "ObjectESPName"
 			nameLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -679,7 +814,6 @@ local function createObjectLines(targetList)
 			nameLabel.TextSize = 16
 			nameLabel.Font = Enum.Font.GothamBold
 			nameLabel.Parent = billboard
-
 			local targetPart = Instance.new("Part")
 			targetPart.Name = "ObjectLineTarget"
 			targetPart.Anchored = true
@@ -691,15 +825,12 @@ local function createObjectLines(targetList)
 			targetPart.Size = Vector3.new(0.1, 0.1, 0.1)
 			targetPart.CFrame = CFrame.new(position)
 			targetPart.Parent = workspace
-
 			local startAttachment = Instance.new("Attachment")
 			startAttachment.Name = "ObjectLineStart"
 			startAttachment.Parent = rootPart
-
 			local endAttachment = Instance.new("Attachment")
 			endAttachment.Name = "ObjectLineEnd"
 			endAttachment.Parent = targetPart
-
 			local beam = Instance.new("Beam")
 			beam.Name = "ObjectLineBeam"
 			beam.Attachment0 = startAttachment
@@ -712,7 +843,6 @@ local function createObjectLines(targetList)
 			beam.LightEmission = 1
 			beam.Segments = 1
 			beam.Parent = targetPart
-
 			table.insert(objectBeams, beam)
 			table.insert(objectTargetParts, {
 				part = targetPart,
@@ -721,29 +851,20 @@ local function createObjectLines(targetList)
 			table.insert(objectStartAttachments, startAttachment)
 		end
 	end
-
 	currentTargets = targetList
 end
-
 local function parseObjectInput()
 	local input = objectInput.Text:match("^%s*(.-)%s*$")
-
 	if input == "" then
 		return nil
 	end
-
-	-- Support multi input dipisah koma, contoh: "m snail, m tiger, p block"
-	-- Format tiap entri: <tipe> <nama>
-	-- tipe: p = part, m = model, f = model in folder
 	local targetList = {}
 	local validCount = 0
-
 	for chunk in input:gmatch("[^,]+") do
 		local firstToken, rest = chunk:match("^%s*(%S+)%s+(.-)%s*$")
 		if firstToken then
 			local entryType = string.lower(firstToken)
 			local mainName = rest
-
 			if (entryType == "p" or entryType == "m" or entryType == "f") and mainName ~= "" then
 				validCount += 1
 				targetList[validCount] = {
@@ -753,32 +874,25 @@ local function parseObjectInput()
 			end
 		end
 	end
-
 	if validCount == 0 then
 		return nil
 	end
-
 	return targetList
 end
-
 local function updateObjectLine()
 	local targetList = parseObjectInput()
-
 	if not targetList then
 		currentTargets = nil
 		clearObjectLines()
 		return
 	end
-
 	currentTargets = targetList
-
 	if objectLineEnabled then
 		createObjectLines(targetList)
 	else
 		clearObjectLines()
 	end
 end
-
 local function updateObjectLineButton()
 	if objectLineEnabled then
 		objectLineToggle.Text = "ON"
@@ -788,24 +902,19 @@ local function updateObjectLineButton()
 		objectLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 end
-
 objectLineToggle.Activated:Connect(function()
 	objectLineEnabled = not objectLineEnabled
 	updateObjectLineButton()
-
 	if objectLineEnabled then
 		updateObjectLine()
 	else
 		clearObjectLines()
 	end
 end)
-
--- === FUNGSI LIST OBJEK (model + part) ===
 local function scanModelHistory(targetList)
 	local changed = false
 	for _, entry in ipairs(targetList or {}) do
 		if entry.type == "P" or entry.type == "M" then
-			-- Part/model hasil pencarian input p/m juga masuk list
 			for _, obj in ipairs(findObjects(entry.type, entry.name)) do
 				local lowerName = string.lower(obj.Name)
 				if not modelHistory[lowerName] then
@@ -834,23 +943,17 @@ local function scanModelHistory(targetList)
 	end
 	return changed
 end
-
 local function refreshListFrame()
 	if not listFrame then return end
 	local scroll = listFrame:FindFirstChild("ListScroll")
 	if not scroll then return end
-
-	-- Hapus item lama
 	for _, child in ipairs(scroll:GetChildren()) do
 		if child:IsA("TextButton") then
 			child:Destroy()
 		end
 	end
-
-	-- Urutkan berdasarkan abjad
 	local names = {}
 	for lowerName, info in pairs(modelHistory) do
-		-- Saat mode scan aktif, hanya tampilkan objek dalam radius scan
 		if not scanModeEnabled or scanNearbyNames[lowerName] then
 			local kind = (type(info) == "table" and info.kind) or "M"
 			local original = (type(info) == "table" and info.name) or info
@@ -860,8 +963,6 @@ local function refreshListFrame()
 	table.sort(names, function(a, b)
 		return a.lower < b.lower
 	end)
-
-	-- Buat tombol untuk setiap model
 	local yOffset = 0
 	for _, info in ipairs(names) do
 		local btn = Instance.new("TextButton")
@@ -876,8 +977,6 @@ local function refreshListFrame()
 		btn.TextTruncate = Enum.TextTruncate.AtEnd
 		btn.ZIndex = 11
 		btn.Parent = scroll
-
-		-- Badge [M] / [P] di sebelah kanan tiap item list
 		local badge = Instance.new("TextLabel")
 		badge.Name = "KindBadge"
 		badge.AnchorPoint = Vector2.new(1, 0.5)
@@ -895,21 +994,17 @@ local function refreshListFrame()
 		badge.Font = Enum.Font.GothamBold
 		badge.ZIndex = 12
 		badge.Parent = btn
-
 		local badgeCorner = Instance.new("UICorner")
 		badgeCorner.CornerRadius = UDim.new(0, 4)
 		badgeCorner.Parent = badge
-
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 6)
 		corner.Parent = btn
-
 		if listExclusions[info.lower] then
 			btn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 		else
 			btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		end
-
 		btn.Activated:Connect(function()
 			listExclusions[info.lower] = not listExclusions[info.lower]
 			if listExclusions[info.lower] then
@@ -917,16 +1012,12 @@ local function refreshListFrame()
 			else
 				btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 			end
-			-- Rebuild lines dengan exclusion terbaru
 			if objectLineEnabled and currentTargets then
 				createObjectLines(currentTargets)
 			end
 		end)
-
 		yOffset = yOffset + 35
 	end
-
-	-- Update All button text based on current state
 	if listAllBtn and listAllBtn.Parent then
 		local allExcluded = true
 		local hasAny = false
@@ -945,12 +1036,8 @@ local function refreshListFrame()
 			listAllBtn.Text = "All"
 		end
 	end
-
 	scroll.CanvasSize = UDim2.new(0, 0, 0, yOffset)
 end
-
--- === MODE SCAN JARAK (Line to Object) ===
--- Ambil jarak scan dari input (studs); kosong/0 = seluruh map
 local function getScanDistance()
 	local text = objectDistanceInput.Text:match("^%s*(.-)%s*$")
 	local num = tonumber(text)
@@ -959,20 +1046,15 @@ local function getScanDistance()
 	end
 	return nil
 end
-
--- Cari semua model & part loose dalam radius dari pemain
 local function scanNearbyObjects()
 	local results = {}
 	local radius = getScanDistance()
 	local rootPart = getRootPart()
 	local character = player.Character
-
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		-- Lewati karakter pemain sendiri
 		if obj ~= character and not (character and obj:IsDescendantOf(character)) then
 			local isCandidate = obj:IsA("Model")
 				or (obj:IsA("BasePart") and isLoosePart(obj, workspace))
-
 			if isCandidate then
 				local position = getObjectPosition(obj)
 				if position then
@@ -987,23 +1069,17 @@ local function scanNearbyObjects()
 			end
 		end
 	end
-
 	return results
 end
-
--- Perbarui set nama objek dalam radius + refresh list
 local function updateScanList()
 	if not scanModeEnabled then
 		return
 	end
-
 	local nearby = scanNearbyObjects()
-
 	table.clear(scanNearbyNames)
 	for _, obj in ipairs(nearby) do
 		local lowerName = string.lower(obj.Name)
 		scanNearbyNames[lowerName] = true
-
 		if not modelHistory[lowerName] then
 			modelHistory[lowerName] = {
 				name = obj.Name,
@@ -1011,12 +1087,10 @@ local function updateScanList()
 			}
 		end
 	end
-
 	if listFrame and listFrame.Visible then
 		refreshListFrame()
 	end
 end
-
 local function updateScanButton()
 	if scanModeEnabled then
 		objectScanToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -1024,7 +1098,6 @@ local function updateScanButton()
 		objectScanToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 end
-
 local function toggleListFrame()
 	if listFrame and listFrame.Parent then
 		listFrame.Visible = not listFrame.Visible
@@ -1034,7 +1107,6 @@ local function toggleListFrame()
 		end
 		return
 	end
-
 	listFrame = Instance.new("Frame")
 	listFrame.Name = "ListFrame"
 	listFrame.Size = UDim2.new(0, 200, 1, -55)
@@ -1045,11 +1117,9 @@ local function toggleListFrame()
 	listFrame.ZIndex = 10
 	listFrame.Visible = true
 	listFrame.Parent = mainFrame
-
 	local frameCorner = Instance.new("UICorner")
 	frameCorner.CornerRadius = UDim.new(0, 8)
 	frameCorner.Parent = listFrame
-
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Size = UDim2.new(0, 70, 0, 30)
 	titleLabel.Position = UDim2.fromOffset(5, 0)
@@ -1062,7 +1132,6 @@ local function toggleListFrame()
 	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
 	titleLabel.ZIndex = 11
 	titleLabel.Parent = listFrame
-
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.Size = UDim2.new(0, 30, 0, 30)
 	closeBtn.AnchorPoint = Vector2.new(1, 0)
@@ -1075,16 +1144,12 @@ local function toggleListFrame()
 	closeBtn.Font = Enum.Font.GothamBold
 	closeBtn.ZIndex = 11
 	closeBtn.Parent = listFrame
-
 	local closeCorner = Instance.new("UICorner")
 	closeCorner.CornerRadius = UDim.new(0, 6)
 	closeCorner.Parent = closeBtn
-
 	closeBtn.Activated:Connect(function()
 		listFrame.Visible = false
 	end)
-
-	-- Tombol Invers (invert selection)
 	local inversBtn = Instance.new("TextButton")
 	inversBtn.Size = UDim2.new(0, 90, 0, 30)
 	inversBtn.Position = UDim2.fromOffset(5, 30)
@@ -1096,11 +1161,9 @@ local function toggleListFrame()
 	inversBtn.Font = Enum.Font.GothamBold
 	inversBtn.ZIndex = 11
 	inversBtn.Parent = listFrame
-
 	local inversCorner = Instance.new("UICorner")
 	inversCorner.CornerRadius = UDim.new(0, 6)
 	inversCorner.Parent = inversBtn
-
 	inversBtn.Activated:Connect(function()
 		for lowerName in pairs(modelHistory) do
 			if not scanModeEnabled or scanNearbyNames[lowerName] then
@@ -1116,8 +1179,6 @@ local function toggleListFrame()
 			createObjectLines(currentTargets)
 		end
 	end)
-
-	-- Tombol All (select all / deselect all)
 	local allBtn = Instance.new("TextButton")
 	allBtn.Size = UDim2.new(0, 90, 0, 30)
 	allBtn.Position = UDim2.fromOffset(100, 30)
@@ -1129,13 +1190,10 @@ local function toggleListFrame()
 	allBtn.Font = Enum.Font.GothamBold
 	allBtn.ZIndex = 11
 	allBtn.Parent = listFrame
-
 	local allCorner = Instance.new("UICorner")
 	allCorner.CornerRadius = UDim.new(0, 6)
 	allCorner.Parent = allBtn
-
 	listAllBtn = allBtn
-
 	allBtn.Activated:Connect(function()
 		local allExcluded = true
 		local hasAny = false
@@ -1148,9 +1206,7 @@ local function toggleListFrame()
 				end
 			end
 		end
-
 		if hasAny and allExcluded then
-			-- Saat mode scan, hanya hapus exclusion objek yg tampil
 			if scanModeEnabled then
 				for lowerName in pairs(scanNearbyNames) do
 					listExclusions[lowerName] = nil
@@ -1174,7 +1230,6 @@ local function toggleListFrame()
 			createObjectLines(currentTargets)
 		end
 	end)
-
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "ListScroll"
 	scroll.Size = UDim2.new(1, -10, 1, -70)
@@ -1185,23 +1240,18 @@ local function toggleListFrame()
 	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	scroll.ZIndex = 11
 	scroll.Parent = listFrame
-
 	scanModelHistory(currentTargets)
 	refreshListFrame()
 end
-
 objectListButton.Activated:Connect(function()
 	toggleListFrame()
 end)
-
 objectScanToggle.Activated:Connect(function()
 	scanModeEnabled = not scanModeEnabled
 	updateScanButton()
-
 	if scanModeEnabled then
-		-- Pastikan list frame tampil
 		if not listFrame or not listFrame.Parent then
-			toggleListFrame() -- buat + tampilkan list
+			toggleListFrame()
 		elseif not listFrame.Visible then
 			listFrame.Visible = true
 		end
@@ -1213,17 +1263,14 @@ objectScanToggle.Activated:Connect(function()
 		end
 	end
 end)
-
 objectDistanceInput.FocusLost:Connect(function()
 	if scanModeEnabled then
 		updateScanList()
 	end
 end)
-
 objectInput.FocusLost:Connect(function()
 	updateObjectLine()
 end)
-
 objectInput:GetPropertyChangedSignal("Text"):Connect(function()
 	if objectLineEnabled then
 		updateObjectLine()
@@ -1231,82 +1278,60 @@ objectInput:GetPropertyChangedSignal("Text"):Connect(function()
 		clearObjectLines()
 	end
 end)
-
 player.CharacterAdded:Connect(function(character)
 	character:WaitForChild("HumanoidRootPart", 5)
 	task.wait(0.2)
-
 	if objectLineEnabled and currentTargets then
 		createObjectLines(currentTargets)
 	end
 end)
-
 local function targetsChanged(newTargets)
-	-- Bandingkan jumlah
 	if #newTargets ~= #objectTargetParts then
 		return true
 	end
-
-	-- Bandingkan isi (cek apakah ada target baru yang belum punya garis)
 	local existing = {}
 	for _, data in ipairs(objectTargetParts) do
 		if data.target then
 			existing[data.target] = true
 		end
 	end
-
 	for _, t in ipairs(newTargets) do
 		if not existing[t] then
 			return true
 		end
 	end
-
 	return false
 end
-
 task.spawn(function()
-	local RESCAN_INTERVAL = 1 -- detik, interval pemindaian ulang part/model baru
+	local RESCAN_INTERVAL = 1
 	local lastRescan = os.clock()
 	local lastScanRescan = os.clock()
-
 	while objectInput and objectInput.Parent do
 		task.wait(0.1)
-
-		-- Mode scan jarak: pindai ulang objek dalam radius secara berkala
 		if scanModeEnabled and (os.clock() - lastScanRescan) >= RESCAN_INTERVAL then
 			lastScanRescan = os.clock()
 			updateScanList()
 		end
-
 		if objectLineEnabled and currentTargets then
 			local needsRefresh = false
-
-			-- Update posisi garis setiap 0.1s
 			for _, data in ipairs(objectTargetParts) do
 				local target = data.target
 				local targetPart = data.part
-
 				if not target or not target.Parent or not targetPart or not targetPart.Parent then
 					needsRefresh = true
 					break
 				end
-
 				local position = getObjectPosition(target)
 				if position then
 					targetPart.Position = position
 				end
 			end
-
-			-- Pindai ulang otomatis: setiap RESCAN_INTERVAL, atau langsung jika ada target yang hilang
 			if needsRefresh or (os.clock() - lastRescan) >= RESCAN_INTERVAL then
 				lastRescan = os.clock()
-
 				local freshTargets = collectAllTargets(currentTargets)
 				if targetsChanged(freshTargets) then
 					createObjectLines(currentTargets)
 				end
-
-				-- Pindai history model untuk MIF
 				local historyChanged = scanModelHistory(currentTargets)
 				if historyChanged and listFrame and listFrame.Visible then
 					refreshListFrame()
@@ -1314,14 +1339,10 @@ task.spawn(function()
 			end
 		end
 	end
-
 	clearObjectLines()
 end)
-
 updateObjectLineButton()
 updateScanButton()
-
--- === TOUCHINTEREST ESP ===
 local touchInterestLabel = Instance.new("TextLabel")
 touchInterestLabel.Name = "TouchInterestLabel"
 touchInterestLabel.Size = UDim2.new(0, 120, 0, 40)
@@ -1334,7 +1355,6 @@ touchInterestLabel.Font = Enum.Font.GothamBold
 touchInterestLabel.TextXAlignment = Enum.TextXAlignment.Left
 touchInterestLabel.TextYAlignment = Enum.TextYAlignment.Center
 touchInterestLabel.Parent = contentFrame
-
 local touchInterestToggle = Instance.new("TextButton")
 touchInterestToggle.Name = "TouchInterestToggle"
 touchInterestToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -1347,12 +1367,9 @@ touchInterestToggle.TextColor3 = Color3.new(1, 1, 1)
 touchInterestToggle.TextSize = 13
 touchInterestToggle.Font = Enum.Font.GothamBold
 touchInterestToggle.Parent = contentFrame
-
 local touchInterestToggleCorner = Instance.new("UICorner")
 touchInterestToggleCorner.CornerRadius = UDim.new(0, 8)
 touchInterestToggleCorner.Parent = touchInterestToggle
-
--- Tombol Name (ESP nama part)
 local touchNameToggle = Instance.new("TextButton")
 touchNameToggle.Name = "TouchNameToggle"
 touchNameToggle.Size = UDim2.new(0, 55, 0, 40)
@@ -1364,12 +1381,9 @@ touchNameToggle.TextColor3 = Color3.new(1, 1, 1)
 touchNameToggle.TextSize = 13
 touchNameToggle.Font = Enum.Font.GothamBold
 touchNameToggle.Parent = contentFrame
-
 local touchNameToggleCorner = Instance.new("UICorner")
 touchNameToggleCorner.CornerRadius = UDim.new(0, 8)
 touchNameToggleCorner.Parent = touchNameToggle
-
--- Tombol Line (garis dari pemain ke part)
 local touchLineToggle = Instance.new("TextButton")
 touchLineToggle.Name = "TouchLineToggle"
 touchLineToggle.Size = UDim2.new(0, 55, 0, 40)
@@ -1381,12 +1395,9 @@ touchLineToggle.TextColor3 = Color3.new(1, 1, 1)
 touchLineToggle.TextSize = 13
 touchLineToggle.Font = Enum.Font.GothamBold
 touchLineToggle.Parent = contentFrame
-
 local touchLineToggleCorner = Instance.new("UICorner")
 touchLineToggleCorner.CornerRadius = UDim.new(0, 8)
 touchLineToggleCorner.Parent = touchLineToggle
-
--- Tombol Highlight
 local touchHighlightToggle = Instance.new("TextButton")
 touchHighlightToggle.Name = "TouchHighlightToggle"
 touchHighlightToggle.Size = UDim2.new(0, 70, 0, 40)
@@ -1398,12 +1409,9 @@ touchHighlightToggle.TextColor3 = Color3.new(1, 1, 1)
 touchHighlightToggle.TextSize = 13
 touchHighlightToggle.Font = Enum.Font.GothamBold
 touchHighlightToggle.Parent = contentFrame
-
 local touchHighlightToggleCorner = Instance.new("UICorner")
 touchHighlightToggleCorner.CornerRadius = UDim.new(0, 8)
 touchHighlightToggleCorner.Parent = touchHighlightToggle
-
--- LOGIKA TOUCHINTEREST ESP
 local touchInterestEnabled = false
 local touchNameEnabled = false
 local touchLineEnabled = false
@@ -1411,19 +1419,14 @@ local touchHighlightEnabled = false
 local touchInterestHighlights = {}
 local touchInterestBillboards = {}
 local touchInterestLines = {}
-
 local function hasTouchInterest(part)
 	if not part or not part.Parent then return false end
 	if not part:IsA("BasePart") then return false end
-
 	if part.Transparency >= 1 then
 		return false
 	end
-
 	return part:FindFirstChild("TouchInterest") ~= nil
 end
-
--- Highlight untuk individual parts
 local function addTouchInterestHighlight(part)
 	if not hasTouchInterest(part) then return end
 	if touchInterestHighlights[part] then
@@ -1434,7 +1437,6 @@ local function addTouchInterestHighlight(part)
 			return
 		end
 	end
-
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "ObjekTools_TouchInterestHighlight"
 	highlight.Adornee = part
@@ -1446,7 +1448,6 @@ local function addTouchInterestHighlight(part)
 	highlight.Parent = screenGui
 	touchInterestHighlights[part] = highlight
 end
-
 local function removeTouchInterestHighlight(part)
 	local highlight = touchInterestHighlights[part]
 	if highlight then
@@ -1454,7 +1455,6 @@ local function removeTouchInterestHighlight(part)
 	end
 	touchInterestHighlights[part] = nil
 end
-
 local function clearTouchInterestHighlights()
 	for part, highlight in pairs(touchInterestHighlights) do
 		if highlight then
@@ -1463,11 +1463,8 @@ local function clearTouchInterestHighlights()
 	end
 	table.clear(touchInterestHighlights)
 end
-
--- Billboard nama untuk individual parts (ESP dengan nama part)
 local function addTouchInterestBillboard(part)
 	if not hasTouchInterest(part) then return end
-
 	local existing = touchInterestBillboards[part]
 	if existing then
 		if existing.Parent then
@@ -1477,7 +1474,6 @@ local function addTouchInterestBillboard(part)
 		end
 		touchInterestBillboards[part] = nil
 	end
-
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ObjekTools_TouchInterestESP"
 	billboard.Adornee = part
@@ -1486,8 +1482,6 @@ local function addTouchInterestBillboard(part)
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.Parent = screenGui
-
-	-- Nama part (utama)
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "PartName"
 	nameLabel.Size = UDim2.new(1, 0, 0, 20)
@@ -1501,10 +1495,8 @@ local function addTouchInterestBillboard(part)
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
 	nameLabel.Parent = billboard
-
 	touchInterestBillboards[part] = billboard
 end
-
 local function removeTouchInterestBillboard(part)
 	local billboard = touchInterestBillboards[part]
 	if billboard then
@@ -1512,7 +1504,6 @@ local function removeTouchInterestBillboard(part)
 	end
 	touchInterestBillboards[part] = nil
 end
-
 local function clearTouchInterestBillboards()
 	for part, billboard in pairs(touchInterestBillboards) do
 		if billboard then
@@ -1521,15 +1512,10 @@ local function clearTouchInterestBillboards()
 	end
 	table.clear(touchInterestBillboards)
 end
-
--- Line (beam) dari pemain ke part TouchInterest
 local function addTouchInterestLine(part)
 	if not hasTouchInterest(part) then return end
-
 	local rootPart = getRootPart()
 	if not rootPart then return end
-
-	-- Cegah duplikat: jika line sudah ada dan masih valid, cukup update posisi
 	local existing = touchInterestLines[part]
 	if existing then
 		if existing.beam and existing.beam.Parent
@@ -1540,7 +1526,6 @@ local function addTouchInterestLine(part)
 		end
 		touchInterestLines[part] = nil
 	end
-
 	local anchor = Instance.new("Part")
 	anchor.Name = "TouchInterestLineAnchor"
 	anchor.Anchored = true
@@ -1552,15 +1537,12 @@ local function addTouchInterestLine(part)
 	anchor.Size = Vector3.new(0.1, 0.1, 0.1)
 	anchor.Position = part.Position
 	anchor.Parent = workspace
-
 	local startAtt = Instance.new("Attachment")
 	startAtt.Name = "TouchInterestLineStart"
 	startAtt.Parent = rootPart
-
 	local endAtt = Instance.new("Attachment")
 	endAtt.Name = "TouchInterestLineEnd"
 	endAtt.Parent = anchor
-
 	local beam = Instance.new("Beam")
 	beam.Name = "TouchInterestLineBeam"
 	beam.Attachment0 = startAtt
@@ -1573,7 +1555,6 @@ local function addTouchInterestLine(part)
 	beam.LightEmission = 1
 	beam.Segments = 1
 	beam.Parent = anchor
-
 	touchInterestLines[part] = {
 		anchor = anchor,
 		beam = beam,
@@ -1581,7 +1562,6 @@ local function addTouchInterestLine(part)
 		endAtt = endAtt,
 	}
 end
-
 local function removeTouchInterestLine(part)
 	local data = touchInterestLines[part]
 	if data then
@@ -1594,33 +1574,28 @@ local function removeTouchInterestLine(part)
 		touchInterestLines[part] = nil
 	end
 end
-
 local function clearTouchInterestLines()
 	for part in pairs(touchInterestLines) do
 		removeTouchInterestLine(part)
 	end
 	table.clear(touchInterestLines)
 end
-
 local function updateTouchInterestButtons()
 	if touchNameEnabled then
 		touchNameToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
 		touchNameToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
-
 	if touchLineEnabled then
 		touchLineToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
 		touchLineToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
-
 	if touchHighlightEnabled then
 		touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
 		touchHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
-
 	if touchInterestEnabled then
 		touchInterestToggle.Text = "ON"
 		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -1629,11 +1604,8 @@ local function updateTouchInterestButtons()
 		touchInterestToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 end
-
 local function applyTouchInterestESP()
 	if not touchInterestEnabled then return end
-
-	-- Highlight + billboard nama + line untuk BasePart dengan TouchInterest
 	for _, descendant in ipairs(workspace:GetDescendants()) do
 		if hasTouchInterest(descendant) then
 			if touchHighlightEnabled then
@@ -1641,13 +1613,11 @@ local function applyTouchInterestESP()
 			else
 				removeTouchInterestHighlight(descendant)
 			end
-
 			if touchNameEnabled then
 				addTouchInterestBillboard(descendant)
 			else
 				removeTouchInterestBillboard(descendant)
 			end
-
 			if touchLineEnabled then
 				addTouchInterestLine(descendant)
 			else
@@ -1655,31 +1625,24 @@ local function applyTouchInterestESP()
 			end
 		end
 	end
-
-	-- Cleanup: hapus ESP (highlight, billboard, line) dari part yang sudah tidak lolos hasTouchInterest
-	-- (mis. transparency berubah menjadi 1, TouchInterest dihapus, atau part hilang dari workspace)
 	for part in pairs(touchInterestHighlights) do
 		if not hasTouchInterest(part) then
 			removeTouchInterestHighlight(part)
 		end
 	end
-
 	for part in pairs(touchInterestBillboards) do
 		if not hasTouchInterest(part) then
 			removeTouchInterestBillboard(part)
 		end
 	end
-
 	for part in pairs(touchInterestLines) do
 		if not hasTouchInterest(part) then
 			removeTouchInterestLine(part)
 		end
 	end
 end
-
 local function setTouchInterestESP(state)
 	touchInterestEnabled = state
-
 	if state then
 		applyTouchInterestESP()
 	else
@@ -1687,16 +1650,11 @@ local function setTouchInterestESP(state)
 		clearTouchInterestBillboards()
 		clearTouchInterestLines()
 	end
-
 	updateTouchInterestButtons()
 end
-
--- Master toggle
 touchInterestToggle.Activated:Connect(function()
 	setTouchInterestESP(not touchInterestEnabled)
 end)
-
--- Name sub-toggle (ESP nama part)
 touchNameToggle.Activated:Connect(function()
 	touchNameEnabled = not touchNameEnabled
 	if not touchNameEnabled then
@@ -1707,8 +1665,6 @@ touchNameToggle.Activated:Connect(function()
 	end
 	updateTouchInterestButtons()
 end)
-
--- Line sub-toggle (garis dari pemain ke part)
 touchLineToggle.Activated:Connect(function()
 	touchLineEnabled = not touchLineEnabled
 	if not touchLineEnabled then
@@ -1719,8 +1675,6 @@ touchLineToggle.Activated:Connect(function()
 	end
 	updateTouchInterestButtons()
 end)
-
--- Highlight sub-toggle
 touchHighlightToggle.Activated:Connect(function()
 	touchHighlightEnabled = not touchHighlightEnabled
 	if not touchHighlightEnabled then
@@ -1731,8 +1685,6 @@ touchHighlightToggle.Activated:Connect(function()
 	end
 	updateTouchInterestButtons()
 end)
-
--- Deteksi part baru yang mendapatkan TouchInterest
 workspace.DescendantAdded:Connect(function(descendant)
 	if not touchInterestEnabled then return end
 	if descendant:IsA("TouchInterest") then
@@ -1756,13 +1708,10 @@ workspace.DescendantAdded:Connect(function(descendant)
 		end
 	end
 end)
-
--- Deteksi part yang hilang atau TouchInterest dihapus
 workspace.DescendantRemoving:Connect(function(descendant)
 	if descendant:IsA("TouchInterest") then
 		local part = descendant.Parent
 		if part and part:IsA("BasePart") then
-			-- Cek dengan task.defer agar TouchInterest benar-benar sudah terhapus
 			task.defer(function()
 				if touchInterestEnabled and hasTouchInterest(part) then
 					return
@@ -1773,7 +1722,6 @@ workspace.DescendantRemoving:Connect(function(descendant)
 			end)
 		end
 	elseif descendant:IsA("BasePart") then
-		-- Part dengan ESP sedang dihapus
 		if touchInterestHighlights[descendant] or touchInterestBillboards[descendant] or touchInterestLines[descendant] then
 			removeTouchInterestHighlight(descendant)
 			removeTouchInterestBillboard(descendant)
@@ -1781,8 +1729,6 @@ workspace.DescendantRemoving:Connect(function(descendant)
 		end
 	end
 end)
-
--- Loop untuk refresh highlight secara berkala
 task.spawn(function()
 	while touchInterestToggle and touchInterestToggle.Parent do
 		task.wait(0.5)
@@ -1791,10 +1737,7 @@ task.spawn(function()
 		end
 	end
 end)
-
 updateTouchInterestButtons()
-
--- === CLICKDETECTOR ESP ===
 local clickDetectorLabel = Instance.new("TextLabel")
 clickDetectorLabel.Name = "ClickDetectorLabel"
 clickDetectorLabel.Size = UDim2.new(0, 120, 0, 40)
@@ -1807,7 +1750,6 @@ clickDetectorLabel.Font = Enum.Font.GothamBold
 clickDetectorLabel.TextXAlignment = Enum.TextXAlignment.Left
 clickDetectorLabel.TextYAlignment = Enum.TextYAlignment.Center
 clickDetectorLabel.Parent = contentFrame
-
 local clickDetectorToggle = Instance.new("TextButton")
 clickDetectorToggle.Name = "ClickDetectorToggle"
 clickDetectorToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -1820,21 +1762,16 @@ clickDetectorToggle.TextColor3 = Color3.new(1, 1, 1)
 clickDetectorToggle.TextSize = 13
 clickDetectorToggle.Font = Enum.Font.GothamBold
 clickDetectorToggle.Parent = contentFrame
-
 local clickDetectorToggleCorner = Instance.new("UICorner")
 clickDetectorToggleCorner.CornerRadius = UDim.new(0, 8)
 clickDetectorToggleCorner.Parent = clickDetectorToggle
-
--- LOGIKA CLICKDETECTOR ESP
 local clickDetectorEnabled = false
 local clickDetectorHighlights = {}
-
 local function hasClickDetector(part)
 	if not part or not part.Parent then return false end
 	if not part:IsA("BasePart") then return false end
 	return part:FindFirstChildOfClass("ClickDetector") ~= nil
 end
-
 local function addClickDetectorHighlight(part)
 	if not hasClickDetector(part) then return end
 	if clickDetectorHighlights[part] then
@@ -1845,7 +1782,6 @@ local function addClickDetectorHighlight(part)
 			return
 		end
 	end
-
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "ObjekTools_ClickDetectorHighlight"
 	highlight.Adornee = part
@@ -1857,7 +1793,6 @@ local function addClickDetectorHighlight(part)
 	highlight.Parent = screenGui
 	clickDetectorHighlights[part] = highlight
 end
-
 local function removeClickDetectorHighlight(part)
 	local highlight = clickDetectorHighlights[part]
 	if highlight then
@@ -1865,7 +1800,6 @@ local function removeClickDetectorHighlight(part)
 	end
 	clickDetectorHighlights[part] = nil
 end
-
 local function clearClickDetectorHighlights()
 	for part, highlight in pairs(clickDetectorHighlights) do
 		if highlight then
@@ -1874,20 +1808,16 @@ local function clearClickDetectorHighlights()
 	end
 	table.clear(clickDetectorHighlights)
 end
-
 local function applyClickDetectorESP()
 	if not clickDetectorEnabled then return end
-
 	for _, descendant in ipairs(workspace:GetDescendants()) do
 		if hasClickDetector(descendant) then
 			addClickDetectorHighlight(descendant)
 		end
 	end
 end
-
 local function setClickDetectorESP(state)
 	clickDetectorEnabled = state
-
 	if state then
 		clickDetectorToggle.Text = "ON"
 		clickDetectorToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -1898,12 +1828,9 @@ local function setClickDetectorESP(state)
 		clearClickDetectorHighlights()
 	end
 end
-
 clickDetectorToggle.Activated:Connect(function()
 	setClickDetectorESP(not clickDetectorEnabled)
 end)
-
--- Deteksi part baru yang mendapatkan ClickDetector
 workspace.DescendantAdded:Connect(function(descendant)
 	if not clickDetectorEnabled then return end
 	if descendant:IsA("ClickDetector") then
@@ -1915,8 +1842,6 @@ workspace.DescendantAdded:Connect(function(descendant)
 		addClickDetectorHighlight(descendant)
 	end
 end)
-
--- Deteksi part yang hilang atau ClickDetector dihapus
 workspace.DescendantRemoving:Connect(function(descendant)
 	if descendant:IsA("ClickDetector") then
 		local part = descendant.Parent
@@ -1932,8 +1857,6 @@ workspace.DescendantRemoving:Connect(function(descendant)
 		removeClickDetectorHighlight(descendant)
 	end
 end)
-
--- Loop untuk refresh highlight ClickDetector secara berkala
 task.spawn(function()
 	while clickDetectorToggle and clickDetectorToggle.Parent do
 		task.wait(0.5)
@@ -1942,8 +1865,6 @@ task.spawn(function()
 		end
 	end
 end)
-
--- === DRAG DETECTOR ESP ===
 local dragDetectorLabel = Instance.new("TextLabel")
 dragDetectorLabel.Name = "DragDetectorLabel"
 dragDetectorLabel.Size = UDim2.new(0, 120, 0, 40)
@@ -1956,8 +1877,6 @@ dragDetectorLabel.Font = Enum.Font.GothamBold
 dragDetectorLabel.TextXAlignment = Enum.TextXAlignment.Left
 dragDetectorLabel.TextYAlignment = Enum.TextYAlignment.Center
 dragDetectorLabel.Parent = contentFrame
-
--- Tombol Model (ESP nama model)
 local dragModelToggle = Instance.new("TextButton")
 dragModelToggle.Name = "DragModelToggle"
 dragModelToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -1969,12 +1888,9 @@ dragModelToggle.TextColor3 = Color3.new(1, 1, 1)
 dragModelToggle.TextSize = 13
 dragModelToggle.Font = Enum.Font.GothamBold
 dragModelToggle.Parent = contentFrame
-
 local dragModelToggleCorner = Instance.new("UICorner")
 dragModelToggleCorner.CornerRadius = UDim.new(0, 8)
 dragModelToggleCorner.Parent = dragModelToggle
-
--- Tombol Highlight
 local dragHighlightToggle = Instance.new("TextButton")
 dragHighlightToggle.Name = "DragHighlightToggle"
 dragHighlightToggle.Size = UDim2.new(0, 70, 0, 40)
@@ -1986,12 +1902,9 @@ dragHighlightToggle.TextColor3 = Color3.new(1, 1, 1)
 dragHighlightToggle.TextSize = 13
 dragHighlightToggle.Font = Enum.Font.GothamBold
 dragHighlightToggle.Parent = contentFrame
-
 local dragHighlightToggleCorner = Instance.new("UICorner")
 dragHighlightToggleCorner.CornerRadius = UDim.new(0, 8)
 dragHighlightToggleCorner.Parent = dragHighlightToggle
-
--- Tombol On/Off (master toggle)
 local dragDetectorToggle = Instance.new("TextButton")
 dragDetectorToggle.Name = "DragDetectorToggle"
 dragDetectorToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -2004,18 +1917,14 @@ dragDetectorToggle.TextColor3 = Color3.new(1, 1, 1)
 dragDetectorToggle.TextSize = 13
 dragDetectorToggle.Font = Enum.Font.GothamBold
 dragDetectorToggle.Parent = contentFrame
-
 local dragDetectorToggleCorner = Instance.new("UICorner")
 dragDetectorToggleCorner.CornerRadius = UDim.new(0, 8)
 dragDetectorToggleCorner.Parent = dragDetectorToggle
-
--- LOGIKA DRAG DETECTOR ESP
 local dragDetectorEnabled = false
 local dragModelEnabled = false
 local dragHighlightEnabled = false
 local dragDetectorHighlights = {}
 local dragDetectorBillboards = {}
-
 local function findModelFromDragDetector(dragDetector)
 	local current = dragDetector.Parent
 	while current do
@@ -2026,7 +1935,6 @@ local function findModelFromDragDetector(dragDetector)
 	end
 	return nil
 end
-
 local function getModelsFromDragDetectors()
 	local models = {}
 	for _, descendant in ipairs(workspace:GetDescendants()) do
@@ -2039,7 +1947,6 @@ local function getModelsFromDragDetectors()
 	end
 	return models
 end
-
 local function addDragDetectorHighlight(model)
 	if dragDetectorHighlights[model] then
 		local h = dragDetectorHighlights[model]
@@ -2049,7 +1956,6 @@ local function addDragDetectorHighlight(model)
 			return
 		end
 	end
-
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "ObjekTools_DragDetectorHighlight"
 	highlight.Adornee = model
@@ -2061,7 +1967,6 @@ local function addDragDetectorHighlight(model)
 	highlight.Parent = screenGui
 	dragDetectorHighlights[model] = highlight
 end
-
 local function removeDragDetectorHighlight(model)
 	local highlight = dragDetectorHighlights[model]
 	if highlight then
@@ -2069,7 +1974,6 @@ local function removeDragDetectorHighlight(model)
 	end
 	dragDetectorHighlights[model] = nil
 end
-
 local function clearDragDetectorHighlights()
 	for model, highlight in pairs(dragDetectorHighlights) do
 		if highlight then
@@ -2078,7 +1982,6 @@ local function clearDragDetectorHighlights()
 	end
 	table.clear(dragDetectorHighlights)
 end
-
 local function addDragDetectorBillboard(model)
 	if dragDetectorBillboards[model] then
 		local b = dragDetectorBillboards[model]
@@ -2088,7 +1991,6 @@ local function addDragDetectorBillboard(model)
 			return
 		end
 	end
-
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ObjekTools_DragDetectorESP"
 	billboard.Adornee = model
@@ -2097,7 +1999,6 @@ local function addDragDetectorBillboard(model)
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.Parent = screenGui
-
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 1, 0)
 	label.BackgroundTransparency = 1
@@ -2108,10 +2009,8 @@ local function addDragDetectorBillboard(model)
 	label.TextSize = 18
 	label.Font = Enum.Font.GothamBold
 	label.Parent = billboard
-
 	dragDetectorBillboards[model] = billboard
 end
-
 local function removeDragDetectorBillboard(model)
 	local billboard = dragDetectorBillboards[model]
 	if billboard then
@@ -2119,7 +2018,6 @@ local function removeDragDetectorBillboard(model)
 	end
 	dragDetectorBillboards[model] = nil
 end
-
 local function clearDragDetectorBillboards()
 	for model, billboard in pairs(dragDetectorBillboards) do
 		if billboard then
@@ -2128,20 +2026,17 @@ local function clearDragDetectorBillboards()
 	end
 	table.clear(dragDetectorBillboards)
 end
-
 local function updateDragDetectorButtons()
 	if dragModelEnabled then
 		dragModelToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
 		dragModelToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
-
 	if dragHighlightEnabled then
 		dragHighlightToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
 	else
 		dragHighlightToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
-
 	if dragDetectorEnabled then
 		dragDetectorToggle.Text = "ON"
 		dragDetectorToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -2150,10 +2045,8 @@ local function updateDragDetectorButtons()
 		dragDetectorToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 end
-
 local function applyDragDetectorESP()
 	if not dragDetectorEnabled then return end
-
 	local models = getModelsFromDragDetectors()
 	for model in pairs(models) do
 		if dragHighlightEnabled then
@@ -2164,33 +2057,25 @@ local function applyDragDetectorESP()
 		end
 	end
 end
-
 local function setDragDetectorESP(state)
 	dragDetectorEnabled = state
-
 	if state then
 		applyDragDetectorESP()
 	else
 		clearDragDetectorHighlights()
 		clearDragDetectorBillboards()
 	end
-
 	updateDragDetectorButtons()
 end
-
 local function refreshDragDetectorESP()
 	if not dragDetectorEnabled then return end
 	clearDragDetectorHighlights()
 	clearDragDetectorBillboards()
 	applyDragDetectorESP()
 end
-
--- Master toggle
 dragDetectorToggle.Activated:Connect(function()
 	setDragDetectorESP(not dragDetectorEnabled)
 end)
-
--- Model sub-toggle
 dragModelToggle.Activated:Connect(function()
 	dragModelEnabled = not dragModelEnabled
 	if not dragModelEnabled then
@@ -2201,8 +2086,6 @@ dragModelToggle.Activated:Connect(function()
 	end
 	updateDragDetectorButtons()
 end)
-
--- Highlight sub-toggle
 dragHighlightToggle.Activated:Connect(function()
 	dragHighlightEnabled = not dragHighlightEnabled
 	if not dragHighlightEnabled then
@@ -2213,8 +2096,6 @@ dragHighlightToggle.Activated:Connect(function()
 	end
 	updateDragDetectorButtons()
 end)
-
--- Deteksi DragDetector baru ditambahkan
 workspace.DescendantAdded:Connect(function(descendant)
 	if not dragDetectorEnabled then return end
 	if descendant:IsA("DragDetector") then
@@ -2229,8 +2110,6 @@ workspace.DescendantAdded:Connect(function(descendant)
 		end
 	end
 end)
-
--- Deteksi DragDetector atau Model dihapus
 workspace.DescendantRemoving:Connect(function(descendant)
 	if descendant:IsA("DragDetector") then
 		local model = findModelFromDragDetector(descendant)
@@ -2252,8 +2131,6 @@ workspace.DescendantRemoving:Connect(function(descendant)
 		removeDragDetectorBillboard(descendant)
 	end
 end)
-
--- Loop untuk refresh DragDetector ESP secara berkala
 task.spawn(function()
 	while dragDetectorToggle and dragDetectorToggle.Parent do
 		task.wait(0.5)
@@ -2262,10 +2139,7 @@ task.spawn(function()
 		end
 	end
 end)
-
 updateDragDetectorButtons()
-
--- === PROXIMITY PROMPT ESP ===
 local proximityPromptLabel = Instance.new("TextLabel")
 proximityPromptLabel.Name = "ProximityPromptLabel"
 proximityPromptLabel.Size = UDim2.new(0, 120, 0, 40)
@@ -2278,8 +2152,6 @@ proximityPromptLabel.Font = Enum.Font.GothamBold
 proximityPromptLabel.TextXAlignment = Enum.TextXAlignment.Left
 proximityPromptLabel.TextYAlignment = Enum.TextYAlignment.Center
 proximityPromptLabel.Parent = contentFrame
-
--- Tombol Objek (toggle ObjectText visibility)
 local proximityObjekToggle = Instance.new("TextButton")
 proximityObjekToggle.Name = "ProximityObjekToggle"
 proximityObjekToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -2291,12 +2163,9 @@ proximityObjekToggle.TextColor3 = Color3.new(1, 1, 1)
 proximityObjekToggle.TextSize = 12
 proximityObjekToggle.Font = Enum.Font.GothamBold
 proximityObjekToggle.Parent = contentFrame
-
 local proximityObjekCorner = Instance.new("UICorner")
 proximityObjekCorner.CornerRadius = UDim.new(0, 8)
 proximityObjekCorner.Parent = proximityObjekToggle
-
--- Tombol Action (toggle ActionText visibility)
 local proximityActionToggle = Instance.new("TextButton")
 proximityActionToggle.Name = "ProximityActionToggle"
 proximityActionToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -2308,12 +2177,9 @@ proximityActionToggle.TextColor3 = Color3.new(1, 1, 1)
 proximityActionToggle.TextSize = 12
 proximityActionToggle.Font = Enum.Font.GothamBold
 proximityActionToggle.Parent = contentFrame
-
 local proximityActionCorner = Instance.new("UICorner")
 proximityActionCorner.CornerRadius = UDim.new(0, 8)
 proximityActionCorner.Parent = proximityActionToggle
-
--- Tombol Name (toggle Name visibility)
 local proximityNameToggle = Instance.new("TextButton")
 proximityNameToggle.Name = "ProximityNameToggle"
 proximityNameToggle.Size = UDim2.new(0, 55, 0, 40)
@@ -2325,12 +2191,9 @@ proximityNameToggle.TextColor3 = Color3.new(1, 1, 1)
 proximityNameToggle.TextSize = 12
 proximityNameToggle.Font = Enum.Font.GothamBold
 proximityNameToggle.Parent = contentFrame
-
 local proximityNameCorner = Instance.new("UICorner")
 proximityNameCorner.CornerRadius = UDim.new(0, 8)
 proximityNameCorner.Parent = proximityNameToggle
-
--- Tombol untuk membuka daftar ProximityPrompt
 local proximityListButton = Instance.new("TextButton")
 proximityListButton.Name = "ProximityPromptListButton"
 proximityListButton.Size = UDim2.new(0, 50, 0, 40)
@@ -2345,8 +2208,6 @@ proximityListButton.Parent = contentFrame
 local proximityListCorner = Instance.new("UICorner")
 proximityListCorner.CornerRadius = UDim.new(0, 8)
 proximityListCorner.Parent = proximityListButton
-
--- Tombol On/Off (master toggle)
 local proximityToggle = Instance.new("TextButton")
 proximityToggle.Name = "ProximityToggle"
 proximityToggle.Size = UDim2.new(0, 60, 0, 40)
@@ -2359,69 +2220,55 @@ proximityToggle.TextColor3 = Color3.new(1, 1, 1)
 proximityToggle.TextSize = 13
 proximityToggle.Font = Enum.Font.GothamBold
 proximityToggle.Parent = contentFrame
-
 local proximityToggleCorner = Instance.new("UICorner")
 proximityToggleCorner.CornerRadius = UDim.new(0, 8)
 proximityToggleCorner.Parent = proximityToggle
-
--- LOGIKA PROXIMITY PROMPT ESP
 local proximityESPEnabled = false
 local proximityESPData = {}
 local showObjectText = true
 local showActionText = true
 local showName = true
-local proximityPromptSelected = {} -- prompt yang tidak dicentang tidak ditampilkan di ESP
+local proximityPromptSelected = {}
 local promptListFrame = nil
 local promptListScroll = nil
 local promptSelectAllButton = nil
-
 local function getPromptAdornee(prompt)
 	if not prompt or not prompt.Parent then
 		return nil
 	end
-
 	local parent = prompt.Parent
 	if parent:IsA("BasePart") or parent:IsA("Model") or parent:IsA("Attachment") then
 		return parent
 	end
-
 	local basePart = parent:FindFirstAncestorWhichIsA("BasePart")
 	if basePart then
 		return basePart
 	end
-
 	return parent:FindFirstAncestorWhichIsA("Model")
 end
-
 local function clearProximityESP(prompt)
 	local data = proximityESPData[prompt]
 	if not data then
 		return
 	end
-
 	if data.Billboard then
 		data.Billboard:Destroy()
 	end
 	if data.Highlight then
 		data.Highlight:Destroy()
 	end
-
 	proximityESPData[prompt] = nil
 end
-
 local function getPromptTextInfo(prompt)
 	local objectText = tostring(prompt.ObjectText or "")
 	local actionText = tostring(prompt.ActionText or "")
 	local promptName = tostring(prompt.Name or "")
-
 	local mainText = objectText ~= "" and objectText or promptName
 	if mainText == "" then
 		mainText = "ProximityPrompt"
 	end
-
 	return mainText, actionText, promptName, objectText
 end
-
 local function createProximityESP(prompt)
 	if not proximityESPEnabled or not prompt or not prompt:IsA("ProximityPrompt") then
 		return
@@ -2430,20 +2277,16 @@ local function createProximityESP(prompt)
 		clearProximityESP(prompt)
 		return
 	end
-
 	if not prompt.Parent or not prompt.Enabled then
 		clearProximityESP(prompt)
 		return
 	end
-
 	local adornee = getPromptAdornee(prompt)
 	if not adornee then
 		clearProximityESP(prompt)
 		return
 	end
-
 	local mainText, actionText, promptName, objectText = getPromptTextInfo(prompt)
-
 	local data = proximityESPData[prompt]
 	if data and data.Billboard and data.Billboard.Parent and data.Highlight and data.Highlight.Parent then
 		data.Billboard.Adornee = adornee
@@ -2458,9 +2301,7 @@ local function createProximityESP(prompt)
 		data.NameLabel.Text = (objectText ~= "" and promptName ~= "") and ("@" .. promptName) or ""
 		return
 	end
-
 	clearProximityESP(prompt)
-
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ObjekTools_ProximityESP"
 	billboard.Size = UDim2.fromOffset(260, 62)
@@ -2470,7 +2311,6 @@ local function createProximityESP(prompt)
 	billboard.Adornee = adornee
 	billboard.Enabled = true
 	billboard.Parent = playerGui
-
 	local objectTextLabel = Instance.new("TextLabel")
 	objectTextLabel.Name = "ObjectText"
 	objectTextLabel.Size = UDim2.new(1, 0, 0, 22)
@@ -2485,7 +2325,6 @@ local function createProximityESP(prompt)
 	objectTextLabel.TextYAlignment = Enum.TextYAlignment.Center
 	objectTextLabel.Visible = showObjectText
 	objectTextLabel.Parent = billboard
-
 	local actionTextLabel = Instance.new("TextLabel")
 	actionTextLabel.Name = "ActionText"
 	actionTextLabel.Size = UDim2.new(1, 0, 0, 18)
@@ -2500,7 +2339,6 @@ local function createProximityESP(prompt)
 	actionTextLabel.TextYAlignment = Enum.TextYAlignment.Center
 	actionTextLabel.Visible = showActionText
 	actionTextLabel.Parent = billboard
-
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "PromptName"
 	nameLabel.Size = UDim2.new(1, 0, 0, 18)
@@ -2515,7 +2353,6 @@ local function createProximityESP(prompt)
 	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
 	nameLabel.Visible = showName
 	nameLabel.Parent = billboard
-
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "ObjekTools_ProximityHighlight"
 	highlight.Adornee = adornee
@@ -2526,7 +2363,6 @@ local function createProximityESP(prompt)
 	highlight.OutlineTransparency = 0
 	highlight.Enabled = true
 	highlight.Parent = screenGui
-
 	proximityESPData[prompt] = {
 		Billboard = billboard,
 		Highlight = highlight,
@@ -2535,7 +2371,6 @@ local function createProximityESP(prompt)
 		NameLabel = nameLabel,
 	}
 end
-
 local function refreshProximityESP()
 	for prompt in pairs(proximityESPData) do
 		local data = proximityESPData[prompt]
@@ -2546,18 +2381,15 @@ local function refreshProximityESP()
 		end
 	end
 end
-
 local function clearAllProximityESP()
 	for prompt in pairs(proximityESPData) do
 		clearProximityESP(prompt)
 	end
 end
-
 local function scanProximityESP()
 	if not proximityESPEnabled then
 		return
 	end
-
 	local seen = {}
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("ProximityPrompt") then
@@ -2565,24 +2397,18 @@ local function scanProximityESP()
 			createProximityESP(obj)
 		end
 	end
-
 	for prompt in pairs(proximityESPData) do
 		if not seen[prompt] or not prompt.Parent or not prompt.Enabled then
 			clearProximityESP(prompt)
 		end
 	end
 end
-
 local function getPromptListValues(prompt)
 	local objectName = prompt.Parent and prompt.Parent.Name or "(tanpa parent)"
 	local action = prompt.ActionText ~= "" and prompt.ActionText or "-"
 	local promptName = prompt.Name ~= "" and prompt.Name or "-"
 	return objectName, action, promptName
 end
-
--- Tampilkan satu baris per kombinasi Action + Name yang unik.
--- Nama objek hanya menjadi contoh/perwakilan; prompt lain dengan Action dan Name
--- yang sama digabung ke grup ini, walaupun berada pada objek yang berbeda.
 local function getUniquePromptGroups()
 	local groupsByKey = {}
 	local groups = {}
@@ -2616,13 +2442,11 @@ local function getUniquePromptGroups()
 	end)
 	return groups
 end
-
 local function refreshPromptList()
 	if not promptListFrame or not promptListFrame.Parent or not promptListScroll then return end
 	for _, child in ipairs(promptListScroll:GetChildren()) do
 		if child:IsA("Frame") then child:Destroy() end
 	end
-
 	local groups = getUniquePromptGroups()
 	local rowHeight = 30
 	for i, group in ipairs(groups) do
@@ -2633,7 +2457,6 @@ local function refreshPromptList()
 			end
 			if proximityPromptSelected[prompt] == false then selected = false end
 		end
-
 		local row = Instance.new("Frame")
 		row.Name = "PromptRow"
 		row.Size = UDim2.new(1, -6, 0, rowHeight)
@@ -2641,7 +2464,6 @@ local function refreshPromptList()
 		row.BackgroundColor3 = i % 2 == 0 and Color3.fromRGB(43, 43, 47) or Color3.fromRGB(35, 35, 39)
 		row.BorderSizePixel = 0
 		row.Parent = promptListScroll
-
 		local check = Instance.new("TextButton")
 		check.Name = "SelectPromptGroup"
 		check.Size = UDim2.fromOffset(24, 24)
@@ -2665,7 +2487,6 @@ local function refreshPromptList()
 			end
 			refreshPromptList()
 		end)
-
 		local values = {group.objectName, group.action, group.promptName}
 		for col = 1, 3 do
 			local label = Instance.new("TextLabel")
@@ -2683,7 +2504,6 @@ local function refreshPromptList()
 		end
 	end
 	promptListScroll.CanvasSize = UDim2.fromOffset(0, #groups * rowHeight)
-
 	local allSelected = true
 	for _, group in ipairs(groups) do
 		for _, prompt in ipairs(group.prompts) do
@@ -2698,7 +2518,6 @@ local function refreshPromptList()
 		promptSelectAllButton.Text = allSelected and "Deselect All" or "Select All"
 	end
 end
-
 local function togglePromptList()
 	if not promptListFrame then
 		promptListFrame = Instance.new("Frame")
@@ -2712,7 +2531,6 @@ local function togglePromptList()
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 8)
 		corner.Parent = promptListFrame
-
 		local header = Instance.new("Frame")
 		header.Size = UDim2.new(1, 0, 0, 62)
 		header.BackgroundColor3 = Color3.fromRGB(20, 20, 23)
@@ -2768,7 +2586,6 @@ local function togglePromptList()
 		close.ZIndex = 32
 		close.Parent = header
 		close.Activated:Connect(function() promptListFrame.Visible = false end)
-
 		local columns = Instance.new("Frame")
 		columns.Size = UDim2.new(1, -10, 0, 24)
 		columns.Position = UDim2.fromOffset(5, 65)
@@ -2804,24 +2621,19 @@ local function togglePromptList()
 	promptListFrame.Visible = not promptListFrame.Visible
 	if promptListFrame.Visible then refreshPromptList() end
 end
-
 proximityListButton.Activated:Connect(togglePromptList)
-
 local function setProximityESP(state)
 	proximityESPEnabled = state
 	proximityToggle.Text = state and "ON" or "OFF"
 	proximityToggle.BackgroundColor3 = state
 		and Color3.fromRGB(40, 150, 70)
 		or Color3.fromRGB(180, 50, 50)
-
 	if not state then
 		clearAllProximityESP()
 		return
 	end
-
 	scanProximityESP()
 end
-
 local function updateProximityToggleButtons()
 	if showObjectText then
 		proximityObjekToggle.Text = "Objek: ON"
@@ -2830,7 +2642,6 @@ local function updateProximityToggleButtons()
 		proximityObjekToggle.Text = "Objek: OFF"
 		proximityObjekToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
-
 	if showActionText then
 		proximityActionToggle.Text = "Action: ON"
 		proximityActionToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -2838,7 +2649,6 @@ local function updateProximityToggleButtons()
 		proximityActionToggle.Text = "Action: OFF"
 		proximityActionToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
-
 	if showName then
 		proximityNameToggle.Text = "Name: ON"
 		proximityNameToggle.BackgroundColor3 = Color3.fromRGB(40, 150, 70)
@@ -2847,41 +2657,34 @@ local function updateProximityToggleButtons()
 		proximityNameToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 	end
 end
-
 proximityToggle.Activated:Connect(function()
 	setProximityESP(not proximityESPEnabled)
 end)
-
 proximityObjekToggle.Activated:Connect(function()
 	showObjectText = not showObjectText
 	updateProximityToggleButtons()
 	refreshProximityESP()
 end)
-
 proximityActionToggle.Activated:Connect(function()
 	showActionText = not showActionText
 	updateProximityToggleButtons()
 	refreshProximityESP()
 end)
-
 proximityNameToggle.Activated:Connect(function()
 	showName = not showName
 	updateProximityToggleButtons()
 	refreshProximityESP()
 end)
-
 workspace.DescendantAdded:Connect(function(obj)
 	if proximityESPEnabled and obj:IsA("ProximityPrompt") then
 		task.defer(createProximityESP, obj)
 	end
 end)
-
 workspace.DescendantRemoving:Connect(function(obj)
 	if obj:IsA("ProximityPrompt") then
 		clearProximityESP(obj)
 	end
 end)
-
 task.spawn(function()
 	while proximityToggle and proximityToggle.Parent do
 		task.wait(0.5)
@@ -2891,10 +2694,7 @@ task.spawn(function()
 	end
 	clearAllProximityESP()
 end)
-
 updateProximityToggleButtons()
-
--- === DELATE FAR OBJECTS ===
 local delateFarLabel = Instance.new("TextLabel")
 delateFarLabel.Name = "DelateFarLabel"
 delateFarLabel.Size = UDim2.new(0, 120, 0, 40)
@@ -2907,8 +2707,6 @@ delateFarLabel.Font = Enum.Font.GothamBold
 delateFarLabel.TextXAlignment = Enum.TextXAlignment.Left
 delateFarLabel.TextYAlignment = Enum.TextYAlignment.Center
 delateFarLabel.Parent = contentFrame
-
--- Input jarak maksimum (studs); objek lebih jauh dari ini akan dihapus
 local delateFarInput = Instance.new("TextBox")
 delateFarInput.Name = "DelateFarInput"
 delateFarInput.Size = UDim2.new(0, 60, 0, 40)
@@ -2924,17 +2722,13 @@ delateFarInput.Font = Enum.Font.GothamBold
 delateFarInput.ClearTextOnFocus = false
 delateFarInput.TextXAlignment = Enum.TextXAlignment.Center
 delateFarInput.Parent = contentFrame
-
 local delateFarInputCorner = Instance.new("UICorner")
 delateFarInputCorner.CornerRadius = UDim.new(0, 8)
 delateFarInputCorner.Parent = delateFarInput
-
 local delateFarInputStroke = Instance.new("UIStroke")
 delateFarInputStroke.Thickness = 2
 delateFarInputStroke.Color = Color3.fromRGB(210, 210, 210)
 delateFarInputStroke.Parent = delateFarInput
-
--- Tombol Delate (hapus objek yang lebih jauh dari jarak input)
 local delateFarButton = Instance.new("TextButton")
 delateFarButton.Name = "DelateFarButton"
 delateFarButton.Size = UDim2.new(0, 60, 0, 40)
@@ -2947,39 +2741,30 @@ delateFarButton.TextColor3 = Color3.new(1, 1, 1)
 delateFarButton.TextSize = 13
 delateFarButton.Font = Enum.Font.GothamBold
 delateFarButton.Parent = contentFrame
-
 local delateFarButtonCorner = Instance.new("UICorner")
 delateFarButtonCorner.CornerRadius = UDim.new(0, 8)
 delateFarButtonCorner.Parent = delateFarButton
-
--- LOGIKA DELATE FAR OBJECTS
 delateFarButton.Activated:Connect(function()
 	local character = player.Character
 	if not character then return end
-
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
-
 	local maxDistance = tonumber(delateFarInput.Text)
 	if not maxDistance or maxDistance < 0 then
 		delateFarInput.Text = ""
 		delateFarInput.PlaceholderText = "Masukkan angka!"
 		return
 	end
-
 	local origin = root.Position
 	local deleted = 0
-
 	for _, object in ipairs(workspace:GetDescendants()) do
 		if object:IsA("BasePart") or object:IsA("Model") then
 			if not object:IsDescendantOf(character) then
 				local position
-
 				if object:IsA("BasePart") then
 					position = object.Position
 				elseif object:IsA("Model") then
 					local primary = object.PrimaryPart
-
 					if primary then
 						position = primary.Position
 					else
@@ -2989,10 +2774,8 @@ delateFarButton.Activated:Connect(function()
 						end
 					end
 				end
-
 				if position then
 					local distance = (position - origin).Magnitude
-
 					if distance > maxDistance then
 						object:Destroy()
 						deleted += 1
@@ -3001,12 +2784,50 @@ delateFarButton.Activated:Connect(function()
 			end
 		end
 	end
-
 	delateFarButton.Text = "Del: " .. deleted
-
 	task.delay(1.5, function()
 		if delateFarButton and delateFarButton.Parent then
 			delateFarButton.Text = "Delate"
 		end
 	end)
 end)
+shiftContentBelowInfoESP()
+
+for _, ui in ipairs(contentFrame:GetDescendants()) do
+    if ui:IsA("TextButton") then
+        ui.AutoButtonColor = false
+        ui.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ui.Font = Enum.Font.GothamBold
+        local textLower = string.lower(ui.Text or "")
+        local nameLower = string.lower(ui.Name or "")
+        if textLower == "on" or textLower == "part" or textLower:find("enable", 1, true) then
+            ui.BackgroundColor3 = Color3.fromRGB(45, 115, 80)
+        elseif textLower == "off" or textLower:find("delete", 1, true) or textLower:find("delate", 1, true) or nameLower:find("delete", 1, true) then
+            ui.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        elseif textLower == "list" or textLower == "scan" or textLower:find("refresh", 1, true) then
+            ui.BackgroundColor3 = Color3.fromRGB(50, 100, 180)
+        elseif textLower == "hide" or textLower == "model" or textLower:find("close", 1, true) or textLower == "x" then
+            ui.BackgroundColor3 = Color3.fromRGB(65, 65, 70)
+        end
+        ui.BorderSizePixel = 0
+        local corner = ui:FindFirstChildOfClass("UICorner")
+        if not corner then
+            corner = Instance.new("UICorner")
+            corner.Parent = ui
+        end
+        corner.CornerRadius = UDim.new(0, 6)
+        local stroke = ui:FindFirstChildOfClass("UIStroke")
+        if not stroke then
+            stroke = Instance.new("UIStroke")
+            stroke.Parent = ui
+        end
+        stroke.Thickness = 1
+        stroke.Color = Color3.fromRGB(85, 85, 90)
+        stroke.Transparency = 0.35
+    elseif ui:IsA("Frame") and ui.Name:lower():find("frame", 1, true) and ui ~= contentFrame then
+        if ui.Name == "InfoObjectESPFrame" then
+            ui.BackgroundColor3 = Color3.fromRGB(35, 35, 38)
+            ui.BackgroundTransparency = 0.12
+        end
+    end
+end
