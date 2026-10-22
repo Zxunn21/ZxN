@@ -649,6 +649,7 @@ end
 -- === HELPER: EKSEKUSI LANGSUNG TANPA PEMICU ===
 local autoExecuteLinks = {
 	{ description = "RunButton", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/RunButton" },
+	{ description = "TeleportTool", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/TeleportTool" },
 	{ description = "ToggleSpeed", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/ToggleSpeed" },
 	{ description = "HopServer", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/HopServer" },
 	{ description = "UniversalGuiManager", url = "https://raw.githubusercontent.com/Zxunn21/ZxN/refs/heads/main/UniversalGuiManager" },
