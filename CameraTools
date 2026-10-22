@@ -55,6 +55,8 @@ local function makeButton(text, onClick)
 	return btn
 end
 
+-- Bersihkan antarmuka dari eksekusi sebelumnya supaya skrip bisa dijalankan ulang
+-- setelah tombol Hide GUI menyembunyikan trigger.
 local existingGui = playerGui:FindFirstChild("CameraToolsGui")
 if existingGui then
 	existingGui:Destroy()
@@ -65,6 +67,14 @@ if oldControls then
 	oldControls:Destroy()
 end
 
+-- Bersihkan juga GUI duplikat lama jika ada versi skrip yang membuat nama terpisah.
+for _, guiName in ipairs({"CameraToolsTriggerGui", "CameraToolsMinimizedGui"}) do
+	local staleGui = playerGui:FindFirstChild(guiName)
+	if staleGui then
+		staleGui:Destroy()
+	end
+end
+
 local screenGui = create("ScreenGui", {
 	Name = "CameraToolsGui",
 	ResetOnSpawn = false,
@@ -73,6 +83,7 @@ local screenGui = create("ScreenGui", {
 })
 
 screenGui.Parent = playerGui
+screenGui.Enabled = true
 
 local mainFrame = create("Frame", {
 	Name = "MainFrame",
@@ -236,7 +247,7 @@ local camera = workspace.CurrentCamera
 local minimizedTrigger = create("TextButton", {
 	Name = "CameraToolsTrigger",
 	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.new(0.88, 0, 0.5, 0),
+	Position = UDim2.new(0.5, -236, 0.5, -106),
 	Size = UDim2.new(0, 48, 0, 48),
 	BackgroundColor3 = Color3.fromRGB(60, 120, 200),
 	BackgroundTransparency = 0.15,
