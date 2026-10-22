@@ -107,7 +107,7 @@ local topBar = create("Frame", {
 	}),
 	create("TextLabel", {
 		Name = "Title",
-		Size = UDim2.new(1, -20, 1, 0),
+		Size = UDim2.new(1, -56, 1, 0),
 		Position = UDim2.new(0, 10, 0, 0),
 		BackgroundTransparency = 1,
 		Text = "Camera Tools",
@@ -117,6 +117,24 @@ local topBar = create("Frame", {
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 })
+
+local minimizeButton = create("TextButton", {
+	Name = "MinimizeButton",
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -8, 0.5, 0),
+	Size = UDim2.new(0, 28, 0, 26),
+	BackgroundColor3 = Color3.fromRGB(65, 65, 78),
+	BackgroundTransparency = 0.15,
+	BorderSizePixel = 0,
+	Text = "−",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 20,
+	AutoButtonColor = true,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+})
+minimizeButton.Parent = topBar
 
 local scrollFrame = create("ScrollingFrame", {
 	Name = "ListFrame",
@@ -213,6 +231,70 @@ local cameraRow = makeRow(1, "Camera View", {
 cameraRow.Parent = scrollFrame
 
 local camera = workspace.CurrentCamera
+
+-- Tombol trigger yang muncul saat menu utama diminimalkan.
+local minimizedTrigger = create("TextButton", {
+	Name = "CameraToolsTrigger",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.88, 0, 0.5, 0),
+	Size = UDim2.new(0, 48, 0, 48),
+	BackgroundColor3 = Color3.fromRGB(60, 120, 200),
+	BackgroundTransparency = 0.15,
+	BorderSizePixel = 0,
+	Text = "CAM",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+	AutoButtonColor = true,
+	Visible = false,
+	Active = true,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+	create("UIStroke", {
+		Color = Color3.fromRGB(255, 255, 255),
+		Transparency = 0.55,
+		Thickness = 1,
+	}),
+})
+minimizedTrigger.Parent = screenGui
+
+local triggerBubble = create("Frame", {
+	Name = "TriggerOptionsBubble",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 0, -8),
+	Size = UDim2.new(0, 140, 0, 42),
+	BackgroundColor3 = Color3.fromRGB(35, 35, 45),
+	BackgroundTransparency = 0.05,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 10,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+	create("UIStroke", {
+		Color = Color3.fromRGB(100, 100, 120),
+		Transparency = 0.25,
+		Thickness = 1,
+	}),
+})
+triggerBubble.Parent = minimizedTrigger
+
+local hideTriggerButton = create("TextButton", {
+	Name = "HideTriggerButton",
+	Size = UDim2.new(1, -8, 1, -8),
+	Position = UDim2.new(0, 4, 0, 4),
+	BackgroundColor3 = Color3.fromRGB(80, 80, 95),
+	BackgroundTransparency = 0.1,
+	BorderSizePixel = 0,
+	Text = "Hide GUI",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Font = Enum.Font.GothamMedium,
+	TextSize = 13,
+	AutoButtonColor = true,
+	ZIndex = 11,
+}, {
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }),
+})
+hideTriggerButton.Parent = triggerBubble
 
 local freeCamEnabled = false
 local anchoredParts = {}
@@ -1215,18 +1297,141 @@ showPanelButton.Activated:Connect(function()
 	end
 end)
 
+local menuMinimized = false
+local triggerHidden = false
+local triggerDragging = false
+local triggerPressPosition = nil
+local triggerStartPosition = nil
+local triggerPressInput = nil
+local triggerMoved = false
+local longPressConsumed = false
+
+local function minimizeMenu()
+	menuMinimized = true
+	mainFrame.Visible = false
+	minimizedTrigger.Visible = not triggerHidden
+	triggerBubble.Visible = false
+end
+
+local function restoreMenu()
+	menuMinimized = false
+	mainFrame.Visible = true
+	minimizedTrigger.Visible = false
+	triggerBubble.Visible = false
+end
+
+minimizeButton.Activated:Connect(minimizeMenu)
+
+hideTriggerButton.Activated:Connect(function()
+	triggerHidden = true
+	minimizedTrigger.Visible = false
+	triggerBubble.Visible = false
+end)
+
+local function isTriggerPointer(input)
+	return input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch
+end
+
+minimizedTrigger.InputBegan:Connect(function(input)
+	if not isTriggerPointer(input) then
+		return
+	end
+
+	triggerPressInput = input
+	triggerPressPosition = input.Position
+	triggerStartPosition = minimizedTrigger.Position
+	triggerMoved = false
+	longPressConsumed = false
+	triggerDragging = true
+	triggerBubble.Visible = false
+
+	local pressInput = input
+	task.delay(1, function()
+		if triggerDragging and triggerPressInput == pressInput and not triggerMoved then
+			triggerBubble.Visible = true
+			longPressConsumed = true
+		end
+	end)
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not triggerDragging or not triggerPressInput then
+		return
+	end
+
+	local isMatchingMovement =
+		(input.UserInputType == Enum.UserInputType.MouseMovement
+			and triggerPressInput.UserInputType == Enum.UserInputType.MouseButton1)
+		or (input.UserInputType == Enum.UserInputType.Touch
+			and triggerPressInput.UserInputType == Enum.UserInputType.Touch)
+
+	if not isMatchingMovement then
+		return
+	end
+
+	local delta = input.Position - triggerPressPosition
+	if delta.Magnitude > 8 then
+		triggerMoved = true
+		triggerBubble.Visible = false
+	end
+
+	if triggerMoved then
+		minimizedTrigger.Position = UDim2.new(
+			triggerStartPosition.X.Scale,
+			triggerStartPosition.X.Offset + delta.X,
+			triggerStartPosition.Y.Scale,
+			triggerStartPosition.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if triggerDragging and triggerPressInput then
+		local matchingEnd =
+			(input.UserInputType == Enum.UserInputType.MouseButton1
+				and triggerPressInput.UserInputType == Enum.UserInputType.MouseButton1)
+			or (input.UserInputType == Enum.UserInputType.Touch
+				and triggerPressInput.UserInputType == Enum.UserInputType.Touch)
+
+		if matchingEnd then
+			local wasDragged = triggerMoved
+			local longPressed = longPressConsumed
+			triggerDragging = false
+			triggerPressInput = nil
+
+			if not wasDragged and not longPressed and not triggerBubble.Visible then
+				restoreMenu()
+			end
+		end
+	end
+end)
+
 local dragging = false
 local dragStart
 local startPos
 
 topBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-
-		dragging = true
-		dragStart = input.Position
-		startPos = mainFrame.Position
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1
+		and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
 	end
+
+	-- Klik tombol minimize tidak boleh ikut menyeret menu.
+	local pointer = input.Position
+	local buttonPos = minimizeButton.AbsolutePosition
+	local buttonSize = minimizeButton.AbsoluteSize
+	local insideMinimize =
+		pointer.X >= buttonPos.X and pointer.X <= buttonPos.X + buttonSize.X
+		and pointer.Y >= buttonPos.Y and pointer.Y <= buttonPos.Y + buttonSize.Y
+
+	if insideMinimize then
+		return
+	end
+
+	dragging = true
+	dragStart = input.Position
+	startPos = mainFrame.Position
 end)
 
 topBar.InputEnded:Connect(function(input)
