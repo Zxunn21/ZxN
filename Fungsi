@@ -1,0 +1,3160 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TextService = game:GetService("TextService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local universeId = tostring(game.GameId)
+local storageFile = "Notes_Universe_" .. universeId .. ".json"
+local universalStorageFile = "Notes_Universal.json"
+local UNIVERSAL_ROOT_ID = "__notes_universal_root__"
+
+local function loadNotesFromJson(fileName, expectedUniverseId)
+    if type(readfile) ~= "function" then
+        return {}
+    end
+
+    if type(isfile) == "function" then
+        local existsOk, exists = pcall(isfile, fileName)
+        if not existsOk or not exists then
+            return {}
+        end
+    end
+
+    local readOk, rawJson = pcall(readfile, fileName)
+    if not readOk or type(rawJson) ~= "string" or rawJson == "" then
+        return {}
+    end
+
+    local decodeOk, data = pcall(function()
+        return HttpService:JSONDecode(rawJson)
+    end)
+
+    if not decodeOk or type(data) ~= "table" then
+        return {}
+    end
+
+    if tostring(data.universeId or "") ~= tostring(expectedUniverseId) then
+        return {}
+    end
+
+    local result = {}
+    if type(data.notes) == "table" then
+        for index, item in ipairs(data.notes) do
+            if type(item) == "table" then
+                local itemId = tostring(item.id or "")
+                table.insert(result, {
+                    id = itemId,
+                    title = tostring(item.title or ""),
+                    functionText = tostring(item.functionText or ""),
+                    notes = tostring(item.notes or ""),
+                    loopDelay = tonumber(item.loopDelay),
+                    loopRunning = item.loopRunning == true,
+                    helperReference = tostring(item.helperReference or ""),
+                    helperValues = tostring(item.helperValues or ""),
+                    helperEnabled = item.helperEnabled == true,
+                    itemType = item.itemType == "folder" and "folder" or "note",
+                    parentId = tostring(item.parentId or ""),
+                    order = tonumber(item.order) or index,
+                    isUniversalRoot = item.isUniversalRoot == true or itemId == UNIVERSAL_ROOT_ID,
+                })
+            end
+        end
+    end
+
+    return result
+end
+
+local initialNotes = loadNotesFromJson(storageFile, universeId)
+local initialUniversalNotes = loadNotesFromJson(universalStorageFile, "universal")
+local universalRootFound = false
+for _, item in ipairs(initialUniversalNotes) do
+    if item.id == UNIVERSAL_ROOT_ID then
+        universalRootFound = true
+        item.itemType = "folder"
+        item.title = "Universal"
+        item.parentId = ""
+        item.order = -1000000
+        item.isUniversalRoot = true
+    elseif item.parentId == "" then
+        item.parentId = UNIVERSAL_ROOT_ID
+    end
+end
+if not universalRootFound then
+    table.insert(initialUniversalNotes, 1, {
+        id = UNIVERSAL_ROOT_ID,
+        title = "Universal",
+        functionText = "",
+        notes = "",
+        itemType = "folder",
+        parentId = "",
+        order = -1000000,
+        isUniversalRoot = true,
+    })
+end
+
+local cleanedContainers = {}
+local function clearOldNotesGui(container)
+    if not container then
+        return
+    end
+    pcall(function()
+        if cleanedContainers[container] then
+            return
+        end
+        cleanedContainers[container] = true
+        local oldGuis = {}
+        for _, existingGui in ipairs(container:GetDescendants()) do
+            if existingGui.Name == "NotesGui" and existingGui:IsA("ScreenGui") then
+                table.insert(oldGuis, existingGui)
+            end
+        end
+        for _, existingGui in ipairs(container:GetChildren()) do
+            if existingGui.Name == "NotesGui" and existingGui:IsA("ScreenGui") then
+                table.insert(oldGuis, existingGui)
+            end
+        end
+        for _, existingGui in ipairs(oldGuis) do
+            pcall(function()
+                existingGui:Destroy()
+            end)
+        end
+    end)
+end
+
+clearOldNotesGui(playerGui)
+local coreGuiOk, coreGui = pcall(function()
+    return game:GetService("CoreGui")
+end)
+if coreGuiOk then
+    clearOldNotesGui(coreGui)
+end
+if type(gethui) == "function" then
+    local huiOk, hui = pcall(gethui)
+    if huiOk then
+        clearOldNotesGui(hui)
+    end
+end
+
+local colors = {
+    background = Color3.fromRGB(25, 28, 36),
+    topbar = Color3.fromRGB(36, 42, 55),
+    header = Color3.fromRGB(44, 51, 66),
+    row = Color3.fromRGB(32, 37, 49),
+    input = Color3.fromRGB(42, 48, 62),
+    text = Color3.fromRGB(240, 243, 250),
+    muted = Color3.fromRGB(160, 170, 188),
+    accent = Color3.fromRGB(82, 135, 255),
+    danger = Color3.fromRGB(190, 65, 75),
+    border = Color3.fromRGB(67, 77, 98),
+    universalRow = Color3.fromRGB(43, 56, 76),
+    universalBorder = Color3.fromRGB(95, 153, 205),
+    universalText = Color3.fromRGB(255, 218, 130),
+}
+
+local function addCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius)
+    corner.Parent = parent
+    return corner
+end
+
+local function addStroke(parent, color, thickness)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color
+    stroke.Thickness = thickness or 1
+    stroke.Parent = parent
+    return stroke
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "NotesGui"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.DisplayOrder = 9999
+gui.Parent = playerGui
+
+local hiddenRowsFolder = Instance.new("Folder")
+hiddenRowsFolder.Name = "HiddenNoteRows"
+hiddenRowsFolder.Parent = gui
+
+local main = Instance.new("Frame")
+main.Name = "MainFrame"
+main.Size = UDim2.new(0.6, 0, 0.8, 0)
+main.Position = UDim2.new(0.2, 0, 0.1, 0)
+main.BackgroundColor3 = colors.background
+main.BorderSizePixel = 0
+main.ClipsDescendants = false
+main.Parent = gui
+
+addCorner(main, 12)
+addStroke(main, colors.border, 1)
+
+local topbar = Instance.new("Frame")
+topbar.Name = "Topbar"
+topbar.Size = UDim2.new(1, 0, 0, 40)
+topbar.Position = UDim2.new(0, 0, 0, 0)
+topbar.BackgroundColor3 = colors.topbar
+topbar.BorderSizePixel = 0
+topbar.Active = true
+topbar.Parent = main
+
+addCorner(topbar, 12)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Position = UDim2.new(0, 14, 0, 0)
+titleLabel.Size = UDim2.new(1, -190, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "📝  NOTES"
+titleLabel.TextColor3 = colors.text
+titleLabel.TextSize = 16
+titleLabel.TextScaled = true
+titleLabel.TextWrapped = false
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = topbar
+
+local titleSizeConstraint = Instance.new("UITextSizeConstraint")
+titleSizeConstraint.MinTextSize = 6
+titleSizeConstraint.MaxTextSize = 16
+titleSizeConstraint.Parent = titleLabel
+
+local function createTopButton(name, text, xOffset, buttonColor)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(0, 34, 0, 30)
+    button.Position = UDim2.new(1, xOffset, 0, 5)
+    button.BackgroundColor3 = buttonColor
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = colors.text
+    button.TextSize = 19
+    button.Font = Enum.Font.GothamBold
+    button.AutoButtonColor = true
+    button.Parent = topbar
+    addCorner(button, 7)
+    return button
+end
+
+local backDirectoryButton = createTopButton("BackDirectory", "←", -152, colors.header)
+backDirectoryButton.Visible = false
+local sortButton = createTopButton("SortOrder", "↕", -114, colors.header)
+local addButton = createTopButton("AddNote", "+", -76, colors.accent)
+local minimizeButton = createTopButton("Minimize", "−", -40, colors.header)
+
+local addPopup = Instance.new("Frame")
+addPopup.Name = "AddMenu"
+addPopup.Size = UDim2.new(0, 124, 0, 80)
+addPopup.BackgroundColor3 = colors.header
+addPopup.BorderSizePixel = 0
+addPopup.Visible = false
+addPopup.ZIndex = 70
+addPopup.Parent = gui
+addCorner(addPopup, 8)
+addStroke(addPopup, colors.border, 1)
+
+local addNewButton = Instance.new("TextButton")
+addNewButton.Name = "NewNoteButton"
+addNewButton.Position = UDim2.new(0, 5, 0, 5)
+addNewButton.Size = UDim2.new(1, -10, 0, 30)
+addNewButton.BackgroundColor3 = colors.input
+addNewButton.BorderSizePixel = 0
+addNewButton.Text = "New"
+addNewButton.TextColor3 = colors.text
+addNewButton.TextSize = 13
+addNewButton.Font = Enum.Font.GothamBold
+addNewButton.ZIndex = 71
+addNewButton.Parent = addPopup
+addCorner(addNewButton, 6)
+
+local addFolderButton = Instance.new("TextButton")
+addFolderButton.Name = "NewFolderButton"
+addFolderButton.Position = UDim2.new(0, 5, 0, 41)
+addFolderButton.Size = UDim2.new(1, -10, 0, 30)
+addFolderButton.BackgroundColor3 = colors.accent
+addFolderButton.BorderSizePixel = 0
+addFolderButton.Text = "📁 Folder"
+addFolderButton.TextColor3 = colors.text
+addFolderButton.TextSize = 13
+addFolderButton.Font = Enum.Font.GothamBold
+addFolderButton.ZIndex = 71
+addFolderButton.Parent = addPopup
+addCorner(addFolderButton, 6)
+
+local launcher = Instance.new("TextButton")
+launcher.Name = "NotesLauncher"
+launcher.Size = UDim2.new(0, 88, 0, 30)
+launcher.Position = UDim2.new(0.2, 0, 0.5, 0)
+launcher.BackgroundColor3 = colors.accent
+launcher.BorderSizePixel = 0
+launcher.Text = "📝Notes"
+launcher.TextColor3 = colors.text
+launcher.TextSize = 13
+launcher.Font = Enum.Font.GothamBold
+launcher.AutoButtonColor = true
+launcher.Visible = true
+launcher.Active = true
+launcher.ZIndex = 50
+launcher.Parent = gui
+addCorner(launcher, 8)
+addStroke(launcher, colors.border, 1)
+
+local header = Instance.new("Frame")
+header.Name = "ColumnHeader"
+header.Position = UDim2.new(0, 10, 0, 44)
+header.Size = UDim2.new(1, -28, 0, 28)
+header.BackgroundColor3 = colors.header
+header.BorderSizePixel = 0
+header.Parent = main
+addCorner(header, 6)
+
+local columns = {
+    {name = "Title", label = "JUDUL", x = 0.00, width = 0.20},
+    {name = "Function", label = "FUNGSI", x = 0.20, width = 0.72},
+    {name = "Options", label = "🛠️", x = 0.92, width = 0.08},
+}
+
+for _, column in ipairs(columns) do
+    local cell = Instance.new("Frame")
+    cell.Name = column.name .. "Header"
+    cell.Position = UDim2.new(column.x, 0, 0, 0)
+    cell.Size = UDim2.new(column.width, 0, 1, 0)
+    cell.BackgroundTransparency = 1
+    cell.Parent = header
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -8, 1, 0)
+    label.Position = UDim2.new(0, 4, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = column.label
+    label.TextColor3 = colors.muted
+    label.TextSize = 10
+    label.Font = Enum.Font.GothamBold
+    label.TextXAlignment = column.name == "Options"
+        and Enum.TextXAlignment.Center
+        or Enum.TextXAlignment.Left
+    label.Parent = cell
+end
+
+local body = Instance.new("ScrollingFrame")
+body.Name = "NotesList"
+body.Position = UDim2.new(0, 10, 0, 76)
+body.Size = UDim2.new(1, -20, 1, -86)
+body.BackgroundTransparency = 1
+body.BorderSizePixel = 0
+body.ScrollBarThickness = 6
+body.ScrollBarImageColor3 = colors.border
+body.ScrollingDirection = Enum.ScrollingDirection.Y
+body.CanvasSize = UDim2.new(0, 0, 0, 0)
+body.Parent = main
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 6)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = body
+
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    body.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 8)
+end)
+
+local scheduleSave
+local pendingPasteTarget = nil
+
+local copyOverlay = Instance.new("Frame")
+copyOverlay.Name = "CopyOverlay"
+copyOverlay.Size = UDim2.new(1, 0, 1, 0)
+copyOverlay.Position = UDim2.new(0, 0, 0, 0)
+copyOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+copyOverlay.BackgroundTransparency = 0.35
+copyOverlay.Visible = false
+copyOverlay.ZIndex = 20
+copyOverlay.Parent = main
+
+local copyPanel = Instance.new("Frame")
+copyPanel.Name = "CopyPanel"
+copyPanel.Position = UDim2.new(0.09, 0, 0.18, 0)
+copyPanel.Size = UDim2.new(0.82, 0, 0.64, 0)
+copyPanel.BackgroundColor3 = colors.background
+copyPanel.BorderSizePixel = 0
+copyPanel.ZIndex = 21
+copyPanel.Parent = copyOverlay
+addCorner(copyPanel, 10)
+addStroke(copyPanel, colors.border, 1)
+
+local copyTitle = Instance.new("TextLabel")
+copyTitle.Position = UDim2.new(0, 10, 0, 8)
+copyTitle.Size = UDim2.new(1, -20, 0, 22)
+copyTitle.BackgroundTransparency = 1
+copyTitle.Text = "SALIN NOTE"
+copyTitle.TextColor3 = colors.text
+copyTitle.TextSize = 15
+copyTitle.Font = Enum.Font.GothamBold
+copyTitle.TextXAlignment = Enum.TextXAlignment.Left
+copyTitle.ZIndex = 22
+copyTitle.Parent = copyPanel
+
+local copyHint = Instance.new("TextLabel")
+copyHint.Position = UDim2.new(0, 10, 0, 30)
+copyHint.Size = UDim2.new(1, -20, 0, 26)
+copyHint.BackgroundTransparency = 1
+copyHint.Text = "Pilih teks, lalu salin dengan Ctrl+C atau tekan lama."
+copyHint.TextColor3 = colors.muted
+copyHint.TextSize = 11
+copyHint.Font = Enum.Font.Gotham
+copyHint.TextWrapped = true
+copyHint.TextXAlignment = Enum.TextXAlignment.Left
+copyHint.ZIndex = 22
+copyHint.Parent = copyPanel
+
+local copyBox = Instance.new("TextBox")
+copyBox.Name = "CopyText"
+copyBox.Position = UDim2.new(0, 10, 0, 58)
+copyBox.Size = UDim2.new(1, -20, 1, -100)
+copyBox.BackgroundColor3 = colors.input
+copyBox.BorderSizePixel = 0
+copyBox.Text = ""
+copyBox.PlaceholderText = "Teks note..."
+copyBox.TextColor3 = colors.text
+copyBox.PlaceholderColor3 = colors.muted
+copyBox.TextSize = 14
+copyBox.Font = Enum.Font.Gotham
+copyBox.TextXAlignment = Enum.TextXAlignment.Left
+copyBox.TextYAlignment = Enum.TextYAlignment.Top
+copyBox.TextWrapped = true
+copyBox.MultiLine = true
+copyBox.ClearTextOnFocus = false
+copyBox.TextEditable = true
+copyBox.ZIndex = 22
+copyBox.Parent = copyPanel
+addCorner(copyBox, 6)
+
+local copyFunctionButton = Instance.new("TextButton")
+copyFunctionButton.Name = "CopyFunctionButton"
+copyFunctionButton.Position = UDim2.new(0.03, 0, 1, -36)
+copyFunctionButton.Size = UDim2.new(0.34, -8, 0, 28)
+copyFunctionButton.BackgroundColor3 = colors.accent
+copyFunctionButton.BorderSizePixel = 0
+copyFunctionButton.Text = "Salin Fungsi"
+copyFunctionButton.TextColor3 = colors.text
+copyFunctionButton.TextSize = 11
+copyFunctionButton.Font = Enum.Font.GothamBold
+copyFunctionButton.ZIndex = 22
+copyFunctionButton.Visible = false
+copyFunctionButton.Parent = copyPanel
+addCorner(copyFunctionButton, 6)
+
+local copyAllButton = Instance.new("TextButton")
+copyAllButton.Name = "CopyAllButton"
+copyAllButton.Position = UDim2.new(0.37, 0, 1, -36)
+copyAllButton.Size = UDim2.new(0.34, -8, 0, 28)
+copyAllButton.BackgroundColor3 = colors.accent
+copyAllButton.BorderSizePixel = 0
+copyAllButton.Text = "Salin Semua"
+copyAllButton.TextColor3 = colors.text
+copyAllButton.TextSize = 11
+copyAllButton.Font = Enum.Font.GothamBold
+copyAllButton.ZIndex = 22
+copyAllButton.Visible = false
+copyAllButton.Parent = copyPanel
+addCorner(copyAllButton, 6)
+
+local closeCopyButton = Instance.new("TextButton")
+closeCopyButton.Name = "CloseCopy"
+closeCopyButton.Size = UDim2.new(0.24, -8, 0, 28)
+closeCopyButton.Position = UDim2.new(0.76, 0, 1, -36)
+closeCopyButton.BackgroundColor3 = colors.header
+closeCopyButton.BorderSizePixel = 0
+closeCopyButton.Text = "Tutup"
+closeCopyButton.TextColor3 = colors.text
+closeCopyButton.TextSize = 12
+closeCopyButton.Font = Enum.Font.GothamBold
+closeCopyButton.ZIndex = 22
+closeCopyButton.Parent = copyPanel
+addCorner(closeCopyButton, 6)
+
+local usePasteButton = Instance.new("TextButton")
+usePasteButton.Name = "UsePaste"
+usePasteButton.Size = UDim2.new(0.24, -8, 0, 28)
+usePasteButton.Position = UDim2.new(0.50, 0, 1, -36)
+usePasteButton.BackgroundColor3 = colors.accent
+usePasteButton.BorderSizePixel = 0
+usePasteButton.Text = "Gunakan"
+usePasteButton.TextColor3 = colors.text
+usePasteButton.TextSize = 12
+usePasteButton.Font = Enum.Font.GothamBold
+usePasteButton.ZIndex = 22
+usePasteButton.Visible = false
+usePasteButton.Parent = copyPanel
+addCorner(usePasteButton, 6)
+
+closeCopyButton.Activated:Connect(function()
+    copyBox:ReleaseFocus()
+    copyOverlay.Visible = false
+    pendingPasteTarget = nil
+    usePasteButton.Visible = false
+    copyFunctionButton.Visible = false
+    copyAllButton.Visible = false
+end)
+
+usePasteButton.Activated:Connect(function()
+    if pendingPasteTarget and pendingPasteTarget.Parent then
+        pendingPasteTarget.Text = copyBox.Text
+        scheduleSave()
+        pendingPasteTarget:CaptureFocus()
+        local count = utf8.len(pendingPasteTarget.Text) or #pendingPasteTarget.Text
+        pendingPasteTarget.CursorPosition = count + 1
+    end
+    copyBox:ReleaseFocus()
+    copyOverlay.Visible = false
+    pendingPasteTarget = nil
+    usePasteButton.Visible = false
+    copyFunctionButton.Visible = false
+    copyAllButton.Visible = false
+end)
+
+local rowCount = 0
+local noteRows = {}
+local rowUpdaters = {}
+local saveVersion = 0
+local currentDirectoryId = ""
+local directoryStack = {}
+local sortMode = false
+
+local function saveNotesNow()
+    if not gui or not gui.Parent or type(writefile) ~= "function" then
+        return false
+    end
+
+    local recordsById = {}
+    for _, record in ipairs(noteRows) do
+        recordsById[record.id] = record
+    end
+
+    local function belongsToUniversal(record)
+        if record.isUniversalRoot or record.id == UNIVERSAL_ROOT_ID then
+            return true
+        end
+        local parentId = tostring(record.parentId or "")
+        local visited = {}
+        while parentId ~= "" and not visited[parentId] do
+            if parentId == UNIVERSAL_ROOT_ID then
+                return true
+            end
+            visited[parentId] = true
+            local parent = recordsById[parentId]
+            if not parent then
+                return false
+            end
+            if parent.isUniversalRoot then
+                return true
+            end
+            parentId = tostring(parent.parentId or "")
+        end
+        return false
+    end
+
+    local localNotes = {}
+    local universalNotes = {}
+    for _, record in ipairs(noteRows) do
+        if record.row and record.row.Parent then
+            local savedRecord = {
+                id = record.id,
+                title = record.textBoxes[1].Text,
+                functionText = record.textBoxes[2].Text,
+                notes = record.textBoxes[3].Text,
+                loopDelay = tonumber(record.loopDelay),
+                loopRunning = record.itemType ~= "folder" and record.loopRunning == true or false,
+                helperReference = record.itemType ~= "folder" and tostring(record.helperReference or "") or "",
+                helperValues = record.itemType ~= "folder" and tostring(record.helperValues or "") or "",
+                helperEnabled = record.itemType ~= "folder" and record.helperEnabled == true or false,
+                itemType = record.itemType or "note",
+                parentId = tostring(record.parentId or ""),
+                order = tonumber(record.order) or 1,
+                isUniversalRoot = record.isUniversalRoot == true,
+            }
+            if belongsToUniversal(record) then
+                table.insert(universalNotes, savedRecord)
+            else
+                table.insert(localNotes, savedRecord)
+            end
+        end
+    end
+
+    table.sort(localNotes, function(a, b)
+        if a.parentId == b.parentId then
+            return (a.order or 1) < (b.order or 1)
+        end
+        return a.parentId < b.parentId
+    end)
+    table.sort(universalNotes, function(a, b)
+        local aIsRoot = a.id == UNIVERSAL_ROOT_ID
+        local bIsRoot = b.id == UNIVERSAL_ROOT_ID
+        if aIsRoot or bIsRoot then
+            return aIsRoot and not bIsRoot
+        elseif a.parentId == b.parentId then
+            return (a.order or 1) < (b.order or 1)
+        end
+        return a.parentId < b.parentId
+    end)
+
+    local localPayload = {
+        schemaVersion = 2,
+        universeId = tonumber(universeId) or universeId,
+        notes = localNotes,
+    }
+    local universalPayload = {
+        schemaVersion = 2,
+        universeId = "universal",
+        scope = "universal",
+        notes = universalNotes,
+    }
+
+    local localEncodeOk, localJson = pcall(function()
+        return HttpService:JSONEncode(localPayload)
+    end)
+    local universalEncodeOk, universalJson = pcall(function()
+        return HttpService:JSONEncode(universalPayload)
+    end)
+    if not localEncodeOk or not universalEncodeOk then
+        return false
+    end
+
+    local localWriteOk = pcall(writefile, storageFile, localJson)
+    local universalWriteOk = pcall(writefile, universalStorageFile, universalJson)
+    return localWriteOk and universalWriteOk
+end
+
+scheduleSave = function()
+    saveVersion += 1
+    local thisVersion = saveVersion
+
+    task.delay(0.3, function()
+        if thisVersion ~= saveVersion then
+            return
+        end
+        saveNotesNow()
+    end)
+end
+
+local function readClipboardText()
+    local names = {
+        "getclipboard",
+        "get_clipboard",
+        "getClipboard",
+        "getclipboardtext",
+        "getClipboardText",
+        "getclipboardcontent",
+        "getClipboardContent",
+        "readclipboard",
+        "read_clipboard",
+        "readClipboard",
+        "get_clipboard_text",
+        "readClipboardText",
+    }
+
+    local environments = {}
+    local seen = {}
+
+    local function addEnvironment(env)
+        if type(env) == "table" and not seen[env] then
+            seen[env] = true
+            table.insert(environments, env)
+        end
+    end
+
+    addEnvironment(_G)
+    if type(getgenv) == "function" then
+        local ok, env = pcall(getgenv)
+        if ok then
+            addEnvironment(env)
+        end
+    end
+    if type(getfenv) == "function" then
+        local ok, env = pcall(getfenv, 0)
+        if ok then
+            addEnvironment(env)
+        end
+        ok, env = pcall(getfenv, 1)
+        if ok then
+            addEnvironment(env)
+        end
+    end
+    if type(shared) == "table" then
+        addEnvironment(shared)
+    end
+
+    for _, env in ipairs(environments) do
+        for _, name in ipairs(names) do
+            local getter
+            local lookupOk, value = pcall(function()
+                return env[name]
+            end)
+            if lookupOk then
+                getter = value
+            end
+
+            if type(getter) == "function" then
+                local ok, result = pcall(getter)
+                if ok and type(result) == "string" then
+                    return result, name
+                end
+            end
+        end
+
+        for _, objectName in ipairs({"clipboard", "Clipboard"}) do
+            local object = env[objectName]
+            if type(object) == "table" then
+                for _, methodName in ipairs({"get", "Get", "read", "Read", "getText", "GetText", "readText", "ReadText"}) do
+                    local method = object[methodName]
+                    if type(method) == "function" then
+                        local ok, result = pcall(method)
+                        if not ok or type(result) ~= "string" then
+                            ok, result = pcall(method, object)
+                        end
+                        if ok and type(result) == "string" then
+                            return result, objectName .. "." .. methodName
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nil, nil
+end
+
+local function openManualPaste(targetTextBox)
+    pendingPasteTarget = targetTextBox
+    copyTitle.Text = "TEMPEL KE FUNGSI"
+    copyHint.Text = "Clipboard otomatis tidak tersedia. Tempel teks di kotak ini, lalu tekan Gunakan."
+    copyBox.PlaceholderText = "Tempel teks di sini..."
+    copyBox.Text = ""
+    usePasteButton.Visible = true
+    copyFunctionButton.Visible = false
+    copyAllButton.Visible = false
+    copyOverlay.Visible = true
+
+    task.defer(function()
+        copyBox:CaptureFocus()
+    end)
+end
+
+local function updateAllRows()
+    for _, updateFunction in pairs(rowUpdaters) do
+        updateFunction()
+    end
+end
+
+local optionsPopup = Instance.new("Frame")
+optionsPopup.Name = "RowOptionsPopup"
+optionsPopup.Size = UDim2.new(0, 136, 0, 186)
+optionsPopup.BackgroundColor3 = colors.header
+optionsPopup.BorderSizePixel = 0
+optionsPopup.Visible = false
+optionsPopup.ZIndex = 70
+optionsPopup.Parent = gui
+addCorner(optionsPopup, 8)
+addStroke(optionsPopup, colors.border, 1)
+
+local optionsActionButton = Instance.new("TextButton")
+optionsActionButton.Name = "ExpandMinimizeAction"
+optionsActionButton.Position = UDim2.new(0, 5, 0, 5)
+optionsActionButton.Size = UDim2.new(1, -10, 0, 30)
+optionsActionButton.BackgroundColor3 = colors.input
+optionsActionButton.BorderSizePixel = 0
+optionsActionButton.Text = "Expand"
+optionsActionButton.TextColor3 = colors.text
+optionsActionButton.TextSize = 13
+optionsActionButton.Font = Enum.Font.GothamBold
+optionsActionButton.ZIndex = 71
+optionsActionButton.Parent = optionsPopup
+addCorner(optionsActionButton, 6)
+
+local optionsRenameButton = Instance.new("TextButton")
+optionsRenameButton.Name = "RenameFolderButton"
+optionsRenameButton.Position = UDim2.new(0, 5, 0, 41)
+optionsRenameButton.Size = UDim2.new(1, -10, 0, 30)
+optionsRenameButton.BackgroundColor3 = colors.input
+optionsRenameButton.BorderSizePixel = 0
+optionsRenameButton.Text = "✏️ Ganti Nama"
+optionsRenameButton.TextColor3 = colors.text
+optionsRenameButton.TextSize = 13
+optionsRenameButton.Font = Enum.Font.GothamBold
+optionsRenameButton.ZIndex = 71
+optionsRenameButton.Visible = false
+optionsRenameButton.Parent = optionsPopup
+addCorner(optionsRenameButton, 6)
+
+local optionsRunButton = Instance.new("TextButton")
+optionsRunButton.Name = "RunButton"
+optionsRunButton.Position = UDim2.new(0, 5, 0, 41)
+optionsRunButton.Size = UDim2.new(1, -10, 0, 30)
+optionsRunButton.BackgroundColor3 = colors.accent
+optionsRunButton.BorderSizePixel = 0
+optionsRunButton.Text = "Run"
+optionsRunButton.TextColor3 = colors.text
+optionsRunButton.TextSize = 13
+optionsRunButton.Font = Enum.Font.GothamBold
+optionsRunButton.ZIndex = 71
+optionsRunButton.Parent = optionsPopup
+addCorner(optionsRunButton, 6)
+
+local optionsHelperButton = Instance.new("TextButton")
+optionsHelperButton.Name = "HelperButton"
+optionsHelperButton.Position = UDim2.new(0, 5, 0, 77)
+optionsHelperButton.Size = UDim2.new(1, -10, 0, 30)
+optionsHelperButton.BackgroundColor3 = colors.input
+optionsHelperButton.BorderSizePixel = 0
+optionsHelperButton.Text = "🧩 Helper"
+optionsHelperButton.TextColor3 = colors.text
+optionsHelperButton.TextSize = 13
+optionsHelperButton.Font = Enum.Font.GothamBold
+optionsHelperButton.ZIndex = 71
+optionsHelperButton.Parent = optionsPopup
+addCorner(optionsHelperButton, 6)
+
+local optionsMoveButton = Instance.new("TextButton")
+optionsMoveButton.Name = "MoveItemButton"
+optionsMoveButton.Position = UDim2.new(0, 5, 0, 77)
+optionsMoveButton.Size = UDim2.new(1, -10, 0, 30)
+optionsMoveButton.BackgroundColor3 = colors.input
+optionsMoveButton.BorderSizePixel = 0
+optionsMoveButton.Text = "📁 Pindahkan"
+optionsMoveButton.TextColor3 = colors.text
+optionsMoveButton.TextSize = 13
+optionsMoveButton.Font = Enum.Font.GothamBold
+optionsMoveButton.ZIndex = 71
+optionsMoveButton.Parent = optionsPopup
+addCorner(optionsMoveButton, 6)
+
+local optionsDuplicateButton = Instance.new("TextButton")
+optionsDuplicateButton.Name = "DuplicateItemButton"
+optionsDuplicateButton.Position = UDim2.new(0, 5, 0, 113)
+optionsDuplicateButton.Size = UDim2.new(1, -10, 0, 30)
+optionsDuplicateButton.BackgroundColor3 = colors.input
+optionsDuplicateButton.BorderSizePixel = 0
+optionsDuplicateButton.Text = "📑 Duplikat"
+optionsDuplicateButton.TextColor3 = colors.text
+optionsDuplicateButton.TextSize = 13
+optionsDuplicateButton.Font = Enum.Font.GothamBold
+optionsDuplicateButton.ZIndex = 71
+optionsDuplicateButton.Parent = optionsPopup
+addCorner(optionsDuplicateButton, 6)
+
+local optionsSaveButton = Instance.new("TextButton")
+optionsSaveButton.Name = "SaveCopyButton"
+optionsSaveButton.Position = UDim2.new(0, 5, 0, 149)
+optionsSaveButton.Size = UDim2.new(1, -10, 0, 30)
+optionsSaveButton.BackgroundColor3 = colors.accent
+optionsSaveButton.BorderSizePixel = 0
+optionsSaveButton.Text = "💾 Salin"
+optionsSaveButton.TextColor3 = colors.text
+optionsSaveButton.TextSize = 13
+optionsSaveButton.Font = Enum.Font.GothamBold
+optionsSaveButton.ZIndex = 71
+optionsSaveButton.Parent = optionsPopup
+addCorner(optionsSaveButton, 6)
+
+local optionsDeleteButton = Instance.new("TextButton")
+optionsDeleteButton.Name = "DeleteNoteButton"
+optionsDeleteButton.Position = UDim2.new(0, 5, 0, 185)
+optionsDeleteButton.Size = UDim2.new(1, -10, 0, 30)
+optionsDeleteButton.BackgroundColor3 = colors.danger
+optionsDeleteButton.BorderSizePixel = 0
+optionsDeleteButton.Text = "🗑️ Hapus"
+optionsDeleteButton.TextColor3 = colors.text
+optionsDeleteButton.TextSize = 13
+optionsDeleteButton.Font = Enum.Font.GothamBold
+optionsDeleteButton.ZIndex = 71
+optionsDeleteButton.Parent = optionsPopup
+addCorner(optionsDeleteButton, 6)
+
+local renamePanel = Instance.new("Frame")
+renamePanel.Name = "RenameFolderPanel"
+renamePanel.Position = UDim2.new(0.14, 0, 0.32, 0)
+renamePanel.Size = UDim2.new(0.72, 0, 0, 126)
+renamePanel.BackgroundColor3 = colors.header
+renamePanel.BorderSizePixel = 0
+renamePanel.Visible = false
+renamePanel.ZIndex = 90
+renamePanel.Parent = main
+addCorner(renamePanel, 9)
+addStroke(renamePanel, colors.border, 1)
+
+local renameTitle = Instance.new("TextLabel")
+renameTitle.Position = UDim2.new(0, 10, 0, 8)
+renameTitle.Size = UDim2.new(1, -20, 0, 22)
+renameTitle.BackgroundTransparency = 1
+renameTitle.Text = "GANTI NAMA FOLDER"
+renameTitle.TextColor3 = colors.text
+renameTitle.TextSize = 13
+renameTitle.Font = Enum.Font.GothamBold
+renameTitle.TextXAlignment = Enum.TextXAlignment.Left
+renameTitle.ZIndex = 91
+renameTitle.Parent = renamePanel
+
+local renameInput = Instance.new("TextBox")
+renameInput.Name = "RenameInput"
+renameInput.Position = UDim2.new(0, 10, 0, 36)
+renameInput.Size = UDim2.new(1, -20, 0, 32)
+renameInput.BackgroundColor3 = colors.input
+renameInput.BorderSizePixel = 0
+renameInput.Text = ""
+renameInput.PlaceholderText = "Nama folder"
+renameInput.PlaceholderColor3 = colors.muted
+renameInput.TextColor3 = colors.text
+renameInput.TextSize = 13
+renameInput.Font = Enum.Font.Gotham
+renameInput.TextXAlignment = Enum.TextXAlignment.Left
+renameInput.ClearTextOnFocus = false
+renameInput.MultiLine = false
+renameInput.TextEditable = true
+renameInput.ZIndex = 91
+renameInput.Parent = renamePanel
+addCorner(renameInput, 6)
+
+local renameSaveButton = Instance.new("TextButton")
+renameSaveButton.Name = "RenameSaveButton"
+renameSaveButton.Position = UDim2.new(1, -142, 0, 82)
+renameSaveButton.Size = UDim2.new(0, 64, 0, 30)
+renameSaveButton.BackgroundColor3 = colors.accent
+renameSaveButton.BorderSizePixel = 0
+renameSaveButton.Text = "Simpan"
+renameSaveButton.TextColor3 = colors.text
+renameSaveButton.TextSize = 11
+renameSaveButton.Font = Enum.Font.GothamBold
+renameSaveButton.ZIndex = 91
+renameSaveButton.Parent = renamePanel
+addCorner(renameSaveButton, 6)
+
+local renameCancelButton = Instance.new("TextButton")
+renameCancelButton.Name = "RenameCancelButton"
+renameCancelButton.Position = UDim2.new(1, -72, 0, 82)
+renameCancelButton.Size = UDim2.new(0, 62, 0, 30)
+renameCancelButton.BackgroundColor3 = colors.input
+renameCancelButton.BorderSizePixel = 0
+renameCancelButton.Text = "Batal"
+renameCancelButton.TextColor3 = colors.text
+renameCancelButton.TextSize = 11
+renameCancelButton.Font = Enum.Font.GothamBold
+renameCancelButton.ZIndex = 91
+renameCancelButton.Parent = renamePanel
+addCorner(renameCancelButton, 6)
+
+local loopDelayBubble = Instance.new("Frame")
+loopDelayBubble.Name = "LoopDelayBubble"
+loopDelayBubble.Size = UDim2.new(0, 160, 0, 66)
+loopDelayBubble.BackgroundColor3 = colors.header
+loopDelayBubble.BorderSizePixel = 0
+loopDelayBubble.Visible = false
+loopDelayBubble.ZIndex = 80
+loopDelayBubble.Parent = gui
+addCorner(loopDelayBubble, 8)
+addStroke(loopDelayBubble, colors.border, 1)
+
+local loopDelayLabel = Instance.new("TextLabel")
+loopDelayLabel.Name = "DelayLabel"
+loopDelayLabel.Position = UDim2.new(0, 8, 0, 5)
+loopDelayLabel.Size = UDim2.new(1, -16, 0, 17)
+loopDelayLabel.BackgroundTransparency = 1
+loopDelayLabel.Text = "Delay loop (detik)"
+loopDelayLabel.TextColor3 = colors.text
+loopDelayLabel.TextSize = 11
+loopDelayLabel.Font = Enum.Font.GothamBold
+loopDelayLabel.TextXAlignment = Enum.TextXAlignment.Left
+loopDelayLabel.ZIndex = 81
+loopDelayLabel.Parent = loopDelayBubble
+
+local optionsLoopDelayInput = Instance.new("TextBox")
+optionsLoopDelayInput.Name = "LoopDelayInput"
+optionsLoopDelayInput.Position = UDim2.new(0, 8, 0, 27)
+optionsLoopDelayInput.Size = UDim2.new(1, -16, 0, 30)
+optionsLoopDelayInput.BackgroundColor3 = colors.input
+optionsLoopDelayInput.BorderSizePixel = 0
+optionsLoopDelayInput.Text = ""
+optionsLoopDelayInput.PlaceholderText = "Delay (s)"
+optionsLoopDelayInput.TextColor3 = colors.text
+optionsLoopDelayInput.PlaceholderColor3 = colors.muted
+optionsLoopDelayInput.TextSize = 13
+optionsLoopDelayInput.Font = Enum.Font.GothamBold
+optionsLoopDelayInput.ClearTextOnFocus = false
+optionsLoopDelayInput.TextXAlignment = Enum.TextXAlignment.Center
+optionsLoopDelayInput.ZIndex = 81
+optionsLoopDelayInput.Parent = loopDelayBubble
+addCorner(optionsLoopDelayInput, 6)
+
+local helperPanel = Instance.new("Frame")
+helperPanel.Name = "HelperPanel"
+helperPanel.Size = UDim2.new(0, 280, 0, 252)
+helperPanel.BackgroundColor3 = colors.header
+helperPanel.BorderSizePixel = 0
+helperPanel.Visible = false
+helperPanel.ZIndex = 85
+helperPanel.Parent = gui
+addCorner(helperPanel, 9)
+addStroke(helperPanel, colors.border, 1)
+
+local helperPanelTitle = Instance.new("TextLabel")
+helperPanelTitle.Position = UDim2.new(0, 10, 0, 7)
+helperPanelTitle.Size = UDim2.new(1, -20, 0, 22)
+helperPanelTitle.BackgroundTransparency = 1
+helperPanelTitle.Text = "HELPER REPLACEMENT"
+helperPanelTitle.TextColor3 = colors.text
+helperPanelTitle.TextSize = 13
+helperPanelTitle.Font = Enum.Font.GothamBold
+helperPanelTitle.TextXAlignment = Enum.TextXAlignment.Left
+helperPanelTitle.ZIndex = 86
+helperPanelTitle.Parent = helperPanel
+
+local helperDragging = false
+local helperDragStart = nil
+local helperStartPosition = nil
+
+helperPanelTitle.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    helperDragging = true
+    helperDragStart = input.Position
+    helperStartPosition = helperPanel.Position
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            helperDragging = false
+        end
+    end)
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not helperDragging then
+        return
+    end
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    local delta = input.Position - helperDragStart
+    helperPanel.Position = UDim2.new(
+        helperStartPosition.X.Scale,
+        helperStartPosition.X.Offset + delta.X,
+        helperStartPosition.Y.Scale,
+        helperStartPosition.Y.Offset + delta.Y
+    )
+end)
+
+local helperReferenceInput = Instance.new("TextBox")
+helperReferenceInput.Name = "HelperReferenceInput"
+helperReferenceInput.Position = UDim2.new(0, 10, 0, 35)
+helperReferenceInput.Size = UDim2.new(1, -20, 0, 32)
+helperReferenceInput.BackgroundColor3 = colors.input
+helperReferenceInput.BorderSizePixel = 0
+helperReferenceInput.Text = ""
+helperReferenceInput.PlaceholderText = "Teks referensi yang diganti"
+helperReferenceInput.TextColor3 = colors.text
+helperReferenceInput.PlaceholderColor3 = colors.muted
+helperReferenceInput.TextSize = 12
+helperReferenceInput.Font = Enum.Font.Gotham
+helperReferenceInput.ClearTextOnFocus = false
+helperReferenceInput.ZIndex = 86
+helperReferenceInput.Parent = helperPanel
+addCorner(helperReferenceInput, 6)
+
+local helperValuesInput = Instance.new("TextBox")
+helperValuesInput.Name = "HelperValuesInput"
+helperValuesInput.Position = UDim2.new(0, 10, 0, 75)
+helperValuesInput.Size = UDim2.new(1, -20, 0, 126)
+helperValuesInput.BackgroundColor3 = colors.input
+helperValuesInput.BorderSizePixel = 0
+helperValuesInput.Text = ""
+helperValuesInput.PlaceholderText = "Nilai helper, satu per baris atau dipisahkan koma"
+helperValuesInput.TextColor3 = colors.text
+helperValuesInput.PlaceholderColor3 = colors.muted
+helperValuesInput.TextSize = 12
+helperValuesInput.Font = Enum.Font.Code
+helperValuesInput.TextXAlignment = Enum.TextXAlignment.Left
+helperValuesInput.TextYAlignment = Enum.TextYAlignment.Top
+helperValuesInput.TextWrapped = true
+helperValuesInput.MultiLine = true
+helperValuesInput.ClearTextOnFocus = false
+helperValuesInput.ZIndex = 86
+helperValuesInput.Parent = helperPanel
+addCorner(helperValuesInput, 6)
+
+local helperUseButton = Instance.new("TextButton")
+helperUseButton.Name = "HelperUseStopButton"
+helperUseButton.Position = UDim2.new(0, 10, 1, -40)
+helperUseButton.Size = UDim2.new(0.5, -15, 0, 30)
+helperUseButton.BackgroundColor3 = colors.accent
+helperUseButton.BorderSizePixel = 0
+helperUseButton.Text = "Use"
+helperUseButton.TextColor3 = colors.text
+helperUseButton.TextSize = 12
+helperUseButton.Font = Enum.Font.GothamBold
+helperUseButton.ZIndex = 86
+helperUseButton.Parent = helperPanel
+addCorner(helperUseButton, 6)
+
+local helperCloseButton = Instance.new("TextButton")
+helperCloseButton.Name = "HelperCloseButton"
+helperCloseButton.Position = UDim2.new(0.5, 5, 1, -40)
+helperCloseButton.Size = UDim2.new(0.5, -15, 0, 30)
+helperCloseButton.BackgroundColor3 = colors.input
+helperCloseButton.BorderSizePixel = 0
+helperCloseButton.Text = "Tutup"
+helperCloseButton.TextColor3 = colors.text
+helperCloseButton.TextSize = 12
+helperCloseButton.Font = Enum.Font.GothamBold
+helperCloseButton.ZIndex = 86
+helperCloseButton.Parent = helperPanel
+addCorner(helperCloseButton, 6)
+
+local selectedOptionsRecord = nil
+local selectedOptionsButton = nil
+local renamingRecord = nil
+local openMoveDialog
+local openDirectory
+local loopConfigMode = false
+local runButtonPressing = false
+local runButtonHoldTriggered = false
+local runButtonPressId = 0
+
+local function positionOptionsPopup()
+    if not selectedOptionsButton or not selectedOptionsButton.Parent then
+        return
+    end
+
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+    local popupWidth = optionsPopup.Size.X.Offset
+    local popupHeight = optionsPopup.Size.Y.Offset
+    local buttonPosition = selectedOptionsButton.AbsolutePosition
+    local buttonSize = selectedOptionsButton.AbsoluteSize
+
+    local x = buttonPosition.X + buttonSize.X + 4
+    local y = buttonPosition.Y
+
+    if x + popupWidth > viewport.X - 4 then
+        x = buttonPosition.X - popupWidth - 4
+    end
+
+    x = math.clamp(x, 4, math.max(4, viewport.X - popupWidth - 4))
+    y = math.clamp(y, 4, math.max(4, viewport.Y - popupHeight - 4))
+    optionsPopup.Position = UDim2.fromOffset(x, y)
+end
+
+local function positionLoopDelayBubble()
+    if not optionsPopup.Visible then
+        return
+    end
+
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+    local popupPosition = optionsPopup.AbsolutePosition
+    local popupSize = optionsPopup.AbsoluteSize
+    local bubbleWidth = loopDelayBubble.AbsoluteSize.X
+    local bubbleHeight = loopDelayBubble.AbsoluteSize.Y
+
+    local x = popupPosition.X + popupSize.X + 5
+    local y = popupPosition.Y + 34
+
+    if x + bubbleWidth > viewport.X - 4 then
+        x = popupPosition.X - bubbleWidth - 5
+    end
+
+    x = math.clamp(x, 4, math.max(4, viewport.X - bubbleWidth - 4))
+    y = math.clamp(y, 4, math.max(4, viewport.Y - bubbleHeight - 4))
+    loopDelayBubble.Position = UDim2.fromOffset(x, y)
+end
+
+local function layoutOptionsPopup()
+    local buttons = {
+        optionsActionButton,
+        optionsRenameButton,
+        optionsRunButton,
+        optionsHelperButton,
+        optionsMoveButton,
+        optionsDuplicateButton,
+        optionsSaveButton,
+        optionsDeleteButton,
+    }
+    local y = 5
+    for _, button in ipairs(buttons) do
+        if button.Visible then
+            button.Position = UDim2.new(0, 5, 0, y)
+            y += 36
+        end
+    end
+    optionsPopup.Size = UDim2.new(0, 136, 0, y + 1)
+end
+
+local function resetOptionsPopupMode()
+    loopConfigMode = false
+    loopDelayBubble.Visible = false
+    if selectedOptionsRecord and selectedOptionsRecord.loopRunning then
+        optionsRunButton.Text = "Stop"
+    else
+        optionsRunButton.Text = "Run"
+    end
+end
+
+local function hideOptionsPopup()
+    optionsPopup.Visible = false
+    loopDelayBubble.Visible = false
+    selectedOptionsRecord = nil
+    selectedOptionsButton = nil
+    runButtonPressing = false
+    runButtonHoldTriggered = false
+    resetOptionsPopupMode()
+end
+
+optionsRenameButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record or record.itemType ~= "folder" then
+        return
+    end
+    renamingRecord = record
+    renameInput.Text = record.textBoxes[1].Text
+    hideOptionsPopup()
+    renamePanel.Visible = true
+    task.defer(function()
+        if renamePanel.Visible then
+            renameInput:CaptureFocus()
+            renameInput.CursorPosition = #renameInput.Text + 1
+        end
+    end)
+end)
+
+local function finishRenameFolder(saveChanges)
+    if saveChanges and renamingRecord and renamingRecord.itemType == "folder" then
+        local newName = renameInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
+        if newName ~= "" then
+            renamingRecord.textBoxes[1].Text = newName
+            scheduleSave()
+        else
+            warn("[Notes] Nama folder tidak boleh kosong.")
+        end
+    end
+    renameInput:ReleaseFocus()
+    renamePanel.Visible = false
+    renamingRecord = nil
+end
+
+renameSaveButton.Activated:Connect(function()
+    finishRenameFolder(true)
+end)
+
+renameCancelButton.Activated:Connect(function()
+    finishRenameFolder(false)
+end)
+
+renameInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed and renamePanel.Visible then
+        finishRenameFolder(true)
+    end
+end)
+
+local function showOptionsPopup(button, record)
+    if optionsPopup.Visible and selectedOptionsRecord == record then
+        hideOptionsPopup()
+        return
+    end
+
+    loopDelayBubble.Visible = false
+    loopConfigMode = false
+    selectedOptionsRecord = record
+    selectedOptionsButton = button
+    runButtonPressing = false
+    runButtonHoldTriggered = false
+    optionsActionButton.Text = record.itemType == "folder"
+        and "Buka Folder"
+        or (record.isExpanded and "Minimize" or "Expand")
+    optionsRenameButton.Visible = record.itemType == "folder" and not record.isUniversalRoot
+    optionsRunButton.Visible = record.itemType ~= "folder"
+    optionsHelperButton.Visible = record.itemType ~= "folder"
+    optionsSaveButton.Visible = record.itemType ~= "folder"
+    optionsMoveButton.Visible = not record.isUniversalRoot
+    optionsDuplicateButton.Visible = not record.isUniversalRoot
+    optionsDeleteButton.Visible = not record.isUniversalRoot
+    optionsRunButton.Text = record.loopRunning and "Stop" or "Run"
+    layoutOptionsPopup()
+    positionOptionsPopup()
+    optionsPopup.Visible = true
+end
+
+local function enterLoopConfigMode()
+    if not optionsPopup.Visible or not selectedOptionsRecord then
+        return
+    end
+
+    loopConfigMode = true
+    optionsRunButton.Text = selectedOptionsRecord.loopRunning and "Stop" or "Loop"
+    optionsLoopDelayInput.Text = selectedOptionsRecord.loopDelay
+        and tostring(selectedOptionsRecord.loopDelay)
+        or ""
+    loopDelayBubble.Visible = true
+    positionLoopDelayBubble()
+    task.defer(function()
+        if loopDelayBubble.Visible and optionsPopup.Visible then
+            optionsLoopDelayInput:CaptureFocus()
+            optionsLoopDelayInput.CursorPosition = #optionsLoopDelayInput.Text + 1
+        end
+    end)
+end
+
+local splitHelperValues, compileAndRun
+local helperTargetRecord = nil
+
+local function positionHelperPanel()
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+    local anchor = selectedOptionsButton
+    local x, y = 20, 80
+    if anchor and anchor.Parent then
+        local pos = anchor.AbsolutePosition
+        local size = anchor.AbsoluteSize
+        x = pos.X + size.X + 6
+        y = pos.Y
+        if x + helperPanel.AbsoluteSize.X > viewport.X - 4 then
+            x = pos.X - helperPanel.AbsoluteSize.X - 6
+        end
+    end
+    x = math.clamp(x, 4, math.max(4, viewport.X - helperPanel.AbsoluteSize.X - 4))
+    y = math.clamp(y, 4, math.max(4, viewport.Y - helperPanel.AbsoluteSize.Y - 4))
+    helperPanel.Position = UDim2.fromOffset(x, y)
+end
+
+optionsHelperButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record or record.itemType == "folder" then
+        return
+    end
+    helperTargetRecord = record
+    helperReferenceInput.Text = record.helperReference or ""
+    helperValuesInput.Text = record.helperValues or ""
+    helperUseButton.Text = record.helperRunning and "Stop" or "Use"
+    helperPanel.Visible = true
+    positionHelperPanel()
+end)
+
+local function persistHelperInputs(record)
+    if not record then return end
+    record.helperReference = helperReferenceInput.Text
+    record.helperValues = helperValuesInput.Text
+    scheduleSave()
+end
+
+helperReferenceInput.FocusLost:Connect(function()
+    persistHelperInputs(helperTargetRecord)
+end)
+helperValuesInput.FocusLost:Connect(function()
+    persistHelperInputs(helperTargetRecord)
+end)
+
+helperUseButton.Activated:Connect(function()
+    local record = helperTargetRecord
+    if not record or record.itemType == "folder" then
+        return
+    end
+    if record.helperRunning then
+        record.helperRunning = false
+        record.helperGeneration = (record.helperGeneration or 0) + 1
+        helperUseButton.Text = "Use"
+        helperPanel.Visible = false
+        helperReferenceInput:ReleaseFocus()
+        helperValuesInput:ReleaseFocus()
+        return
+    end
+    persistHelperInputs(record)
+    local reference = tostring(record.helperReference or "")
+    local values = splitHelperValues(record.helperValues)
+    if reference == "" then
+        warn("[Notes] Isi teks referensi Helper terlebih dahulu.")
+        return
+    end
+    if #values == 0 then
+        warn("[Notes] Isi minimal satu nilai Helper.")
+        return
+    end
+    if not record.textBoxes[2].Text or record.textBoxes[2].Text:match("^%s*$") then
+        warn("[Notes] Kolom Fungsi kosong.")
+        return
+    end
+    record.helperEnabled = true
+    record.helperRunning = true
+    record.helperGeneration = (record.helperGeneration or 0) + 1
+    local generation = record.helperGeneration
+    helperUseButton.Text = "Stop"
+    scheduleSave()
+    helperPanel.Visible = false
+    helperReferenceInput:ReleaseFocus()
+    helperValuesInput:ReleaseFocus()
+    task.spawn(function()
+        local source = record.textBoxes[2].Text or ""
+        local escapedReference = reference:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+        for _, value in ipairs(values) do
+            if not record.helperRunning or record.helperGeneration ~= generation then
+                break
+            end
+            local replacedSource = source:gsub(escapedReference, function() return value end)
+            local ok = compileAndRun(replacedSource, nil, 0)
+            if not ok then
+                break
+            end
+        end
+        if record.helperGeneration == generation then
+            record.helperRunning = false
+            if helperTargetRecord == record and helperPanel.Visible then
+                helperUseButton.Text = "Use"
+            end
+        end
+    end)
+end)
+
+helperCloseButton.Activated:Connect(function()
+    helperPanel.Visible = false
+    helperReferenceInput:ReleaseFocus()
+    helperValuesInput:ReleaseFocus()
+    helperTargetRecord = nil
+end)
+
+optionsActionButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record or not record.row or not record.row.Parent then
+        hideOptionsPopup()
+        return
+    end
+
+    if record.itemType == "folder" then
+        hideOptionsPopup()
+        if openDirectory then
+            openDirectory(record)
+        end
+        return
+    end
+
+    record.isExpanded = not record.isExpanded
+    if record.updateRowHeight then
+        record.updateRowHeight()
+    end
+    optionsActionButton.Text = record.isExpanded and "Minimize" or "Expand"
+end)
+
+splitHelperValues = function(raw)
+    local values = {}
+    raw = tostring(raw or "")
+    for line in (raw .. "\n"):gmatch("(.-)\n") do
+        for part in (line .. ","):gmatch("(.-),") do
+            local value = part:gsub("^%s+", ""):gsub("%s+$", "")
+            if value ~= "" then
+                table.insert(values, value)
+            end
+        end
+    end
+    return values
+end
+
+compileAndRun = function(source, record, generation)
+    if record and record.helperGeneration ~= generation then
+        return false
+    end
+    if type(loadstring) ~= "function" then
+        warn("[Notes] Executor ini tidak menyediakan loadstring.")
+        return false
+    end
+    local compiled, compileError
+    local okCompile, callError = pcall(function()
+        compiled, compileError = loadstring(source)
+    end)
+    if not okCompile then
+        warn("[Notes] Gagal memproses script: " .. tostring(callError))
+        return false
+    end
+    if type(compiled) ~= "function" then
+        warn("[Notes] Syntax error: " .. tostring(compileError or "Script tidak dapat dikompilasi."))
+        return false
+    end
+    local okRun, runError = pcall(compiled)
+    if not okRun then
+        warn("[Notes] Runtime error: " .. tostring(runError))
+        return false
+    end
+    return true
+end
+
+local function runFunctionText(record, waitForCompletion)
+    if record and record.itemType == "folder" then
+        warn("[Notes] Folder tidak dapat dijalankan sebagai script.")
+        return false
+    end
+    if not record or not record.textBoxes or not record.textBoxes[2] then
+        warn("[Notes] Baris note tidak ditemukan.")
+        return false
+    end
+
+    local source = record.textBoxes[2].Text or ""
+    if source:match("^%s*$") then
+        warn("[Notes] Kolom Fungsi kosong.")
+        return false
+    end
+
+    local function executeBatch()
+        local reference = tostring(record.helperReference or "")
+        local values = record.helperEnabled and splitHelperValues(record.helperValues) or {}
+        if reference ~= "" and #values > 0 then
+            local generation = record.helperGeneration or 0
+            for _, value in ipairs(values) do
+                if record.helperGeneration ~= generation then
+                    return false
+                end
+                local escapedReference = reference:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+                local replacedSource = source:gsub(escapedReference, function()
+                    return value
+                end)
+                local ok = compileAndRun(replacedSource, record, generation)
+                if not ok then
+                    return false
+                end
+            end
+            return true
+        end
+        return compileAndRun(source, nil, 0)
+    end
+
+    if waitForCompletion then
+        return executeBatch()
+    end
+    task.spawn(function()
+        executeBatch()
+    end)
+    return true
+end
+
+local function updateRunButtonText(record)
+    if selectedOptionsRecord ~= record then
+        return
+    end
+
+    if record.loopRunning then
+        optionsRunButton.Text = "Stop"
+    elseif loopConfigMode then
+        optionsRunButton.Text = "Loop"
+    else
+        optionsRunButton.Text = "Run"
+    end
+end
+
+local function stopLoop(record)
+    if not record then
+        return
+    end
+
+    record.loopRunning = false
+    record.loopGeneration = (record.loopGeneration or 0) + 1
+    updateRunButtonText(record)
+    saveNotesNow()
+    print("[Notes] Loop dihentikan.")
+end
+
+local function startLoop(record, delayOverride)
+    if record and record.itemType == "folder" then
+        warn("[Notes] Folder tidak dapat menjalankan Loop.")
+        return
+    end
+    if not record or not record.row or not record.row.Parent then
+        warn("[Notes] Baris note tidak ditemukan.")
+        return
+    end
+
+    local delaySeconds = tonumber(delayOverride)
+        or tonumber(optionsLoopDelayInput.Text)
+        or tonumber(record.loopDelay)
+
+    if not delaySeconds or delaySeconds <= 0 then
+        warn("[Notes] Masukkan delay angka lebih besar dari 0 detik.")
+        return
+    end
+
+    delaySeconds = math.clamp(delaySeconds, 0.1, 3600)
+    record.loopDelay = delaySeconds
+    record.loopRunning = true
+    record.loopGeneration = (record.loopGeneration or 0) + 1
+    local thisGeneration = record.loopGeneration
+    updateRunButtonText(record)
+    saveNotesNow()
+
+    task.spawn(function()
+        while record.loopRunning
+            and record.loopGeneration == thisGeneration
+            and record.row
+            and record.row.Parent do
+            local runOk = runFunctionText(record, true)
+            if not runOk then
+                record.loopRunning = false
+                saveNotesNow()
+                break
+            end
+
+            if not record.loopRunning or record.loopGeneration ~= thisGeneration then
+                break
+            end
+
+            task.wait(tonumber(record.loopDelay) or delaySeconds)
+        end
+
+        if record.loopGeneration == thisGeneration then
+            record.loopRunning = false
+            updateRunButtonText(record)
+            if record.row and record.row.Parent then
+                saveNotesNow()
+            end
+        end
+    end)
+end
+
+optionsRunButton.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    runButtonPressing = true
+    runButtonHoldTriggered = false
+    runButtonPressId += 1
+    local thisPressId = runButtonPressId
+
+    task.delay(1, function()
+        if runButtonPressing
+            and runButtonPressId == thisPressId
+            and optionsPopup.Visible
+            and selectedOptionsRecord then
+            runButtonHoldTriggered = true
+            enterLoopConfigMode()
+        end
+    end)
+end)
+
+optionsRunButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        runButtonPressing = false
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        runButtonPressing = false
+    end
+end)
+
+optionsRunButton.Activated:Connect(function()
+    if runButtonHoldTriggered then
+        runButtonHoldTriggered = false
+        return
+    end
+
+    local record = selectedOptionsRecord
+    if not record then
+        return
+    end
+
+    if record.loopRunning then
+        stopLoop(record)
+        return
+    end
+
+    if loopConfigMode then
+        startLoop(record)
+        return
+    end
+
+    hideOptionsPopup()
+    runFunctionText(record, false)
+end)
+
+optionsLoopDelayInput:GetPropertyChangedSignal("Text"):Connect(function()
+    local current = optionsLoopDelayInput.Text
+    local filtered = current:gsub("[^%d%.]", "")
+    local dot = filtered:find("%.")
+    if dot then
+        filtered = filtered:sub(1, dot) .. filtered:sub(dot + 1):gsub("%.", "")
+    end
+    if filtered ~= current then
+        local cursor = optionsLoopDelayInput.CursorPosition
+        optionsLoopDelayInput.Text = filtered
+        if cursor >= 1 then
+            optionsLoopDelayInput.CursorPosition = math.min(cursor, #filtered + 1)
+        end
+    end
+
+    if selectedOptionsRecord then
+        local delayValue = tonumber(filtered)
+        selectedOptionsRecord.loopDelay = delayValue and delayValue > 0
+            and math.clamp(delayValue, 0.1, 3600)
+            or nil
+        scheduleSave()
+    end
+end)
+
+optionsLoopDelayInput.FocusLost:Connect(function()
+    if selectedOptionsRecord then
+        saveNotesNow()
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input)
+    if not optionsPopup.Visible then
+        return
+    end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    local pointer = input.Position
+    local pos = optionsPopup.AbsolutePosition
+    local size = optionsPopup.AbsoluteSize
+    local insidePopup = pointer.X >= pos.X and pointer.X <= pos.X + size.X
+        and pointer.Y >= pos.Y and pointer.Y <= pos.Y + size.Y
+
+    local insideBubble = false
+    if loopDelayBubble.Visible then
+        local bubblePos = loopDelayBubble.AbsolutePosition
+        local bubbleSize = loopDelayBubble.AbsoluteSize
+        insideBubble = pointer.X >= bubblePos.X and pointer.X <= bubblePos.X + bubbleSize.X
+            and pointer.Y >= bubblePos.Y and pointer.Y <= bubblePos.Y + bubbleSize.Y
+    end
+
+    local insideHelper = false
+    if helperPanel.Visible then
+        local helperPos = helperPanel.AbsolutePosition
+        local helperSize = helperPanel.AbsoluteSize
+        insideHelper = pointer.X >= helperPos.X and pointer.X <= helperPos.X + helperSize.X
+            and pointer.Y >= helperPos.Y and pointer.Y <= helperPos.Y + helperSize.Y
+    end
+
+    if not insidePopup and not insideBubble and not insideHelper then
+        hideOptionsPopup()
+    end
+end)
+
+local function measureTextHeight(textBox)
+    local usableWidth = math.max(20, textBox.AbsoluteSize.X - 12)
+    local text = textBox.Text
+
+    if text == "" then
+        return textBox.TextSize + 2
+    end
+
+    local totalHeight = 0
+    for line in (text .. "\n"):gmatch("(.-)\n") do
+        local sample = line == "" and " " or line
+        local measured = TextService:GetTextSize(
+            sample,
+            textBox.TextSize,
+            textBox.Font,
+            Vector2.new(usableWidth, 10000)
+        )
+        totalHeight += math.max(measured.Y, textBox.TextSize + 2)
+    end
+
+    return totalHeight
+end
+
+local function buildCopyText(titleText, functionText, notesText)
+    local content = "Fungsi:\n" .. (titleText or "")
+        .. "\n\nScript:\n" .. (functionText or "")
+
+    if notesText and notesText:match("%S") then
+        content ..= "\n\nNotes:\n" .. notesText
+    end
+
+    return content
+end
+
+local function tryClipboardCopy(content)
+    if type(setclipboard) == "function" then
+        local ok = pcall(setclipboard, content)
+        if ok then
+            return true
+        end
+    end
+
+    if type(toclipboard) == "function" then
+        local ok = pcall(toclipboard, content)
+        if ok then
+            return true
+        end
+    end
+
+    return false
+end
+
+local currentCopyFunctionText = ""
+local currentCopyAllText = ""
+
+local function showCopyDialog(titleText, functionText, notesText)
+    currentCopyFunctionText = functionText or ""
+    currentCopyAllText = buildCopyText(titleText, functionText, notesText)
+
+    pendingPasteTarget = nil
+    usePasteButton.Visible = false
+    copyFunctionButton.Visible = true
+    copyAllButton.Visible = true
+    copyBox.PlaceholderText = "Teks yang akan disalin..."
+    copyBox.Text = currentCopyAllText
+    copyTitle.Text = "SALIN NOTE"
+    copyHint.Text = "Pilih Salin Fungsi atau Salin Semua. Teks belum disalin."
+    copyOverlay.Visible = true
+end
+
+local function copySelectedContent(content, label)
+    copyBox.Text = content or ""
+    local copied = tryClipboardCopy(copyBox.Text)
+
+    if copied then
+        copyTitle.Text = "BERHASIL DISALIN"
+        copyHint.Text = label .. " berhasil disalin ke clipboard."
+    else
+        copyTitle.Text = label:upper()
+        copyHint.Text = "Clipboard otomatis tidak tersedia. Pilih teks di bawah lalu salin manual."
+        task.defer(function()
+            if copyOverlay.Visible then
+                copyBox:CaptureFocus()
+                local characterCount = utf8.len(copyBox.Text) or #copyBox.Text
+                copyBox.SelectionStart = 1
+                copyBox.CursorPosition = characterCount + 1
+            end
+        end)
+    end
+end
+
+copyFunctionButton.Activated:Connect(function()
+    copySelectedContent(currentCopyFunctionText, "Salin Fungsi")
+end)
+
+copyAllButton.Activated:Connect(function()
+    copySelectedContent(currentCopyAllText, "Salin Semua")
+end)
+
+local function generateRecordId()
+    local ok, generated = pcall(function()
+        return HttpService:GenerateGUID(false)
+    end)
+    if ok and type(generated) == "string" and generated ~= "" then
+        return generated
+    end
+    return tostring(math.floor(os.clock() * 1000000)) .. "_" .. tostring(rowCount + 1)
+end
+
+local function updateNavigationTitle()
+    local parts = {}
+    for _, folderRecord in ipairs(directoryStack) do
+        if folderRecord.textBoxes and folderRecord.textBoxes[1] then
+            table.insert(parts, folderRecord.textBoxes[1].Text ~= "" and folderRecord.textBoxes[1].Text or "Folder")
+        end
+    end
+    if #parts > 0 then
+        titleLabel.Text = "📝 NOTES / " .. table.concat(parts, " / ")
+    else
+        titleLabel.Text = "📝 NOTES"
+    end
+    backDirectoryButton.Visible = #directoryStack > 0
+end
+
+local function refreshVisibleRows()
+    for _, record in ipairs(noteRows) do
+        if record.row then
+            local isVisible = tostring(record.parentId or "") == currentDirectoryId
+            record.row.LayoutOrder = tonumber(record.order) or 1
+            local destination = isVisible and body or hiddenRowsFolder
+            if record.row.Parent ~= destination then
+                record.row.Parent = destination
+            end
+            record.row.Visible = isVisible
+            if isVisible and record.updateRowHeight then
+                task.defer(record.updateRowHeight)
+            end
+        end
+    end
+    updateNavigationTitle()
+    task.defer(updateAllRows)
+end
+
+openDirectory = function(record)
+    if not record or record.itemType ~= "folder" then
+        return
+    end
+    table.insert(directoryStack, record)
+    currentDirectoryId = record.id
+    refreshVisibleRows()
+end
+
+local function navigateBackDirectory()
+    if #directoryStack == 0 then
+        return
+    end
+    table.remove(directoryStack, #directoryStack)
+    currentDirectoryId = #directoryStack > 0 and directoryStack[#directoryStack].id or ""
+    refreshVisibleRows()
+end
+
+backDirectoryButton.Activated:Connect(navigateBackDirectory)
+
+local function getNextOrder(parentId)
+    parentId = tostring(parentId or "")
+    local maximum = 0
+    for _, item in ipairs(noteRows) do
+        if tostring(item.parentId or "") == parentId and not item.isUniversalRoot then
+            maximum = math.max(maximum, tonumber(item.order) or 0)
+        end
+    end
+    return maximum + 1
+end
+
+local function reorderRecord(record, direction)
+    if not record or record.isUniversalRoot then
+        return
+    end
+    local siblings = {}
+    for _, item in ipairs(noteRows) do
+        if tostring(item.parentId or "") == tostring(record.parentId or "") and not item.isUniversalRoot then
+            table.insert(siblings, item)
+        end
+    end
+    table.sort(siblings, function(a, b)
+        local orderA = tonumber(a.order) or 0
+        local orderB = tonumber(b.order) or 0
+        if orderA == orderB then
+            return a.id < b.id
+        end
+        return orderA < orderB
+    end)
+
+    local currentIndex
+    for index, item in ipairs(siblings) do
+        if item == record then
+            currentIndex = index
+            break
+        end
+    end
+    if not currentIndex then
+        return
+    end
+    local targetIndex = currentIndex + direction
+    if targetIndex < 1 or targetIndex > #siblings then
+        return
+    end
+
+    siblings[currentIndex], siblings[targetIndex] = siblings[targetIndex], siblings[currentIndex]
+    for index, item in ipairs(siblings) do
+        item.order = index
+        if item.row then
+            item.row.LayoutOrder = index
+        end
+    end
+    scheduleSave()
+end
+
+local function createRow(data)
+    data = data or {}
+    rowCount += 1
+
+    local itemType = data.itemType == "folder" and "folder" or "note"
+    local isFolder = itemType == "folder"
+    local isUniversalRoot = data.isUniversalRoot == true or tostring(data.id or "") == UNIVERSAL_ROOT_ID
+    if isUniversalRoot then
+        itemType = "folder"
+        isFolder = true
+    end
+    local initialTitle = isUniversalRoot and "Universal" or tostring(data.title or (isFolder and "Folder Baru" or ""))
+    local parentId = isUniversalRoot and "" or tostring(data.parentId or currentDirectoryId or "")
+    local orderValue = isUniversalRoot and -1000000 or tonumber(data.order) or getNextOrder(parentId)
+
+    local row = Instance.new("Frame")
+    row.Name = (isFolder and "FolderRow_" or "NoteRow_") .. rowCount
+    row.Size = UDim2.new(1, -8, 0, 44)
+    row.BackgroundColor3 = isUniversalRoot and colors.universalRow or colors.row
+    row.BorderSizePixel = 0
+    row.LayoutOrder = orderValue
+    row.Parent = body
+    addCorner(row, 7)
+    addStroke(row, isUniversalRoot and colors.universalBorder or colors.border, 1)
+
+    local textBoxes = {}
+    local record
+    local titleCell
+    local titleTextBox
+    local folderOpenButton
+    local sortUpButton
+    local sortDownButton
+
+    for _, column in ipairs(columns) do
+        local cell = Instance.new("Frame")
+        cell.Name = column.name .. "Cell"
+        cell.Position = UDim2.new(column.x, 0, 0, 0)
+        cell.Size = UDim2.new(column.width, 0, 1, 0)
+        if isFolder and column.name == "Title" then
+            cell.Size = UDim2.new(0.92, 0, 1, 0)
+        elseif isFolder and column.name ~= "Options" then
+            cell.Visible = false
+        end
+        cell.BackgroundTransparency = 1
+        cell.Parent = row
+
+        if column.name == "Title" or column.name == "Function" or column.name == "Notes" then
+            local initialText = ""
+            if column.name == "Title" then
+                initialText = initialTitle
+            elseif column.name == "Function" then
+                initialText = isFolder and "" or tostring(data.functionText or "")
+            elseif column.name == "Notes" then
+                initialText = isFolder and "" or tostring(data.notes or "")
+            end
+
+            if column.name == "Title" then
+                titleCell = cell
+            end
+
+            local textBox = Instance.new("TextBox")
+            textBox.Name = column.name .. "Text"
+            if isFolder and column.name == "Title" then
+                textBox.Position = UDim2.new(0, 25, 0, 6)
+                textBox.Size = UDim2.new(1, -30, 1, -12)
+            else
+                textBox.Position = UDim2.new(0, 5, 0, 6)
+                textBox.Size = UDim2.new(1, -10, 1, -12)
+            end
+            textBox.BackgroundColor3 = colors.input
+            textBox.BackgroundTransparency = isFolder and 1 or 0
+            textBox.BorderSizePixel = 0
+            textBox.Text = initialText
+            textBox.PlaceholderText = isFolder and column.name == "Title" and "Folder" or column.label
+            textBox.PlaceholderColor3 = colors.muted
+            textBox.TextColor3 = colors.text
+            textBox.TextSize = 14
+            textBox.Font = Enum.Font.Gotham
+            textBox.TextXAlignment = Enum.TextXAlignment.Left
+            textBox.TextYAlignment = isFolder and Enum.TextYAlignment.Center or Enum.TextYAlignment.Top
+            textBox.TextWrapped = not isFolder
+            textBox.MultiLine = not isFolder
+            textBox.ClearTextOnFocus = false
+            textBox.TextEditable = not isFolder
+            textBox.Visible = not isFolder
+            textBox.Parent = cell
+            if column.name == "Title" then
+                titleTextBox = textBox
+            end
+            if not (isFolder and column.name ~= "Title") then
+                addCorner(textBox, 5)
+            end
+            table.insert(textBoxes, textBox)
+
+        elseif column.name == "Options" then
+            local optionsButton = Instance.new("TextButton")
+            optionsButton.Name = "OptionsButton"
+            optionsButton.Position = UDim2.new(0, 3, 0, 5)
+            optionsButton.Size = UDim2.new(1, -6, 0, 32)
+            optionsButton.BackgroundColor3 = colors.header
+            optionsButton.BorderSizePixel = 0
+            optionsButton.Text = "🛠️"
+            optionsButton.TextColor3 = colors.text
+            optionsButton.TextSize = 16
+            optionsButton.Font = Enum.Font.GothamBold
+            optionsButton.Parent = cell
+            addCorner(optionsButton, 5)
+            optionsButton.Activated:Connect(function()
+                if record then
+                    showOptionsPopup(optionsButton, record)
+                end
+            end)
+        end
+    end
+
+    local hiddenNotesTextBox = Instance.new("TextBox")
+    hiddenNotesTextBox.Name = "NotesText"
+    hiddenNotesTextBox.Size = UDim2.new(0, 0, 0, 0)
+    hiddenNotesTextBox.Position = UDim2.new(0, 0, 0, 0)
+    hiddenNotesTextBox.BackgroundTransparency = 1
+    hiddenNotesTextBox.TextTransparency = 1
+    hiddenNotesTextBox.BorderSizePixel = 0
+    hiddenNotesTextBox.Text = isFolder and "" or tostring(data.notes or "")
+    hiddenNotesTextBox.Visible = false
+    hiddenNotesTextBox.TextEditable = false
+    hiddenNotesTextBox.ClearTextOnFocus = false
+    hiddenNotesTextBox.MultiLine = true
+    hiddenNotesTextBox.TextWrapped = true
+    hiddenNotesTextBox.Parent = row
+    table.insert(textBoxes, hiddenNotesTextBox)
+
+    if isFolder and titleCell then
+        folderOpenButton = Instance.new("TextButton")
+        folderOpenButton.Name = "OpenFolderButton"
+        folderOpenButton.Position = UDim2.new(0, 0, 0, 0)
+        folderOpenButton.Size = UDim2.new(1, 0, 1, 0)
+        folderOpenButton.BackgroundTransparency = 1
+        folderOpenButton.BorderSizePixel = 0
+        folderOpenButton.Text = (isUniversalRoot and "🌐  " or "📁  ") .. (initialTitle ~= "" and initialTitle or "Folder")
+        folderOpenButton.TextColor3 = isUniversalRoot and colors.universalText or colors.text
+        folderOpenButton.TextSize = 14
+        folderOpenButton.Font = Enum.Font.Gotham
+        folderOpenButton.TextXAlignment = Enum.TextXAlignment.Left
+        folderOpenButton.TextTruncate = Enum.TextTruncate.AtEnd
+        folderOpenButton.AutoButtonColor = true
+        folderOpenButton.ZIndex = 3
+        folderOpenButton.Parent = titleCell
+        folderOpenButton.Activated:Connect(function()
+            if record and openDirectory then
+                hideOptionsPopup()
+                openDirectory(record)
+            end
+        end)
+    end
+
+    if titleCell then
+        sortUpButton = Instance.new("TextButton")
+        sortUpButton.Name = "MoveRowUp"
+        sortUpButton.Position = UDim2.new(0, 2, 0, 3)
+        sortUpButton.Size = UDim2.new(0, 24, 0, 17)
+        sortUpButton.BackgroundColor3 = colors.header
+        sortUpButton.BorderSizePixel = 0
+        sortUpButton.Text = "🔺"
+        sortUpButton.TextSize = 11
+        sortUpButton.TextColor3 = colors.text
+        sortUpButton.ZIndex = 5
+        sortUpButton.Visible = false
+        sortUpButton.Parent = titleCell
+        addCorner(sortUpButton, 4)
+
+        sortDownButton = Instance.new("TextButton")
+        sortDownButton.Name = "MoveRowDown"
+        sortDownButton.Position = UDim2.new(0, 2, 0, 22)
+        sortDownButton.Size = UDim2.new(0, 24, 0, 17)
+        sortDownButton.BackgroundColor3 = colors.header
+        sortDownButton.BorderSizePixel = 0
+        sortDownButton.Text = "🔻"
+        sortDownButton.TextSize = 11
+        sortDownButton.TextColor3 = colors.text
+        sortDownButton.ZIndex = 5
+        sortDownButton.Visible = false
+        sortDownButton.Parent = titleCell
+        addCorner(sortDownButton, 4)
+    end
+
+    local function updateSortControls()
+        local controlsVisible = sortMode and not isUniversalRoot
+        if sortUpButton then
+            sortUpButton.Visible = controlsVisible
+            sortDownButton.Visible = controlsVisible
+        end
+        local shiftTitle = sortMode and not isUniversalRoot
+        if isFolder and folderOpenButton then
+            folderOpenButton.Position = shiftTitle and UDim2.new(0, 30, 0, 0) or UDim2.new(0, 0, 0, 0)
+            folderOpenButton.Size = shiftTitle and UDim2.new(1, -30, 1, 0) or UDim2.new(1, 0, 1, 0)
+        elseif titleTextBox then
+            titleTextBox.Position = shiftTitle and UDim2.new(0, 30, 0, 6) or UDim2.new(0, 5, 0, 6)
+            titleTextBox.Size = shiftTitle and UDim2.new(1, -35, 1, -12) or UDim2.new(1, -10, 1, -12)
+        end
+    end
+
+    if sortUpButton then
+        sortUpButton.Activated:Connect(function()
+            if record then
+                reorderRecord(record, -1)
+            end
+        end)
+        sortDownButton.Activated:Connect(function()
+            if record then
+                reorderRecord(record, 1)
+            end
+        end)
+    end
+
+    local function updateRowHeight()
+        if not row.Parent then
+            return
+        end
+        if isFolder then
+            row.Size = UDim2.new(1, -8, 0, 44)
+            return
+        end
+        local targetTextHeight = measureTextHeight(textBoxes[1])
+        if record and record.isExpanded then
+            for _, textBox in ipairs(textBoxes) do
+                if textBox.Visible then
+                    targetTextHeight = math.max(targetTextHeight, measureTextHeight(textBox))
+                end
+            end
+        end
+        row.Size = UDim2.new(1, -8, 0, math.max(44, math.ceil(targetTextHeight + 16)))
+    end
+
+    for _, textBox in ipairs(textBoxes) do
+        if textBox.Visible then
+            textBox:GetPropertyChangedSignal("Text"):Connect(function()
+                updateRowHeight()
+                scheduleSave()
+                if isFolder and textBox == textBoxes[1] then
+                    if folderOpenButton then
+                        folderOpenButton.Text = (isUniversalRoot and "🌐  " or "📁  ") .. (textBox.Text ~= "" and textBox.Text or "Folder")
+                    end
+                    updateNavigationTitle()
+                end
+            end)
+            textBox.FocusLost:Connect(function()
+                scheduleSave()
+            end)
+        end
+    end
+
+    record = {
+        id = tostring(data.id and data.id ~= "" and data.id or generateRecordId()),
+        itemType = itemType,
+        parentId = parentId,
+        order = orderValue,
+        isUniversalRoot = isUniversalRoot,
+        row = row,
+        textBoxes = textBoxes,
+        folderButton = folderOpenButton,
+        isExpanded = data.isExpanded == true,
+        loopDelay = isFolder and nil or tonumber(data.loopDelay),
+        loopRunning = not isFolder and data.loopRunning == true or false,
+        restoreLoopOnLoad = not isFolder and data.loopRunning == true or false,
+        loopGeneration = 0,
+        helperReference = isFolder and "" or tostring(data.helperReference or ""),
+        helperValues = isFolder and "" or tostring(data.helperValues or ""),
+        helperEnabled = not isFolder and data.helperEnabled == true or false,
+        helperGeneration = 0,
+        helperRunning = false,
+        updateRowHeight = updateRowHeight,
+        updateSortControls = updateSortControls,
+    }
+    row.LayoutOrder = record.order
+    table.insert(noteRows, record)
+    rowUpdaters[row] = updateRowHeight
+    updateSortControls()
+
+    local isVisible = record.parentId == currentDirectoryId
+    local target = isVisible and body or hiddenRowsFolder
+    row.Visible = isVisible
+    row.Parent = target
+    task.defer(updateRowHeight)
+    return record
+end
+
+sortButton.Activated:Connect(function()
+    sortMode = not sortMode
+    sortButton.Text = sortMode and "✓" or "↕"
+    sortButton.BackgroundColor3 = sortMode and colors.accent or colors.header
+    for _, record in ipairs(noteRows) do
+        if record.updateSortControls then
+            record.updateSortControls()
+        end
+    end
+end)
+
+local function folderHasChildFolders(folderId)
+    for _, item in ipairs(noteRows) do
+        if item.itemType == "folder" and tostring(item.parentId or "") == tostring(folderId or "") then
+            return true
+        end
+    end
+    return false
+end
+
+local function findRecordById(id)
+    for _, item in ipairs(noteRows) do
+        if item.id == id then
+            return item
+        end
+    end
+    return nil
+end
+
+local function isDescendantFolder(candidateId, ancestorId)
+    local cursor = findRecordById(candidateId)
+    local visited = {}
+    while cursor and cursor.parentId and cursor.parentId ~= "" and not visited[cursor.id] do
+        if cursor.parentId == ancestorId then
+            return true
+        end
+        visited[cursor.id] = true
+        cursor = findRecordById(cursor.parentId)
+    end
+    return false
+end
+
+local function canMoveRecordTo(record, destinationId)
+    destinationId = tostring(destinationId or "")
+    if not record or record.isUniversalRoot then
+        return false
+    end
+    if destinationId == "" then
+        return true
+    end
+    local destination = findRecordById(destinationId)
+    if not destination or destination.itemType ~= "folder" then
+        return false
+    end
+    if record.itemType == "folder" then
+        if destinationId == record.id or isDescendantFolder(destinationId, record.id) then
+            return false
+        end
+    end
+    return true
+end
+
+local function moveRecordTo(record, destinationId)
+    if not record or not canMoveRecordTo(record, destinationId) then
+        warn("[Notes] Folder tidak dapat dipindahkan ke direktori tersebut.")
+        return false
+    end
+    destinationId = tostring(destinationId or "")
+    if tostring(record.parentId or "") == destinationId then
+        return true
+    end
+    local destinationOrder = getNextOrder(destinationId)
+    record.parentId = destinationId
+    record.order = destinationOrder
+    if record.row then
+        record.row.LayoutOrder = record.order
+    end
+    refreshVisibleRows()
+    scheduleSave()
+    return true
+end
+
+local addPopupPositioning = function()
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+    local pos = addButton.AbsolutePosition
+    local size = addButton.AbsoluteSize
+    local popupWidth = addPopup.AbsoluteSize.X
+    local popupHeight = addPopup.AbsoluteSize.Y
+    local x = pos.X + size.X - popupWidth
+    local y = pos.Y + size.Y + 4
+    x = math.clamp(x, 4, math.max(4, viewport.X - popupWidth - 4))
+    y = math.clamp(y, 4, math.max(4, viewport.Y - popupHeight - 4))
+    addPopup.Position = UDim2.fromOffset(x, y)
+end
+
+addButton.Activated:Connect(function()
+    addPopup.Visible = not addPopup.Visible
+    if addPopup.Visible then
+        addPopupPositioning()
+    end
+end)
+
+addNewButton.Activated:Connect(function()
+    addPopup.Visible = false
+    createRow({itemType = "note", parentId = currentDirectoryId})
+    scheduleSave()
+end)
+
+addFolderButton.Activated:Connect(function()
+    addPopup.Visible = false
+    createRow({itemType = "folder", parentId = currentDirectoryId, title = "Folder Baru"})
+    scheduleSave()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not addPopup.Visible then
+        return
+    end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    local pointer = input.Position
+    local p, z = addPopup.AbsolutePosition, addPopup.AbsoluteSize
+    local insidePopup = pointer.X >= p.X and pointer.X <= p.X + z.X and pointer.Y >= p.Y and pointer.Y <= p.Y + z.Y
+    local b, bs = addButton.AbsolutePosition, addButton.AbsoluteSize
+    local insideButton = pointer.X >= b.X and pointer.X <= b.X + bs.X and pointer.Y >= b.Y and pointer.Y <= b.Y + bs.Y
+    if not insidePopup and not insideButton then
+        addPopup.Visible = false
+    end
+end)
+
+local moveOverlay = Instance.new("Frame")
+moveOverlay.Name = "MoveDirectoryOverlay"
+moveOverlay.Size = UDim2.new(1, 0, 1, 0)
+moveOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+moveOverlay.BackgroundTransparency = 0.35
+moveOverlay.BorderSizePixel = 0
+moveOverlay.Visible = false
+moveOverlay.ZIndex = 100
+moveOverlay.Parent = gui
+
+local movePanel = Instance.new("Frame")
+movePanel.Name = "MoveDirectoryPanel"
+movePanel.Position = UDim2.new(0.06, 0, 0.17, 0)
+movePanel.Size = UDim2.new(0.88, 0, 0.66, 0)
+movePanel.BackgroundColor3 = colors.background
+movePanel.BorderSizePixel = 0
+movePanel.ZIndex = 101
+movePanel.Parent = moveOverlay
+addCorner(movePanel, 10)
+addStroke(movePanel, colors.border, 1)
+
+local moveTitle = Instance.new("TextLabel")
+moveTitle.Position = UDim2.new(0, 8, 0, 6)
+moveTitle.Size = UDim2.new(1, -76, 0, 24)
+moveTitle.BackgroundTransparency = 1
+moveTitle.Text = "Pindahkan ke folder"
+moveTitle.TextColor3 = colors.text
+moveTitle.TextSize = 14
+moveTitle.Font = Enum.Font.GothamBold
+moveTitle.TextXAlignment = Enum.TextXAlignment.Left
+moveTitle.ZIndex = 102
+moveTitle.Parent = movePanel
+
+local moveCloseButton = Instance.new("TextButton")
+moveCloseButton.Position = UDim2.new(1, -62, 0, 6)
+moveCloseButton.Size = UDim2.new(0, 54, 0, 24)
+moveCloseButton.BackgroundColor3 = colors.danger
+moveCloseButton.BorderSizePixel = 0
+moveCloseButton.Text = "Tutup"
+moveCloseButton.TextColor3 = colors.text
+moveCloseButton.TextSize = 11
+moveCloseButton.Font = Enum.Font.GothamBold
+moveCloseButton.ZIndex = 102
+moveCloseButton.Parent = movePanel
+addCorner(moveCloseButton, 5)
+
+local moveBackButton = Instance.new("TextButton")
+moveBackButton.Position = UDim2.new(0, 8, 0, 34)
+moveBackButton.Size = UDim2.new(0, 52, 0, 25)
+moveBackButton.BackgroundColor3 = colors.header
+moveBackButton.BorderSizePixel = 0
+moveBackButton.Text = "← Kembali"
+moveBackButton.TextColor3 = colors.text
+moveBackButton.TextSize = 10
+moveBackButton.Font = Enum.Font.GothamBold
+moveBackButton.ZIndex = 102
+moveBackButton.Parent = movePanel
+addCorner(moveBackButton, 5)
+
+local movePathLabel = Instance.new("TextLabel")
+movePathLabel.Position = UDim2.new(0, 65, 0, 34)
+movePathLabel.Size = UDim2.new(1, -166, 0, 25)
+movePathLabel.BackgroundTransparency = 1
+movePathLabel.Text = "/"
+movePathLabel.TextColor3 = colors.muted
+movePathLabel.TextSize = 10
+movePathLabel.Font = Enum.Font.Gotham
+movePathLabel.TextXAlignment = Enum.TextXAlignment.Left
+movePathLabel.TextTruncate = Enum.TextTruncate.AtEnd
+movePathLabel.ZIndex = 102
+movePathLabel.Parent = movePanel
+
+local moveHereButton = Instance.new("TextButton")
+moveHereButton.Position = UDim2.new(1, -96, 0, 34)
+moveHereButton.Size = UDim2.new(0, 88, 0, 25)
+moveHereButton.BackgroundColor3 = colors.accent
+moveHereButton.BorderSizePixel = 0
+moveHereButton.Text = "Pindah ke root"
+moveHereButton.TextColor3 = colors.text
+moveHereButton.TextSize = 10
+moveHereButton.Font = Enum.Font.GothamBold
+moveHereButton.ZIndex = 102
+moveHereButton.Parent = movePanel
+addCorner(moveHereButton, 5)
+
+local moveList = Instance.new("ScrollingFrame")
+moveList.Name = "FolderDirectoryList"
+moveList.Position = UDim2.new(0, 8, 0, 65)
+moveList.Size = UDim2.new(1, -16, 1, -73)
+moveList.BackgroundColor3 = colors.row
+moveList.BorderSizePixel = 0
+moveList.ScrollBarThickness = 5
+moveList.ScrollBarImageColor3 = colors.border
+moveList.CanvasSize = UDim2.new(0, 0, 0, 0)
+moveList.ScrollingDirection = Enum.ScrollingDirection.Y
+moveList.ZIndex = 102
+moveList.Parent = movePanel
+addCorner(moveList, 6)
+
+local moveListLayout = Instance.new("UIListLayout")
+moveListLayout.Padding = UDim.new(0, 4)
+moveListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+moveListLayout.Parent = moveList
+moveListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    moveList.CanvasSize = UDim2.new(0, 0, 0, moveListLayout.AbsoluteContentSize.Y + 6)
+end)
+
+local movingRecord = nil
+local moveBrowseId = ""
+local moveBrowseStack = {}
+local renderMoveDirectory
+
+local function getFolderPath(stack)
+    local parts = {}
+    for _, folderRecord in ipairs(stack) do
+        table.insert(parts, folderRecord.textBoxes[1].Text ~= "" and folderRecord.textBoxes[1].Text or "Folder")
+    end
+    return #parts == 0 and "/" or "/" .. table.concat(parts, "/")
+end
+
+local function closeMoveDialog()
+    moveOverlay.Visible = false
+    movingRecord = nil
+    moveBrowseId = ""
+    table.clear(moveBrowseStack)
+end
+
+local function moveIntoDirectory(destinationId)
+    if not movingRecord then
+        closeMoveDialog()
+        return
+    end
+    local record = movingRecord
+    if not canMoveRecordTo(record, destinationId) then
+        warn("[Notes] Tidak dapat memindahkan folder ke dirinya sendiri atau ke dalam turunannya.")
+        return
+    end
+    moveRecordTo(record, destinationId)
+    closeMoveDialog()
+    hideOptionsPopup()
+end
+
+renderMoveDirectory = function()
+    for _, child in ipairs(moveList:GetChildren()) do
+        if child:IsA("GuiObject") then
+            child:Destroy()
+        end
+    end
+
+    movePathLabel.Text = getFolderPath(moveBrowseStack)
+    moveBackButton.Visible = #moveBrowseStack > 0
+    moveHereButton.Text = moveBrowseId == "" and "Pindah ke root" or "Pindah ke sini"
+
+    local folders = {}
+    for _, record in ipairs(noteRows) do
+        if record.itemType == "folder" and tostring(record.parentId or "") == moveBrowseId then
+            table.insert(folders, record)
+        end
+    end
+
+    if #folders == 0 then
+        local emptyLabel = Instance.new("TextLabel")
+        emptyLabel.Size = UDim2.new(1, -12, 0, 36)
+        emptyLabel.BackgroundTransparency = 1
+        emptyLabel.Text = "Tidak ada folder di direktori ini."
+        emptyLabel.TextColor3 = colors.muted
+        emptyLabel.TextSize = 12
+        emptyLabel.Font = Enum.Font.Gotham
+        emptyLabel.ZIndex = 103
+        emptyLabel.Parent = moveList
+        return
+    end
+
+    for index, folderRecord in ipairs(folders) do
+        local entry = Instance.new("Frame")
+        entry.Name = "FolderEntry_" .. tostring(index)
+        entry.Size = UDim2.new(1, -8, 0, 38)
+        entry.BackgroundColor3 = colors.input
+        entry.BorderSizePixel = 0
+        entry.LayoutOrder = index
+        entry.ZIndex = 103
+        entry.Parent = moveList
+        addCorner(entry, 5)
+
+        local folderName = Instance.new("TextLabel")
+        folderName.Position = UDim2.new(0, 6, 0, 0)
+        folderName.Size = UDim2.new(1, -142, 1, 0)
+        folderName.BackgroundTransparency = 1
+        folderName.Text = "📁 " .. (folderRecord.textBoxes[1].Text ~= "" and folderRecord.textBoxes[1].Text or "Folder")
+        folderName.TextColor3 = colors.text
+        folderName.TextSize = 11
+        folderName.Font = Enum.Font.Gotham
+        folderName.TextXAlignment = Enum.TextXAlignment.Left
+        folderName.TextTruncate = Enum.TextTruncate.AtEnd
+        folderName.ZIndex = 104
+        folderName.Parent = entry
+
+        local openButton = Instance.new("TextButton")
+        openButton.Position = UDim2.new(1, -132, 0, 4)
+        openButton.Size = UDim2.new(0, 60, 0, 30)
+        openButton.BackgroundColor3 = colors.header
+        openButton.BorderSizePixel = 0
+        openButton.Text = "Buka"
+        openButton.TextColor3 = colors.text
+        openButton.TextSize = 11
+        openButton.Font = Enum.Font.GothamBold
+        openButton.Visible = folderHasChildFolders(folderRecord.id)
+        openButton.ZIndex = 104
+        openButton.Parent = entry
+        addCorner(openButton, 5)
+
+        local moveButton = Instance.new("TextButton")
+        moveButton.Position = UDim2.new(1, -68, 0, 4)
+        moveButton.Size = UDim2.new(0, 62, 0, 30)
+        moveButton.BackgroundColor3 = colors.accent
+        moveButton.BorderSizePixel = 0
+        moveButton.Text = "Pindah"
+        moveButton.TextColor3 = colors.text
+        moveButton.TextSize = 10
+        moveButton.Font = Enum.Font.GothamBold
+        moveButton.ZIndex = 104
+        moveButton.Parent = entry
+        addCorner(moveButton, 5)
+
+        if movingRecord and not canMoveRecordTo(movingRecord, folderRecord.id) then
+            moveButton.Text = "Tidak bisa"
+            moveButton.BackgroundColor3 = colors.danger
+            moveButton.Active = false
+            moveButton.AutoButtonColor = false
+        else
+            moveButton.Activated:Connect(function()
+                moveIntoDirectory(folderRecord.id)
+            end)
+        end
+
+        openButton.Activated:Connect(function()
+            if not openButton.Visible then
+                return
+            end
+            table.insert(moveBrowseStack, folderRecord)
+            moveBrowseId = folderRecord.id
+            renderMoveDirectory()
+        end)
+    end
+end
+
+openMoveDialog = function(record)
+    if not record or record.isUniversalRoot then
+        return
+    end
+    movingRecord = record
+    moveBrowseId = ""
+    table.clear(moveBrowseStack)
+    optionsPopup.Visible = false
+    loopDelayBubble.Visible = false
+    addPopup.Visible = false
+    renamePanel.Visible = false
+    renamingRecord = nil
+    moveOverlay.Visible = true
+    renderMoveDirectory()
+end
+
+moveCloseButton.Activated:Connect(closeMoveDialog)
+moveBackButton.Activated:Connect(function()
+    if #moveBrowseStack == 0 then
+        return
+    end
+    table.remove(moveBrowseStack, #moveBrowseStack)
+    moveBrowseId = #moveBrowseStack > 0 and moveBrowseStack[#moveBrowseStack].id or ""
+    renderMoveDirectory()
+end)
+moveHereButton.Activated:Connect(function()
+    moveIntoDirectory(moveBrowseId)
+end)
+
+optionsMoveButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record then
+        hideOptionsPopup()
+        return
+    end
+    openMoveDialog(record)
+end)
+
+local function collectRecordSubtree(rootRecord)
+    local orderedRecords = {rootRecord}
+
+    local function appendChildren(parentId)
+        local children = {}
+        for _, candidate in ipairs(noteRows) do
+            if candidate.id ~= UNIVERSAL_ROOT_ID
+                and tostring(candidate.parentId or "") == tostring(parentId or "") then
+                table.insert(children, candidate)
+            end
+        end
+
+        table.sort(children, function(a, b)
+            local orderA = tonumber(a.order) or 0
+            local orderB = tonumber(b.order) or 0
+            if orderA == orderB then
+                return tostring(a.id) < tostring(b.id)
+            end
+            return orderA < orderB
+        end)
+
+        for _, child in ipairs(children) do
+            table.insert(orderedRecords, child)
+            if child.itemType == "folder" then
+                appendChildren(child.id)
+            end
+        end
+    end
+
+    if rootRecord.itemType == "folder" then
+        appendChildren(rootRecord.id)
+    end
+
+    return orderedRecords
+end
+
+local function duplicateRecordTree(sourceRoot)
+    if not sourceRoot or sourceRoot.isUniversalRoot then
+        warn("[Notes] Folder Universal utama tidak dapat diduplikasi.")
+        return false
+    end
+
+    local sourceRecords = collectRecordSubtree(sourceRoot)
+    local idMap = {}
+    for _, source in ipairs(sourceRecords) do
+        idMap[source.id] = generateRecordId()
+    end
+
+    local rootParentId = tostring(sourceRoot.parentId or "")
+    local rootOrder = getNextOrder(rootParentId)
+
+    for index, source in ipairs(sourceRecords) do
+        local isRootCopy = source == sourceRoot
+        local newParentId
+        local newOrder
+
+        if isRootCopy then
+            newParentId = rootParentId
+            newOrder = rootOrder
+        else
+            newParentId = idMap[tostring(source.parentId or "")] or rootParentId
+            newOrder = tonumber(source.order) or 1
+        end
+
+        local originalTitle = source.textBoxes[1] and source.textBoxes[1].Text or ""
+        local newTitle = originalTitle
+        if isRootCopy then
+            if newTitle:match("%S") then
+                newTitle = newTitle .. " (Copy)"
+            else
+                newTitle = source.itemType == "folder" and "Folder (Copy)" or "Note (Copy)"
+            end
+        end
+
+        local functionText = source.itemType == "folder" and ""
+            or (source.textBoxes[2] and source.textBoxes[2].Text or "")
+        local notesText = source.itemType == "folder" and ""
+            or (source.textBoxes[3] and source.textBoxes[3].Text or "")
+
+        createRow({
+            id = idMap[source.id],
+            itemType = source.itemType,
+            parentId = newParentId,
+            order = newOrder,
+            title = newTitle,
+            functionText = functionText,
+            notes = notesText,
+            loopDelay = source.itemType == "folder" and nil or source.loopDelay,
+            loopRunning = false,
+            helperReference = source.helperReference or "",
+            helperValues = source.helperValues or "",
+            helperEnabled = source.helperEnabled == true,
+            isExpanded = source.isExpanded == true,
+            isUniversalRoot = false,
+        })
+    end
+
+    refreshVisibleRows()
+    scheduleSave()
+    return true
+end
+
+optionsDuplicateButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record or not record.row or not record.row.Parent then
+        hideOptionsPopup()
+        return
+    end
+
+    if duplicateRecordTree(record) then
+        hideOptionsPopup()
+    end
+end)
+
+optionsSaveButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record or not record.row or not record.row.Parent then
+        hideOptionsPopup()
+        return
+    end
+
+    scheduleSave()
+    hideOptionsPopup()
+    showCopyDialog(
+        record.textBoxes[1].Text,
+        record.textBoxes[2].Text,
+        record.textBoxes[3].Text
+    )
+end)
+
+optionsDeleteButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record or not record.row or not record.row.Parent then
+        hideOptionsPopup()
+        return
+    end
+    if record.isUniversalRoot then
+        warn("[Notes] Folder Universal tidak dapat dihapus.")
+        hideOptionsPopup()
+        return
+    end
+
+    local deleteIds = {[record.id] = true}
+    local changed = true
+    while changed do
+        changed = false
+        for _, item in ipairs(noteRows) do
+            if item.parentId and deleteIds[item.parentId] and not deleteIds[item.id] then
+                deleteIds[item.id] = true
+                changed = true
+            end
+        end
+    end
+
+    for index = #noteRows, 1, -1 do
+        local item = noteRows[index]
+        if deleteIds[item.id] then
+            if item.loopRunning then
+                stopLoop(item)
+            end
+            item.helperRunning = false
+            item.helperGeneration = (item.helperGeneration or 0) + 1
+            rowUpdaters[item.row] = nil
+            if item.row then
+                item.row:Destroy()
+            end
+            table.remove(noteRows, index)
+        end
+    end
+
+    for _, folderRecord in ipairs(directoryStack) do
+        if deleteIds[folderRecord.id] then
+            currentDirectoryId = ""
+            table.clear(directoryStack)
+            break
+        end
+    end
+
+    hideOptionsPopup()
+    refreshVisibleRows()
+    scheduleSave()
+end)
+
+body:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+    task.defer(updateAllRows)
+end)
+
+
+local bubbleFrame = nil
+
+local function hideBubble()
+    if bubbleFrame and bubbleFrame.Parent then
+        bubbleFrame.Visible = false
+    end
+end
+
+local function showBubble()
+    if not bubbleFrame then
+        bubbleFrame = Instance.new("Frame")
+        bubbleFrame.Name = "TriggerBubble"
+        bubbleFrame.Size = UDim2.new(0, 130, 0, 44)
+        bubbleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 38)
+        bubbleFrame.BackgroundTransparency = 0.05
+        bubbleFrame.BorderSizePixel = 0
+        bubbleFrame.ZIndex = 60
+        bubbleFrame.Visible = false
+        bubbleFrame.Parent = gui
+
+        local bubbleCorner = Instance.new("UICorner")
+        bubbleCorner.CornerRadius = UDim.new(0, 8)
+        bubbleCorner.Parent = bubbleFrame
+
+        local bubbleStroke = Instance.new("UIStroke")
+        bubbleStroke.Thickness = 1.5
+        bubbleStroke.Color = Color3.fromRGB(120, 120, 120)
+        bubbleStroke.Parent = bubbleFrame
+
+        local hideGuiButton = Instance.new("TextButton")
+        hideGuiButton.Name = "HideGuiButton"
+        hideGuiButton.Size = UDim2.new(1, -12, 1, -12)
+        hideGuiButton.Position = UDim2.fromOffset(6, 6)
+        hideGuiButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        hideGuiButton.BorderSizePixel = 0
+        hideGuiButton.Text = "Hide Gui"
+        hideGuiButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        hideGuiButton.TextSize = 13
+        hideGuiButton.Font = Enum.Font.GothamBold
+        hideGuiButton.ZIndex = 61
+        hideGuiButton.Parent = bubbleFrame
+
+        local hideCorner = Instance.new("UICorner")
+        hideCorner.CornerRadius = UDim.new(0, 6)
+        hideCorner.Parent = hideGuiButton
+
+        hideGuiButton.Activated:Connect(function()
+            hideBubble()
+            saveNotesNow()
+            renamePanel.Visible = false
+            renamingRecord = nil
+            addPopup.Visible = false
+            optionsPopup.Visible = false
+            loopDelayBubble.Visible = false
+            copyOverlay.Visible = false
+            moveOverlay.Visible = false
+            hideGuiButton.BackgroundColor3 = Color3.fromRGB(120, 30, 30)
+            hideGuiButton.Size = UDim2.new(1, -16, 1, -16)
+            hideGuiButton.Position = UDim2.fromOffset(8, 8)
+
+            task.delay(0.2, function()
+                main.Visible = false
+                if bubbleFrame and bubbleFrame.Parent then
+                    bubbleFrame.Visible = false
+                end
+                gui.Enabled = false
+            end)
+        end)
+    end
+
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+    local triggerPosition = launcher.AbsolutePosition
+    local triggerSize = launcher.AbsoluteSize
+    local bubbleWidth = bubbleFrame.AbsoluteSize.X
+    local bubbleHeight = bubbleFrame.AbsoluteSize.Y
+
+    local x = triggerPosition.X
+    local y = triggerPosition.Y - bubbleHeight - 6
+    if y < 4 then
+        y = triggerPosition.Y + triggerSize.Y + 6
+    end
+
+    x = math.clamp(x, 4, math.max(4, viewport.X - bubbleWidth - 4))
+    y = math.clamp(y, 4, math.max(4, viewport.Y - bubbleHeight - 4))
+    bubbleFrame.Position = UDim2.fromOffset(x, y)
+    bubbleFrame.Visible = true
+end
+
+local function minimizeToLauncher()
+    local focusedBox = UserInputService:GetFocusedTextBox()
+    if focusedBox and focusedBox:IsDescendantOf(main) then
+        focusedBox:ReleaseFocus()
+    end
+
+    saveNotesNow()
+    copyOverlay.Visible = false
+    addPopup.Visible = false
+    moveOverlay.Visible = false
+    renamePanel.Visible = false
+    renamingRecord = nil
+    main.Size = UDim2.new(0.6, 0, 0.8, 0)
+    header.Visible = true
+    body.Visible = true
+    minimizeButton.Text = "−"
+    main.Visible = false
+    launcher.Visible = true
+    hideBubble()
+end
+
+minimizeButton.Activated:Connect(minimizeToLauncher)
+
+local dragging = false
+local dragStart
+local startPosition
+
+local function beginDrag(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    local localX = input.Position.X - topbar.AbsolutePosition.X
+    if localX >= topbar.AbsoluteSize.X - 118 then
+        return
+    end
+
+    dragging = true
+    dragStart = input.Position
+    startPosition = main.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+topbar.InputBegan:Connect(beginDrag)
+titleLabel.InputBegan:Connect(beginDrag)
+
+local launcherPressing = false
+local launcherDragging = false
+local launcherLongPressFired = false
+local launcherDragStart = Vector2.new(0, 0)
+local launcherStartPosition = UDim2.new(0, 0, 0, 0)
+local longPressThread = nil
+
+launcher.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    launcherPressing = true
+    launcherDragging = false
+    launcherLongPressFired = false
+    launcherDragStart = input.Position
+    launcherStartPosition = launcher.Position
+    hideBubble()
+
+    if longPressThread then
+        task.cancel(longPressThread)
+        longPressThread = nil
+    end
+
+    longPressThread = task.delay(0.5, function()
+        if launcherPressing and not launcherDragging then
+            launcherLongPressFired = true
+            showBubble()
+        end
+    end)
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    if launcherPressing then
+        local delta = input.Position - launcherDragStart
+
+        if delta.Magnitude > 5 then
+            launcherDragging = true
+
+            if longPressThread then
+                task.cancel(longPressThread)
+                longPressThread = nil
+            end
+        end
+
+        if launcherDragging then
+            launcher.Position = UDim2.new(
+                launcherStartPosition.X.Scale,
+                launcherStartPosition.X.Offset + delta.X,
+                launcherStartPosition.Y.Scale,
+                launcherStartPosition.Y.Offset + delta.Y
+            )
+        end
+
+        return
+    end
+
+    if dragging then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    if not launcherPressing then
+        return
+    end
+
+    if longPressThread then
+        task.cancel(longPressThread)
+        longPressThread = nil
+    end
+
+    if not launcherDragging and not launcherLongPressFired then
+        main.Position = launcher.Position
+        main.Size = UDim2.new(0.6, 0, 0.8, 0)
+        header.Visible = true
+        body.Visible = true
+        copyOverlay.Visible = false
+        addPopup.Visible = false
+        moveOverlay.Visible = false
+        renamePanel.Visible = false
+        renamingRecord = nil
+        minimizeButton.Text = "−"
+        main.Visible = true
+        launcher.Visible = true
+        task.defer(updateAllRows)
+    end
+
+    launcherPressing = false
+    launcherDragging = false
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    if not bubbleFrame or not bubbleFrame.Visible or launcherPressing then
+        return
+    end
+
+    local pointer = input.Position
+    local bubblePosition = bubbleFrame.AbsolutePosition
+    local bubbleSize = bubbleFrame.AbsoluteSize
+    local insideBubble =
+        pointer.X >= bubblePosition.X
+        and pointer.X <= bubblePosition.X + bubbleSize.X
+        and pointer.Y >= bubblePosition.Y
+        and pointer.Y <= bubblePosition.Y + bubbleSize.Y
+
+    if not insideBubble then
+        hideBubble()
+    end
+end)
+
+for _, note in ipairs(initialUniversalNotes) do
+    createRow(note)
+end
+
+for _, note in ipairs(initialNotes) do
+    createRow(note)
+end
+
+if #initialNotes == 0 and #initialUniversalNotes <= 1 then
+    createRow({itemType = "note", parentId = ""})
+end
+
+refreshVisibleRows()
+scheduleSave()
+
+task.defer(function()
+    for _, record in ipairs(noteRows) do
+        if record.itemType ~= "folder" and record.restoreLoopOnLoad then
+            if record.loopDelay and record.loopDelay > 0 then
+                startLoop(record, record.loopDelay)
+            else
+                record.loopRunning = false
+                scheduleSave()
+            end
+        else
+            record.loopRunning = false
+        end
+        record.restoreLoopOnLoad = nil
+    end
+end)
