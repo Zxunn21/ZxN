@@ -55,6 +55,7 @@ local function loadNotesFromJson(fileName, expectedUniverseId)
                     helperReference = tostring(item.helperReference or ""),
                     helperValues = tostring(item.helperValues or ""),
                     helperEnabled = item.helperEnabled == true,
+                    autoRun = item.autoRun == true,
                     itemType = item.itemType == "folder" and "folder" or "note",
                     parentId = tostring(item.parentId or ""),
                     order = tonumber(item.order) or index,
@@ -571,6 +572,7 @@ local function saveNotesNow()
                 helperReference = record.itemType ~= "folder" and tostring(record.helperReference or "") or "",
                 helperValues = record.itemType ~= "folder" and tostring(record.helperValues or "") or "",
                 helperEnabled = record.itemType ~= "folder" and record.helperEnabled == true or false,
+                autoRun = record.itemType ~= "folder" and record.autoRun == true or false,
                 itemType = record.itemType or "note",
                 parentId = tostring(record.parentId or ""),
                 order = tonumber(record.order) or 1,
@@ -751,7 +753,7 @@ end
 
 local optionsPopup = Instance.new("Frame")
 optionsPopup.Name = "RowOptionsPopup"
-optionsPopup.Size = UDim2.new(0, 136, 0, 186)
+optionsPopup.Size = UDim2.new(0, 136, 0, 222)
 optionsPopup.BackgroundColor3 = colors.header
 optionsPopup.BorderSizePixel = 0
 optionsPopup.Visible = false
@@ -802,6 +804,20 @@ optionsRunButton.Font = Enum.Font.GothamBold
 optionsRunButton.ZIndex = 71
 optionsRunButton.Parent = optionsPopup
 addCorner(optionsRunButton, 6)
+
+local optionsAutoRunButton = Instance.new("TextButton")
+optionsAutoRunButton.Name = "AutoRunButton"
+optionsAutoRunButton.Position = UDim2.new(0, 5, 0, 77)
+optionsAutoRunButton.Size = UDim2.new(1, -10, 0, 30)
+optionsAutoRunButton.BackgroundColor3 = colors.input
+optionsAutoRunButton.BorderSizePixel = 0
+optionsAutoRunButton.Text = "Auto Run: OFF"
+optionsAutoRunButton.TextColor3 = colors.text
+optionsAutoRunButton.TextSize = 13
+optionsAutoRunButton.Font = Enum.Font.GothamBold
+optionsAutoRunButton.ZIndex = 71
+optionsAutoRunButton.Parent = optionsPopup
+addCorner(optionsAutoRunButton, 6)
 
 local optionsHelperButton = Instance.new("TextButton")
 optionsHelperButton.Name = "HelperButton"
@@ -1175,6 +1191,7 @@ local function layoutOptionsPopup()
         optionsActionButton,
         optionsRenameButton,
         optionsRunButton,
+        optionsAutoRunButton,
         optionsHelperButton,
         optionsMoveButton,
         optionsDuplicateButton,
@@ -1274,6 +1291,9 @@ local function showOptionsPopup(button, record)
         or (record.isExpanded and "Minimize" or "Expand")
     optionsRenameButton.Visible = record.itemType == "folder" and not record.isUniversalRoot
     optionsRunButton.Visible = record.itemType ~= "folder"
+    optionsAutoRunButton.Visible = record.itemType ~= "folder"
+    optionsAutoRunButton.Text = record.autoRun and "Auto Run: ON" or "Auto Run: OFF"
+    optionsAutoRunButton.BackgroundColor3 = record.autoRun and colors.accent or colors.input
     optionsHelperButton.Visible = record.itemType ~= "folder"
     optionsSaveButton.Visible = record.itemType ~= "folder"
     optionsMoveButton.Visible = not record.isUniversalRoot
@@ -1649,6 +1669,18 @@ UserInputService.InputEnded:Connect(function(input)
         or input.UserInputType == Enum.UserInputType.Touch then
         runButtonPressing = false
     end
+end)
+
+optionsAutoRunButton.Activated:Connect(function()
+    local record = selectedOptionsRecord
+    if not record or record.itemType == "folder" then
+        return
+    end
+
+    record.autoRun = not (record.autoRun == true)
+    optionsAutoRunButton.Text = record.autoRun and "Auto Run: ON" or "Auto Run: OFF"
+    optionsAutoRunButton.BackgroundColor3 = record.autoRun and colors.accent or colors.input
+    saveNotesNow()
 end)
 
 optionsRunButton.Activated:Connect(function()
@@ -2228,6 +2260,7 @@ local function createRow(data)
         helperReference = isFolder and "" or tostring(data.helperReference or ""),
         helperValues = isFolder and "" or tostring(data.helperValues or ""),
         helperEnabled = not isFolder and data.helperEnabled == true or false,
+        autoRun = not isFolder and data.autoRun == true or false,
         helperGeneration = 0,
         helperRunning = false,
         updateRowHeight = updateRowHeight,
@@ -2754,6 +2787,7 @@ local function duplicateRecordTree(sourceRoot)
             helperReference = source.helperReference or "",
             helperValues = source.helperValues or "",
             helperEnabled = source.helperEnabled == true,
+            autoRun = source.autoRun == true,
             isExpanded = source.isExpanded == true,
             isUniversalRoot = false,
         })
@@ -3126,5 +3160,13 @@ task.defer(function()
             record.loopRunning = false
         end
         record.restoreLoopOnLoad = nil
+    end
+
+    task.wait(0.25)
+    for _, record in ipairs(noteRows) do
+        if record.itemType ~= "folder" and record.autoRun == true then
+            runFunctionText(record, false)
+            task.wait(0.05)
+        end
     end
 end)
