@@ -3027,7 +3027,12 @@ titleLabel.InputBegan:Connect(beginDrag)
 
 local launcherPressing = false
 local launcherLongPressFired = false
+local launcherDragging = false
+local launcherDragStart = nil
+local launcherStartPosition = nil
+local launcherMoved = false
 local longPressThread = nil
+local LAUNCHER_DRAG_THRESHOLD = 8
 
 launcher.InputBegan:Connect(function(input)
     if input.UserInputType ~= Enum.UserInputType.MouseButton1
@@ -3037,6 +3042,10 @@ launcher.InputBegan:Connect(function(input)
 
     launcherPressing = true
     launcherLongPressFired = false
+    launcherDragging = false
+    launcherMoved = false
+    launcherDragStart = input.Position
+    launcherStartPosition = UDim2.fromOffset(launcher.AbsolutePosition.X, launcher.AbsolutePosition.Y)
     hideBubble()
 
     if longPressThread then
@@ -3045,7 +3054,7 @@ launcher.InputBegan:Connect(function(input)
     end
 
     longPressThread = task.delay(0.5, function()
-        if launcherPressing then
+        if launcherPressing and not launcherMoved and not launcherDragging then
             launcherLongPressFired = true
             showBubble()
         end
@@ -3056,6 +3065,31 @@ UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType ~= Enum.UserInputType.MouseMovement
         and input.UserInputType ~= Enum.UserInputType.Touch then
         return
+    end
+
+    if launcherPressing and launcherDragStart and not launcherLongPressFired then
+        local delta = input.Position - launcherDragStart
+        if delta.Magnitude >= LAUNCHER_DRAG_THRESHOLD then
+            launcherMoved = true
+            launcherDragging = true
+            if longPressThread then
+                task.cancel(longPressThread)
+                longPressThread = nil
+            end
+        end
+
+        if launcherDragging then
+            local camera = workspace.CurrentCamera
+            local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+            local newX = launcherStartPosition.X.Offset + delta.X
+            local newY = launcherStartPosition.Y.Offset + delta.Y
+            local maxX = math.max(0, viewport.X - launcher.AbsoluteSize.X)
+            local maxY = math.max(0, viewport.Y - launcher.AbsoluteSize.Y)
+            launcher.Position = UDim2.fromOffset(
+                math.clamp(newX, 0, maxX),
+                math.clamp(newY, 0, maxY)
+            )
+        end
     end
 
     if dragging then
@@ -3084,24 +3118,32 @@ UserInputService.InputEnded:Connect(function(input)
         longPressThread = nil
     end
 
-    if not launcherLongPressFired then
-        main.Position = UDim2.new(0.2, 0, 0.1, 0)
-        main.Size = UDim2.new(0.6, 0, 0.8, 0)
-        header.Visible = true
-        body.Visible = true
-        copyOverlay.Visible = false
-        addPopup.Visible = false
-        moveOverlay.Visible = false
-        renamePanel.Visible = false
-        renamingRecord = nil
-        minimizeButton.Text = "−"
-        main.Visible = true
-        launcher.Visible = true
-        task.defer(updateAllRows)
+    if not launcherLongPressFired and not launcherMoved then
+        if main.Visible then
+            minimizeToLauncher()
+        else
+            main.Position = UDim2.new(0.2, 0, 0.1, 0)
+            main.Size = UDim2.new(0.6, 0, 0.8, 0)
+            header.Visible = true
+            body.Visible = true
+            copyOverlay.Visible = false
+            addPopup.Visible = false
+            moveOverlay.Visible = false
+            renamePanel.Visible = false
+            renamingRecord = nil
+            minimizeButton.Text = "−"
+            main.Visible = true
+            launcher.Visible = true
+            task.defer(updateAllRows)
+        end
     end
 
     launcherPressing = false
     launcherLongPressFired = false
+    launcherDragging = false
+    launcherDragStart = nil
+    launcherStartPosition = nil
+    launcherMoved = false
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
