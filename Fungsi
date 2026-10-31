@@ -288,7 +288,7 @@ addCorner(addFolderButton, 6)
 local launcher = Instance.new("TextButton")
 launcher.Name = "NotesLauncher"
 launcher.Size = UDim2.new(0, 88, 0, 30)
-launcher.Position = UDim2.new(0.2, 0, 0.5, 0)
+launcher.Position = UDim2.new(0.05, 0, 0.5, -15)
 launcher.BackgroundColor3 = colors.accent
 launcher.BorderSizePixel = 0
 launcher.Text = "📝Notes"
@@ -2992,10 +2992,7 @@ topbar.InputBegan:Connect(beginDrag)
 titleLabel.InputBegan:Connect(beginDrag)
 
 local launcherPressing = false
-local launcherDragging = false
 local launcherLongPressFired = false
-local launcherDragStart = Vector2.new(0, 0)
-local launcherStartPosition = UDim2.new(0, 0, 0, 0)
 local longPressThread = nil
 
 launcher.InputBegan:Connect(function(input)
@@ -3005,10 +3002,7 @@ launcher.InputBegan:Connect(function(input)
     end
 
     launcherPressing = true
-    launcherDragging = false
     launcherLongPressFired = false
-    launcherDragStart = input.Position
-    launcherStartPosition = launcher.Position
     hideBubble()
 
     if longPressThread then
@@ -3017,7 +3011,7 @@ launcher.InputBegan:Connect(function(input)
     end
 
     longPressThread = task.delay(0.5, function()
-        if launcherPressing and not launcherDragging then
+        if launcherPressing then
             launcherLongPressFired = true
             showBubble()
         end
@@ -3027,30 +3021,6 @@ end)
 UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType ~= Enum.UserInputType.MouseMovement
         and input.UserInputType ~= Enum.UserInputType.Touch then
-        return
-    end
-
-    if launcherPressing then
-        local delta = input.Position - launcherDragStart
-
-        if delta.Magnitude > 5 then
-            launcherDragging = true
-
-            if longPressThread then
-                task.cancel(longPressThread)
-                longPressThread = nil
-            end
-        end
-
-        if launcherDragging then
-            launcher.Position = UDim2.new(
-                launcherStartPosition.X.Scale,
-                launcherStartPosition.X.Offset + delta.X,
-                launcherStartPosition.Y.Scale,
-                launcherStartPosition.Y.Offset + delta.Y
-            )
-        end
-
         return
     end
 
@@ -3080,8 +3050,8 @@ UserInputService.InputEnded:Connect(function(input)
         longPressThread = nil
     end
 
-    if not launcherDragging and not launcherLongPressFired then
-        main.Position = launcher.Position
+    if not launcherLongPressFired then
+        main.Position = UDim2.new(0.2, 0, 0.1, 0)
         main.Size = UDim2.new(0.6, 0, 0.8, 0)
         header.Visible = true
         body.Visible = true
@@ -3097,7 +3067,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 
     launcherPressing = false
-    launcherDragging = false
+    launcherLongPressFired = false
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
