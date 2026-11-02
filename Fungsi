@@ -3189,7 +3189,25 @@ end
 refreshVisibleRows()
 scheduleSave()
 
+-- Startup recovery and Auto Run queue.
+-- Scripts are launched one at a time with a gap between launches so that
+-- several saved Auto Run entries do not all initialize on the same frame.
+local AUTO_RUN_START_DELAY = 1
+local AUTO_RUN_LAUNCH_INTERVAL = 0.85
+
+local function isRunnableRecord(record)
+    return record
+        and record.itemType ~= "folder"
+        and record.autoRun == true
+        and record.row
+        and record.row.Parent
+        and record.textBoxes
+        and record.textBoxes[2]
+        and not ((record.textBoxes[2].Text or ""):match("^%s*$"))
+end
+
 task.defer(function()
+    -- Restore saved loop entries first, as in the previous version.
     for _, record in ipairs(noteRows) do
         if record.itemType ~= "folder" and record.restoreLoopOnLoad then
             if record.loopDelay and record.loopDelay > 0 then
@@ -3204,11 +3222,38 @@ task.defer(function()
         record.restoreLoopOnLoad = nil
     end
 
-    task.wait(0.25)
+    task.wait(AUTO_RUN_START_DELAY)
+
+    -- Snapshot the startup queue. Changes to Auto Run after startup do not
+    -- unexpectedly add/remove entries from a queue already being processed.
+    local autoRunQueue = {}
     for _, record in ipairs(noteRows) do
-        if record.itemType ~= "folder" and record.autoRun == true then
-            runFunctionText(record, false)
-            task.wait(0.05)
+        if isRunnableRecord(record) then
+            table.insert(autoRunQueue, record)
+        end
+    end
+
+    for index, record in ipairs(autoRunQueue) do
+        -- Re-check each entry before launching it; it may have been deleted,
+        -- moved out of the UI, or had Auto Run disabled during the wait.
+        if isRunnableRecord(record) then
+            task.spawn(function()
+                local ok, result = pcall(runFunctionText, record, true)
+                if not ok then
+                    warn("[Notes] Auto Run gagal pada '" ..
+                        tostring(record.textBoxes and record.textBoxes[1]
+                            and record.textBoxes[1].Text or "Untitled") ..
+                        "': " .. tostring(result))
+                elseif result == false then
+                    warn("[Notes] Auto Run tidak berhasil pada '" ..
+                        tostring(record.textBoxes and record.textBoxes[1]
+                            and record.textBoxes[1].Text or "Untitled") .. "'.")
+                end
+            end)
+        end
+
+        if index < #autoRunQueue then
+            task.wait(AUTO_RUN_LAUNCH_INTERVAL)
         end
     end
 end)
