@@ -9,6 +9,37 @@ local playerGui = player:WaitForChild("PlayerGui")
 local universeId = tostring(game.GameId)
 local storageFile = "Notes_Universe_" .. universeId .. ".json"
 local universalStorageFile = "Notes_Universal.json"
+
+-- Posisi launcher disimpan sebagai normalized scale (0-1), bukan pixel.
+local launcherPositionScale = {x = 0.05, y = 0.5}
+
+local function loadLauncherPosition()
+    if type(readfile) ~= "function" then
+        return
+    end
+    local ok, raw = pcall(readfile, storageFile)
+    if not ok or type(raw) ~= "string" or raw == "" then
+        return
+    end
+    local decodedOk, data = pcall(function()
+        return HttpService:JSONDecode(raw)
+    end)
+    if not decodedOk or type(data) ~= "table"
+        or tostring(data.universeId or "") ~= tostring(universeId) then
+        return
+    end
+    local pos = data.launcherPosition
+    if type(pos) == "table" then
+        local x = tonumber(pos.x)
+        local y = tonumber(pos.y)
+        if x and y then
+            launcherPositionScale.x = math.clamp(x, 0, 1)
+            launcherPositionScale.y = math.clamp(y, 0, 1)
+        end
+    end
+end
+
+loadLauncherPosition()
 local UNIVERSAL_ROOT_ID = "__notes_universal_root__"
 
 local function loadNotesFromJson(fileName, expectedUniverseId)
@@ -184,6 +215,7 @@ hiddenRowsFolder.Parent = gui
 
 local main = Instance.new("Frame")
 main.Name = "MainFrame"
+main.Visible = false
 main.Size = UDim2.new(0.6, 0, 0.8, 0)
 main.Position = UDim2.new(0.2, 0, 0.1, 0)
 main.BackgroundColor3 = colors.background
@@ -289,7 +321,7 @@ addCorner(addFolderButton, 6)
 local launcher = Instance.new("TextButton")
 launcher.Name = "NotesLauncher"
 launcher.Size = UDim2.new(0, 88, 0, 30)
-launcher.Position = UDim2.new(0.05, 0, 0.5, -15)
+launcher.Position = UDim2.new(launcherPositionScale.x, 0, launcherPositionScale.y, 0)
 launcher.BackgroundColor3 = colors.accent
 launcher.BorderSizePixel = 0
 launcher.Text = "📝Notes"
@@ -607,6 +639,10 @@ local function saveNotesNow()
         schemaVersion = 2,
         universeId = tonumber(universeId) or universeId,
         notes = localNotes,
+        launcherPosition = {
+            x = launcherPositionScale.x,
+            y = launcherPositionScale.y,
+        },
     }
     local universalPayload = {
         schemaVersion = 2,
@@ -3025,6 +3061,7 @@ end
 topbar.InputBegan:Connect(beginDrag)
 titleLabel.InputBegan:Connect(beginDrag)
 
+local startStartupTasks
 local launcherPressing = false
 local launcherLongPressFired = false
 local launcherDragging = false
@@ -3045,7 +3082,7 @@ launcher.InputBegan:Connect(function(input)
     launcherDragging = false
     launcherMoved = false
     launcherDragStart = input.Position
-    launcherStartPosition = UDim2.fromOffset(launcher.AbsolutePosition.X, launcher.AbsolutePosition.Y)
+    launcherStartPosition = Vector2.new(launcher.AbsolutePosition.X, launcher.AbsolutePosition.Y)
     hideBubble()
 
     if longPressThread then
@@ -3081,14 +3118,15 @@ UserInputService.InputChanged:Connect(function(input)
         if launcherDragging then
             local camera = workspace.CurrentCamera
             local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
-            local newX = launcherStartPosition.X.Offset + delta.X
-            local newY = launcherStartPosition.Y.Offset + delta.Y
-            local maxX = math.max(0, viewport.X - launcher.AbsoluteSize.X)
-            local maxY = math.max(0, viewport.Y - launcher.AbsoluteSize.Y)
-            launcher.Position = UDim2.fromOffset(
-                math.clamp(newX, 0, maxX),
-                math.clamp(newY, 0, maxY)
-            )
+            local newX = launcherStartPosition.X + delta.X
+            local newY = launcherStartPosition.Y + delta.Y
+            local maxX = math.max(1, viewport.X - launcher.AbsoluteSize.X)
+            local maxY = math.max(1, viewport.Y - launcher.AbsoluteSize.Y)
+            local scaleX = math.clamp(newX / maxX, 0, 1)
+            local scaleY = math.clamp(newY / maxY, 0, 1)
+            launcherPositionScale.x = scaleX
+            launcherPositionScale.y = scaleY
+            launcher.Position = UDim2.new(scaleX, 0, scaleY, 0)
         end
     end
 
@@ -3113,6 +3151,10 @@ UserInputService.InputEnded:Connect(function(input)
         return
     end
 
+    if launcherMoved and launcherDragging then
+        saveNotesNow()
+    end
+
     if longPressThread then
         task.cancel(longPressThread)
         longPressThread = nil
@@ -3135,6 +3177,9 @@ UserInputService.InputEnded:Connect(function(input)
             main.Visible = true
             launcher.Visible = true
             task.defer(updateAllRows)
+            if startStartupTasks then
+                startStartupTasks()
+            end
         end
     end
 
@@ -3189,11 +3234,12 @@ end
 refreshVisibleRows()
 scheduleSave()
 
--- Startup recovery and Auto Run queue.
--- Scripts are launched one at a time with a gap between launches so that
--- several saved Auto Run entries do not all initialize on the same frame.
-local AUTO_RUN_START_DELAY = 1
-local AUTO_RUN_LAUNCH_INTERVAL = 0.85
+-- Startup recovery + Auto Run hanya dimulai ketika launcher pertama kali dibuka.
+-- Auto Run diproses satu per satu (bukan task.spawn per item), agar pemanggilan
+-- script tidak saling menimpa pada frame/waktu yang sama.
+local AUTO_RUN_LAUNCH_INTERVAL = 1.0
+local startupLoopsRestored = false
+local autoRunQueueRunning = false
 
 local function isRunnableRecord(record)
     return record
@@ -3206,8 +3252,12 @@ local function isRunnableRecord(record)
         and not ((record.textBoxes[2].Text or ""):match("^%s*$"))
 end
 
-task.defer(function()
-    -- Restore saved loop entries first, as in the previous version.
+local function restoreSavedLoopsOnce()
+    if startupLoopsRestored then
+        return
+    end
+    startupLoopsRestored = true
+
     for _, record in ipairs(noteRows) do
         if record.itemType ~= "folder" and record.restoreLoopOnLoad then
             if record.loopDelay and record.loopDelay > 0 then
@@ -3221,39 +3271,53 @@ task.defer(function()
         end
         record.restoreLoopOnLoad = nil
     end
+end
 
-    task.wait(AUTO_RUN_START_DELAY)
-
-    -- Snapshot the startup queue. Changes to Auto Run after startup do not
-    -- unexpectedly add/remove entries from a queue already being processed.
-    local autoRunQueue = {}
-    for _, record in ipairs(noteRows) do
-        if isRunnableRecord(record) then
-            table.insert(autoRunQueue, record)
-        end
+local function runAutoRunQueue()
+    if autoRunQueueRunning then
+        warn("[Notes] Auto Run masih berjalan; permintaan baru dilewati.")
+        return
     end
 
-    for index, record in ipairs(autoRunQueue) do
-        -- Re-check each entry before launching it; it may have been deleted,
-        -- moved out of the UI, or had Auto Run disabled during the wait.
-        if isRunnableRecord(record) then
-            task.spawn(function()
+    autoRunQueueRunning = true
+    task.spawn(function()
+        local queue = {}
+        for _, record in ipairs(noteRows) do
+            if isRunnableRecord(record) then
+                table.insert(queue, record)
+            end
+        end
+
+        print("[Notes] Auto Run dimulai. Jumlah script: " .. tostring(#queue))
+
+        for index, record in ipairs(queue) do
+            if isRunnableRecord(record) then
+                local title = tostring(record.textBoxes[1] and record.textBoxes[1].Text or "Untitled")
                 local ok, result = pcall(runFunctionText, record, true)
+
                 if not ok then
-                    warn("[Notes] Auto Run gagal pada '" ..
-                        tostring(record.textBoxes and record.textBoxes[1]
-                            and record.textBoxes[1].Text or "Untitled") ..
-                        "': " .. tostring(result))
+                    warn("[Notes] Auto Run gagal pada '" .. title .. "': " .. tostring(result))
                 elseif result == false then
-                    warn("[Notes] Auto Run tidak berhasil pada '" ..
-                        tostring(record.textBoxes and record.textBoxes[1]
-                            and record.textBoxes[1].Text or "Untitled") .. "'.")
+                    warn("[Notes] Auto Run tidak berhasil pada '" .. title .. "'.")
+                else
+                    print("[Notes] Auto Run selesai dipanggil: " .. title)
                 end
-            end)
+            end
+
+            if index < #queue then
+                task.wait(AUTO_RUN_LAUNCH_INTERVAL)
+            end
         end
 
-        if index < #autoRunQueue then
-            task.wait(AUTO_RUN_LAUNCH_INTERVAL)
-        end
-    end
-end)
+        autoRunQueueRunning = false
+        print("[Notes] Antrean Auto Run selesai.")
+
+        -- Pulihkan loop tersimpan setelah antrean Auto Run selesai,
+        -- supaya keduanya tidak mulai bersamaan.
+        restoreSavedLoopsOnce()
+    end)
+end
+
+startStartupTasks = function()
+    runAutoRunQueue()
+end
