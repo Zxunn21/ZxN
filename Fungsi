@@ -321,7 +321,8 @@ addCorner(addFolderButton, 6)
 local launcher = Instance.new("TextButton")
 launcher.Name = "NotesLauncher"
 launcher.Size = UDim2.new(0, 88, 0, 30)
-launcher.Position = UDim2.new(launcherPositionScale.x, 0, launcherPositionScale.y, 0)
+launcher.AnchorPoint = Vector2.new(0.5, 0.5)
+launcher.Position = UDim2.fromScale(launcherPositionScale.x, launcherPositionScale.y)
 launcher.BackgroundColor3 = colors.accent
 launcher.BorderSizePixel = 0
 launcher.Text = "📝Notes"
@@ -3071,6 +3072,37 @@ local launcherMoved = false
 local longPressThread = nil
 local LAUNCHER_DRAG_THRESHOLD = 8
 
+
+
+-- Pertahankan posisi relatif launcher ketika ukuran layar berubah.
+local function reapplyLauncherPosition()
+    local camera = workspace.CurrentCamera
+    if not camera then
+        return
+    end
+    local viewport = camera.ViewportSize
+    local halfW = launcher.AbsoluteSize.X * 0.5
+    local halfH = launcher.AbsoluteSize.Y * 0.5
+    local x = math.clamp(launcherPositionScale.x * viewport.X, halfW, math.max(halfW, viewport.X - halfW))
+    local y = math.clamp(launcherPositionScale.y * viewport.Y, halfH, math.max(halfH, viewport.Y - halfH))
+    launcherPositionScale.x = x / math.max(1, viewport.X)
+    launcherPositionScale.y = y / math.max(1, viewport.Y)
+    launcher.Position = UDim2.fromScale(launcherPositionScale.x, launcherPositionScale.y)
+end
+
+task.defer(reapplyLauncherPosition)
+local function watchCameraViewport()
+    local camera = workspace.CurrentCamera
+    if camera then
+        camera:GetPropertyChangedSignal("ViewportSize"):Connect(reapplyLauncherPosition)
+    end
+end
+watchCameraViewport()
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    task.defer(watchCameraViewport)
+    task.defer(reapplyLauncherPosition)
+end)
+
 launcher.InputBegan:Connect(function(input)
     if input.UserInputType ~= Enum.UserInputType.MouseButton1
         and input.UserInputType ~= Enum.UserInputType.Touch then
@@ -3082,7 +3114,10 @@ launcher.InputBegan:Connect(function(input)
     launcherDragging = false
     launcherMoved = false
     launcherDragStart = input.Position
-    launcherStartPosition = Vector2.new(launcher.AbsolutePosition.X, launcher.AbsolutePosition.Y)
+    launcherStartPosition = Vector2.new(
+        launcher.AbsolutePosition.X + launcher.AbsoluteSize.X * 0.5,
+        launcher.AbsolutePosition.Y + launcher.AbsoluteSize.Y * 0.5
+    )
     hideBubble()
 
     if longPressThread then
@@ -3118,15 +3153,15 @@ UserInputService.InputChanged:Connect(function(input)
         if launcherDragging then
             local camera = workspace.CurrentCamera
             local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
-            local newX = launcherStartPosition.X + delta.X
-            local newY = launcherStartPosition.Y + delta.Y
-            local maxX = math.max(1, viewport.X - launcher.AbsoluteSize.X)
-            local maxY = math.max(1, viewport.Y - launcher.AbsoluteSize.Y)
-            local scaleX = math.clamp(newX / maxX, 0, 1)
-            local scaleY = math.clamp(newY / maxY, 0, 1)
+            local halfW = launcher.AbsoluteSize.X * 0.5
+            local halfH = launcher.AbsoluteSize.Y * 0.5
+            local newX = math.clamp(launcherStartPosition.X + delta.X, halfW, math.max(halfW, viewport.X - halfW))
+            local newY = math.clamp(launcherStartPosition.Y + delta.Y, halfH, math.max(halfH, viewport.Y - halfH))
+            local scaleX = math.clamp(newX / math.max(1, viewport.X), 0, 1)
+            local scaleY = math.clamp(newY / math.max(1, viewport.Y), 0, 1)
             launcherPositionScale.x = scaleX
             launcherPositionScale.y = scaleY
-            launcher.Position = UDim2.new(scaleX, 0, scaleY, 0)
+            launcher.Position = UDim2.fromScale(scaleX, scaleY)
         end
     end
 
@@ -3152,6 +3187,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 
     if launcherMoved and launcherDragging then
+        -- Simpan koordinat normalized terbaru langsung ke JSON.
         saveNotesNow()
     end
 
